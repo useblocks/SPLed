@@ -1,8 +1,16 @@
 #ifndef KEYBOARD_INTERFACE_H
 #define KEYBOARD_INTERFACE_H
 
-#include "platform_types.h"
+/* Include boolean type definition */
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <stdint.h>
+    typedef unsigned char boolean;
+    #define TRUE 1
+    #define FALSE 0
+#endif
 
-bool_t KeyboardInterfaceIsKeyPressed(int32_t keyCode);
+boolean KeyboardInterfaceIsKeyPressed(int key);
 
 #endif /* KEYBOARD_INTERFACE_H */
