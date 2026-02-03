@@ -1,18 +1,19 @@
-/* polyspace MISRA-C3:1.1 [Justified:Low] "External header windows.h not modifiable, but number of macro definitions acceptable for current compiler" */
 #include "keyboard_interface.h"
 
-#include <windows.h>
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    /* Platform-independent stub for non-Windows systems */
+    #define GetAsyncKeyState(key) (0)
+#endif
 
-bool_t KeyboardInterfaceIsKeyPressed(int32_t keyCode)
+boolean KeyboardInterfaceIsKeyPressed(int key)
 {
-    bool_t result;
-    if (((uint16_t)GetAsyncKeyState(keyCode) & 0x8000U) != (uint16_t)0U)
-    {
-        result = TRUE;
-    }
-    else
-    {
-        result = FALSE;
-    }
-    return result;
+    #ifdef _WIN32
+        return (GetAsyncKeyState(key) & 0x8000) != 0;
+    #else
+        /* On non-Windows systems, always return false (no key pressed) */
+        (void)key; /* Suppress unused parameter warning */
+        return 0;
+    #endif
 }

@@ -1,149 +1,162 @@
 #include "rte.h"
+#include <stdio.h>
+#include <stdarg.h>
+#include "autoconf.h"
 #include "keyboard_interface.h"
 
-static PowerState rteCurrentPowerState = POWER_STATE_OFF;
-#ifdef CONFIG_AUTO_OFF
-static bool_t autoOffState = TRUE;
+#ifdef _WIN32
+    #include <windows.h>
 #endif
-static bool_t rtePowerKeyPressedEvent = FALSE;
-static RGBColor rteLightValue = {
-    .rgbRedValue = 0,
-    .rgbGreenValue = 0,
-    .rgbBlueValue = 0,
+
+static PowerState currentPowerState = POWER_STATE_OFF;
+static boolean powerKeyPressedEvent = FALSE;
+static boolean arrowUpKeyPressed = FALSE;
+static boolean arrowDownKeyPressed = FALSE;
+static RGBColor lightValue = {
+    .red = 0,
+    .green = 0,
+    .blue = 0,
 };
-static percentage_t rteMainKnobValue = 50;
-static brightness_t rteBrightnessValue = 0;
+static percentage_t mainKnobValue = 50;
+static unsigned int brightnessValue = 0;
 
 #ifdef CONFIG_BRIGHTNESS_ADJUSTMENT_PERIOD
-static uint32_t brightnessAdjustmentCounter = 0;
+static unsigned int brightnessAdjustmentCounter = 0;
 #endif
 
 // Flight Controller RTE variables
-static bool_t rteOffCourse = FALSE;
-static bool_t rteAbortCommanded = FALSE;
-static bool_t rteValidAbortCommand = FALSE;
-static bool_t rteSelfDestructState = FALSE;
+static boolean offCourse = FALSE;
+static boolean abortCommanded = FALSE;
+static boolean validAbortCommand = FALSE;
+static boolean selfDestructState = FALSE;
 
-void RteSetPowerState(PowerState currentPowerState)
+void RteSetPowerState(PowerState state)
 {
-    rteCurrentPowerState = currentPowerState;
+    currentPowerState = state;
 }
 
 PowerState RteGetPowerState(void)
 {
-    return rteCurrentPowerState;
+    return currentPowerState;
 }
 
-void RteSetPowerKeyPressedEvent(bool_t powerKeyPressedEvent)
+void RteSetPowerKeyPressedEvent(boolean value)
 {
-    rtePowerKeyPressedEvent = powerKeyPressedEvent;
+    powerKeyPressedEvent = value;
 }
 
-bool_t RteGetPowerKeyPressedEvent(void)
+boolean RteGetPowerKeyPressedEvent()
 {
-    return rtePowerKeyPressedEvent;
+    return powerKeyPressedEvent;
 }
 
-void RteSetLightValue(const RGBColor lightValue)
+void RteSetLightValue(RGBColor value)
 {
-    rteLightValue = lightValue;
+    lightValue = value;
 }
 
-void RteGetLightValue(RGBColor *const lightValue)
+void RteGetLightValue(RGBColor *value)
 {
-    *lightValue = rteLightValue;
+    *value = lightValue;
 }
 
-bool_t RteIsKeyPressed(int32_t keyCode)
+boolean RteIsKeyPressed(int key)
 {
-    return KeyboardInterfaceIsKeyPressed(keyCode);
+    return KeyboardInterfaceIsKeyPressed(key);
 }
 
-void RteSetMainKnobValue(percentage_t mainKnobValue)
+void RteSetMainKnobValue(percentage_t value)
 {
-    rteMainKnobValue = mainKnobValue;
+    if (value > 100)
+    {
+        mainKnobValue = 100;
+    }
+    else
+    {
+        mainKnobValue = value;
+    }
 }
 
 percentage_t RteGetMainKnobValue(void)
 {
-    return rteMainKnobValue;
+    return mainKnobValue;
 }
 
-void RteSetBrightnessValue(brightness_t brightnessValue)
+void RteSetBrightnessValue(brightness_t value)
 {
-    rteBrightnessValue = brightnessValue;
+    brightnessValue = value;
 }
 
 brightness_t RteGetBrightnessValue(void)
 {
-    return rteBrightnessValue;
+    return brightnessValue;
 }
 
 #ifdef CONFIG_BRIGHTNESS_ADJUSTMENT_PERIOD
-void RteSetBrightnessAdjustmentCounter(uint32_t counter)
+void RteSetBrightnessAdjustmentCounter(unsigned int counter)
 {
     brightnessAdjustmentCounter = counter;
 }
 
-void RteGetBrightnessAdjustmentCounter(uint32_t *const counter)
+void RteGetBrightnessAdjustmentCounter(unsigned int *counter)
 {
     *counter = brightnessAdjustmentCounter;
 }
 #endif // CONFIG_BRIGHTNESS_ADJUSTMENT_PERIOD
 
-void RteSetOffCourse(bool_t offCourse)
+#if LOGGING_ENABLED
+static const char *LogLevelToString(LogLevel level)
 {
-    rteOffCourse = offCourse;
-}
-
-void RteGetOffCourse(bool_t *const offCourse)
-{
-    if (offCourse != NULL)
+    switch (level)
     {
-        *offCourse = rteOffCourse;
+    case LOG_LEVEL_ERROR:
+        return "ERROR";
+    case LOG_LEVEL_WARNING:
+        return "WARNING";
+    case LOG_LEVEL_INFO:
+        return "INFO";
+    case LOG_LEVEL_DEBUG:
+        return "DEBUG";
+    default:
+        return "UNKNOWN";
     }
 }
 
-void RteSetAbortCommanded(bool_t commanded)
+void RteLoggerPrintToConsole(LogLevel level, const char *message, ...)
 {
-    rteAbortCommanded = commanded;
+    va_list args;
+    va_start(args, message);
+
+    // Print log level
+    printf("[%s] ", LogLevelToString(level));
+    // Print message
+    vprintf(message, args);
+    // Print a new line
+    printf("\n");
+
+    va_end(args);
+}
+#endif
+
+void RteGetOffCourse(boolean *value)
+{
+    if (value != NULL)
+    {
+        *value = offCourse;
+    }
 }
 
-bool_t RteGetAbortCommanded(void)
+boolean RteGetAbortCommanded(void)
 {
-    return rteAbortCommanded;
+    return abortCommanded;
 }
 
-void RteSetValidAbortCommand(bool_t valid)
+boolean RteGetValidAbortCommand(void)
 {
-    rteValidAbortCommand = valid;
+    return validAbortCommand;
 }
 
-bool_t RteGetValidAbortCommand(void)
+void RteSetSelfDestructState(boolean state)
 {
-    return rteValidAbortCommand;
+    selfDestructState = state;
 }
-
-void RteSetSelfDestructState(bool_t selfDestructState)
-{
-    rteSelfDestructState = selfDestructState;
-}
-
-bool_t RteGetSelfDestructState(void)
-{
-    return rteSelfDestructState;
-}
-
-#ifdef CONFIG_AUTO_OFF
-bool_t RteGetAutoOffState(void)
-{
-    return autoOffState;
-}
-#endif // CONFIG_AUTO_OFF
-
-#ifdef CONFIG_AUTO_OFF
-void RteSetAutoOffState(bool_t state)
-{
-    autoOffState = state;
-}
-#endif // CONFIG_AUTO_OFF

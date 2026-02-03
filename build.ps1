@@ -14,6 +14,8 @@ param(
     [switch]$selftests = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Build the target.')]
     [switch]$build = $false,
+    [Parameter(Mandatory = $false, HelpMessage = 'Build HTML documentation. (Switch, default: false)')]
+    [switch]$docs = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Start Visual Studio Code. (Switch, default: false)')]
     [switch]$startVSCode = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Command to be executed (String)')]
@@ -66,6 +68,37 @@ function Get-ReleaseBranchPytestFilter {
     }
 
     return $filter
+}
+
+# Build documentation
+function Invoke-Build-Docs {
+    Write-Host "Building documentation..."
+    
+    # Check if sphinx-build is available
+    $sphinxBuild = Get-Command sphinx-build -ErrorAction SilentlyContinue
+    if (-not $sphinxBuild) {
+        Write-Host "Error: sphinx-build not found. Please run -install first."
+        exit 1
+    }
+    
+    # Remove old build
+    if (Test-Path "build/html") {
+        Write-Host "Removing old documentation build..."
+        Remove-Item -Recurse -Force "build/html"
+    }
+    
+    # Build documentation
+    Write-Host "Running sphinx-build..."
+    & sphinx-build -b html -j auto . build/html
+    
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host ""
+        Write-Host "Documentation built successfully!"
+        Write-Host "Open build/html/index.html in your browser to view the documentation."
+    } else {
+        Write-Host "Error: Documentation build failed."
+        exit 1
+    }
 }
 
 # Call build system with given parameters
@@ -262,14 +295,15 @@ function Get-User-Menu-Selection {
     Write-Information -Tags "Info:" -MessageData ("(2) -installOptional: installation of optional dependencies")
     Write-Information -Tags "Info:" -MessageData ("(3) -installVSCode: installation of Visual Studio Code")
     Write-Information -Tags "Info:" -MessageData ("(4) -build: execute CMake build")
-    Write-Information -Tags "Info:" -MessageData ("(5) -startVSCode: start Visual Studio Code")
-    Write-Information -Tags "Info:" -MessageData ("(6) quit: exit script")
+    Write-Information -Tags "Info:" -MessageData ("(5) -docs: build HTML documentation")
+    Write-Information -Tags "Info:" -MessageData ("(6) -startVSCode: start Visual Studio Code")
+    Write-Information -Tags "Info:" -MessageData ("(7) quit: exit script")
     return(Read-Host "Please make a selection")
 }
 
 function Invoke-Bootstrap {
     # Download bootstrap scripts from external repository
-    Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.19.0/install.ps1 | Invoke-Expression
+    Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.17.2/install.ps1 | Invoke-Expression
     # Execute bootstrap script
     . .\.bootstrap\bootstrap.ps1
 }
@@ -303,7 +337,7 @@ Push-Location $PSScriptRoot
 Write-Output "Running in ${pwd}"
 
 try {
-    if ((-Not $install) -and (-Not $installOptional) -and (-Not $installVSCode) -and (-Not $build) -and (-Not $startVSCode) -and (-Not $command) -and (-Not $selftests)) {
+    if ((-Not $install) -and (-Not $installOptional) -and (-Not $installVSCode) -and (-Not $build) -and (-Not $docs) -and (-Not $startVSCode) -and (-Not $command) -and (-Not $selftests)) {
         $selectedOption = Get-User-Menu-Selection
 
         switch ($selectedOption) {
@@ -324,18 +358,18 @@ try {
                 $build = $true
             }
             '5' {
+                Write-Information -Tags "Info:" -MessageData "Building documentation ..."
+                $docs = $true
+            }
+            '6' {
                 Write-Information -Tags "Info:" -MessageData "Starting VS Code ..."
                 $startVSCode = $true
             }
-            default {
-                Write-Information -Tags "Info:" -MessageData "Nothing selected."
+            '7' {
+                Write-Information -Tags "Info:" -MessageData "Exiting ..."
                 exit
             }
         }
-    }
-
-    if ($clean) {
-        Invoke-Clean-Workspace -install $install -selftests $selftests
     }
 
     if ($install) {
@@ -346,12 +380,23 @@ try {
     }
 
     # Load bootstrap's utility functions
-    . .\.bootstrap\utils.ps1
+    if (Test-Path ".\.bootstrap\utils.ps1") {
+        . .\.bootstrap\utils.ps1
+    }
 
-    Invoke-CommandLine ".venv\Scripts\pypeline run --step CollectPRChanges"
+    if ($clean) {
+        Invoke-Clean-Workspace -install $install -selftests $selftests
+    }
+
+    # Skip pypeline and bootstrap setup for docs-only builds
+    if (-not ($docs -and -not $build -and -not $selftests)) {
+        Invoke-CommandLine ".venv\Scripts\pypeline run --step CollectPRChanges" -StopAtError $false
+    }
 
     # Load environment setup script
-    . .\build\env_setup.ps1
+    if (Test-Path ".\build\env_setup.ps1") {
+        . .\build\env_setup.ps1
+    }
 
     if ($installOptional) {
         Import-ScoopFile "scoopfile-optional.json"
@@ -380,6 +425,10 @@ try {
             -reconfigure $reconfigure `
             -configureOnly $configureOnly `
             -ninjaArgs $ninjaArgs
+    }
+
+    if ($docs) {
+        Invoke-Build-Docs
     }
 
     if ($selftests) {

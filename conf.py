@@ -30,7 +30,8 @@ exclude_patterns = [
     "**/test_results.rst",  # We renamed this file, but nobody deletes it.
 ]
 
-include_patterns = ["index.rst", "doc/**"]
+include_patterns = ["index.md", "doc/**", "components/**/doc/**"]
+
 
 # configuration of built-in stuff ###########################################
 # @see https://www.sphinx-doc.org/en/master/usage/configuration.html

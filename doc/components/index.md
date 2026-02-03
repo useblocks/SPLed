@@ -1,5 +1,6 @@
 # Components
 
+{% if build_config.components_info %}
 {% for component_info in build_config.components_info %}
 {% if component_info.has_docs %}
 
@@ -18,3 +19,20 @@
 
 {% endif %}
 {% endfor %}
+{% else %}
+
+This section contains documentation for the SPLed components.
+
+```{toctree}
+:maxdepth: 2
+
+/components/brightness_controller/doc/index
+/components/light_controller/doc/index
+/components/main_control_knob/doc/index
+/components/power_button/doc/index
+/components/power_signal_processing/doc/index
+/components/examples/flight_controller/doc/index
+/components/examples/hello_gmock/doc/index
+```
+
+{% endif %}
