@@ -16,9 +16,9 @@ void consoleInterface(void)
     RteGetLightValue(&lightValue);
 
     // Check if the light value has changed
-    if (lightValue.red != previousLightValue.red ||
-        lightValue.green != previousLightValue.green ||
-        lightValue.blue != previousLightValue.blue)
+    if (lightValue.rgbRedValue != previousLightValue.rgbRedValue ||
+        lightValue.rgbGreenValue != previousLightValue.rgbGreenValue ||
+        lightValue.rgbBlueValue != previousLightValue.rgbBlueValue)
     {
 
         // Update the previous light value
@@ -37,11 +37,11 @@ void consoleInterface(void)
         SetConsoleCursorInfo(hConsole, &cursorInfo);
 
         // and print the LED representation.
-        printf("\x1b[48;2;%d;%d;%dm", lightValue.red, lightValue.green, lightValue.blue);
+        printf("\x1b[48;2;%d;%d;%dm", lightValue.rgbRedValue, lightValue.rgbGreenValue, lightValue.rgbBlueValue);
         printf("LED\r");
 #else
         // Unix/Linux/macOS console output using ANSI escape codes
-        printf("\x1b[48;2;%d;%d;%dm", lightValue.red, lightValue.green, lightValue.blue);
+        printf("\x1b[48;2;%d;%d;%dm", lightValue.rgbRedValue, lightValue.rgbGreenValue, lightValue.rgbBlueValue);
         printf("LED\r");
         fflush(stdout);
 #endif

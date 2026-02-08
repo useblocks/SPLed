@@ -13,9 +13,9 @@ static boolean powerKeyPressedEvent = FALSE;
 static boolean arrowUpKeyPressed = FALSE;
 static boolean arrowDownKeyPressed = FALSE;
 static RGBColor lightValue = {
-    .red = 0,
-    .green = 0,
-    .blue = 0,
+    .rgbRedValue = 0,
+    .rgbGreenValue = 0,
+    .rgbBlueValue = 0,
 };
 static percentage_t mainKnobValue = 50;
 static unsigned int brightnessValue = 0;
@@ -29,6 +29,10 @@ static boolean offCourse = FALSE;
 static boolean abortCommanded = FALSE;
 static boolean validAbortCommand = FALSE;
 static boolean selfDestructState = FALSE;
+
+#ifdef CONFIG_AUTO_OFF
+static bool_t autoOffState = FALSE;
+#endif
 
 void RteSetPowerState(PowerState state)
 {
@@ -156,6 +160,18 @@ boolean RteGetValidAbortCommand(void)
     return validAbortCommand;
 }
 
+
+#ifdef CONFIG_AUTO_OFF
+bool_t RteGetAutoOffState(void)
+{
+    return autoOffState;
+}
+
+void RteSetAutoOffState(bool_t state)
+{
+    autoOffState = state;
+}
+#endif // CONFIG_AUTO_OFF
 void RteSetSelfDestructState(boolean state)
 {
     selfDestructState = state;

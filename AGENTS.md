@@ -16,13 +16,21 @@ Each variant (Disco, Sleep, Spa, etc.) compiles into separate binaries using sha
 
 ### Environment Setup
 
-**Always** run `.\build.ps1 -install` when:
+**Windows:**
+- Run `.\build.ps1 -install` to install dependencies
+- Start VS Code with `.\build.ps1 -startVSCode`
 
+**Linux/macOS:**
+- Run `./build.sh --install` or `make install` to install dependencies
+- Start VS Code with `./build.sh --start-vscode` or `make vscode`
+- See [BUILD_LINUX.md](BUILD_LINUX.md) for detailed Linux instructions
+
+**When to re-run installation:**
 - First cloning the repository
 - Switching branches (dependencies may have changed)
 - After pulling updates
 
-**Always** start VS Code with: `.\build.ps1 -startVSCode` to ensure proper environment variables and Python virtual environment activation (`.venv` with Poetry dependencies).
+This ensures proper environment variables and Python virtual environment activation (`.venv` with Poetry dependencies).
 
 ### VS Code CMake Extension Configuration
 
@@ -35,6 +43,7 @@ VS Code users can build directly using the CMake extension via `.vscode` configu
 
 ### Building Variants
 
+**Windows (PowerShell):**
 ```powershell
 # Interactive variant selection
 .\build.ps1 -build
@@ -49,12 +58,27 @@ VS Code users can build directly using the CMake extension via `.vscode` configu
 .\build.ps1 -build -buildKit test -buildType Debug
 ```
 
+**Linux/macOS (Bash/Make):**
+```bash
+# Using bash script (same as PowerShell)
+./build.sh --build --variants Disco
+./build.sh --build --variants Spa --clean
+./build.sh --build --build-kit test --build-type Debug
+
+# Using Makefile (shortcuts)
+make disco                           # Build Disco variant
+make build VARIANT=Spa               # Build Spa variant
+make build-clean VARIANT=Spa         # Clean build
+make test-build VARIANT=Disco        # Build with test kit
+```
+
 Build outputs: `build/<VariantName>/<BuildKit>/<BuildType?>/`
 
 ### Testing
 
 Tests are **Python-based** using pytest for build validation and report checks:
 
+**Windows:**
 ```powershell
 # Run all tests
 .\build.ps1 -selftests
@@ -64,6 +88,17 @@ Tests are **Python-based** using pytest for build validation and report checks:
 
 # Specific markers (see pytest.ini)
 .\build.ps1 -selftests -marker "build_debug"
+```
+
+**Linux/macOS:**
+```bash
+# Using bash script
+./build.sh --selftests --filter "Disco"
+
+# Using Makefile
+make test                            # All tests
+make test-disco                      # Disco tests only
+make test-filter FILTER="Disco"      # Custom filter
 ```
 
 Component unit tests: GTest/GMock in `components/*/test/*.cc` files, run via `test` build kit.
@@ -111,7 +146,7 @@ Check feature values in source code via generated `autoconf.h` header.
 
 ## Project-Specific Conventions
 
-1. **No direct CMake invocation**: Always use `build.ps1` wrapper (handles variant selection, environment, Poetry, etc.)
+1. **No direct CMake invocation**: Always use build wrapper (`build.ps1` on Windows, `build.sh` or `make` on Linux) - handles variant selection, environment, Poetry, etc.
 2. **Component isolation**: Each component has own CMakeLists.txt, must declare all dependencies explicitly
 3. **Test location**: Python integration tests in `test/<VariantName>/`, C++ unit tests in `components/*/test/`
 4. **Dependency management**: Python deps via Poetry (`pyproject.toml`), C/C++ external deps fetched by CMake FetchContent
@@ -127,7 +162,10 @@ Components communicate via RTE signals/runnable interfaces (see `rte.h` for patt
 
 ## Key Files for Understanding
 
-- [build.ps1](build.ps1) - Entry point for all build/test operations
+- [build.ps1](build.ps1) - Windows build/test wrapper
+- [build.sh](build.sh) - Linux/macOS build/test wrapper
+- [Makefile](Makefile) - Convenient shortcuts for common tasks (Linux/macOS)
+- [BUILD_LINUX.md](BUILD_LINUX.md) - Linux-specific build instructions
 - [CMakeLists.txt](CMakeLists.txt#L8) - Includes variant config and spl-core framework
 - [KConfig](KConfig) - Feature model definition
 - [variants/Disco/parts.cmake](variants/Disco/parts.cmake) - Example component selection
