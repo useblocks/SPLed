@@ -15,6 +15,9 @@ include = ["*.md"]
 
 [needs]
 schema_definitions_from_json = "schema.json"
+
+variant_data_file = "variants/Disco/needs_variant_data.json"
+
 extra_links = [
     { option = "realizes", incoming = "is realized by", outgoing = "realizes" },
     { option = "fulfills", incoming = "is fulfilled by", outgoing = "fulfills" },
@@ -25,9 +28,17 @@ extra_links = [
     { option = "tests", incoming = "is tested by", outgoing = "tests" },
     { option = "covered_by", incoming = "covers", outgoing = "covered by" },
 ]
-extra_options = [
-    "integrity",
-]
+
+# Fields
+
+[needs.fields.status]
+parse_variants = true
+
+[needs.fields.integrity]
+parse_variants = true
+default = ""
+
+# Types
 
 [[needs.types]]
 directive = "arch"

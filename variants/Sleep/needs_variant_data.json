@@ -1,0 +1,21 @@
+{
+  "LINKER_OUTPUT_FILE": "spled.exe",
+  "LINKER_BYPRODUCTS_CONFIG": false,
+  "LINKER_BYPRODUCTS_EXTENSIONS": "map",
+  "BLINKING": false,
+  "BRIGHTNESS_ADJUSTMENT_MANUAL": true,
+  "BRIGHTNESS_ADJUSTMENT_AUTOMATIC": false,
+  "BRIGHTNESS_ADJUSTMENT_ENABLED": true,
+  "AUTO_OFF": true,
+  "AUTO_OFF_PERIOD_SECONDS": 10,
+  "OS_TASK_PERIOD": 10,
+  "COLOR_GREEN": false,
+  "COLOR_BLUE": false,
+  "COLOR_RED": false,
+  "COLOR_PURPLE": true,
+  "COLOR_1_GREEN": false,
+  "COLOR_1_BLUE": false,
+  "COLOR_1_RED": false,
+  "COLOR_1_PURPLE": false,
+  "COLOR_1_OFF": true
+}
