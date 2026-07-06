@@ -1,0 +1,61 @@
+name: Docs (Static Variants)
+
+on:
+    push:
+        branches: [develop, "release/*"]
+    pull_request:
+        branches: [develop, "release/*"]
+    workflow_dispatch:
+
+concurrency:
+    group: docs-static-variants-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
+
+jobs:
+    build-docs:
+        name: Build Docs (${{ matrix.variant }})
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                variant: [Disco, Sleep, Spa]
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v6
+
+            - name: Setup Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.11"
+
+            - name: Install Poetry
+              uses: snok/install-poetry@v1
+              with:
+                  virtualenvs-create: true
+                  virtualenvs-in-project: true
+
+            - name: Install System Dependencies
+              # ninja/doxygen/graphviz are required by the "docs" CMake target provided by
+              # spl-core (see spl-core/src/spl_core/common.cmake and spl.cmake).
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y ninja-build doxygen graphviz
+
+            - name: Install Python Dependencies
+              run: poetry install
+
+            - name: Build Sphinx-Needs Docs for Variant '${{ matrix.variant }}'
+              # The "docs" target is defined by spl-core's _spl_create_docs_target macro and is
+              # only wired up when BUILD_KIT=test (see spl-core/src/spl_core/spl.cmake).
+              run: |
+                  chmod +x build.sh
+                  ./build.sh --build --build-kit test --build-type Debug --variant "${{ matrix.variant }}" --target docs --reconfigure
+
+            - name: Upload Docs Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sphinx-needs-docs-${{ matrix.variant }}
+                  path: build/${{ matrix.variant }}/test/Debug/docs/html
+                  if-no-files-found: error
+                  retention-days: 30
