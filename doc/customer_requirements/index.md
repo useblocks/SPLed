@@ -8,6 +8,7 @@ Customer A requests a Disco Light that shall offer an ambient lighting experienc
 :id: REQ_DISCO_001
 :status: open
 :tags: customer-a, disco
+:covered_by:
 
 The lighting shall automatically sync with any ambient music, adjusting its blink rate to match the beats or rhythm.
 ```
@@ -16,6 +17,7 @@ The lighting shall automatically sync with any ambient music, adjusting its blin
 :id: REQ_DISCO_002
 :status: open
 :tags: customer-a, disco
+:covered_by:
 
 Users shall have the freedom to choose a specific color for the light. However, in the absence of a user-defined color, the software shall delight the user with randomized colors, ensuring an authentic disco experience.
 ```
@@ -24,6 +26,7 @@ Users shall have the freedom to choose a specific color for the light. However, 
 :id: REQ_DISCO_003
 :status: open
 :tags: customer-a, disco
+:covered_by:
 
 As the essence of a disco environment is dynamic and lively, light transitions shall happen instantaneously without any lag.
 ```
@@ -32,6 +35,7 @@ As the essence of a disco environment is dynamic and lively, light transitions s
 :id: REQ_DISCO_004
 :status: open
 :tags: customer-a, disco
+:covered_by: SWDD_BC-100, SWDD_BC-202
 
 The illumination provided shall be vibrant and noticeable, ranging from medium to high levels to keep up with the lively ambiance of disco settings.
 ```
@@ -44,6 +48,7 @@ Customer B requests a sleep light offering an ambient lighting experience that f
 :id: REQ_SLEEP_001
 :status: open
 :tags: customer-b, sleep
+:covered_by: SWDD_LC-100
 
 The light emitted shall be constant without any blink, ensuring a non-disruptive environment for rest.
 ```
@@ -52,6 +57,7 @@ The light emitted shall be constant without any blink, ensuring a non-disruptive
 :id: REQ_SLEEP_002
 :status: open
 :tags: customer-b, sleep
+:covered_by: SWDD_LC-102, SWDD_LC-103
 
 Color of the light shall be fixed to a warm white, known for its soothing and calming properties.
 ```
@@ -60,6 +66,7 @@ Color of the light shall be fixed to a warm white, known for its soothing and ca
 :id: REQ_SLEEP_003
 :status: open
 :tags: customer-b, sleep
+:covered_by: SWDD_BC-100, SWDD_BC-101, SWDD_BC-102
 
 The brightness of the light shall be adjustable.
 ```
@@ -68,6 +75,7 @@ The brightness of the light shall be adjustable.
 :id: REQ_SLEEP_004
 :status: open
 :tags: customer-b, sleep
+:covered_by: SWDD_LC-102, SWDD_LC-103
 
 The light color shall be blue.
 ```
@@ -80,6 +88,7 @@ Customer C requests a spa light encapsulating a tranquil and rejuvenating experi
 :id: REQ_SPA_001
 :status: open
 :tags: customer-c, spa
+:covered_by: SWDD_LC-101, SWDD_LC-203
 
 The light shall have a slow, rhythmic blink that gives a sensation of calm and peace.
 ```
@@ -88,6 +97,7 @@ The light shall have a slow, rhythmic blink that gives a sensation of calm and p
 :id: REQ_SPA_002
 :status: open
 :tags: customer-c, spa
+:covered_by: SWDD_LC-102, SWDD_LC-202
 
 Instead of a single color, the lighting shall cycle through multiple predefined colors that are commonly associated with relaxation and tranquility.
 ```
@@ -96,6 +106,7 @@ Instead of a single color, the lighting shall cycle through multiple predefined 
 :id: REQ_SPA_003
 :status: open
 :tags: customer-c, spa
+:covered_by: SWDD_LC-200, SWDD_LC-300
 
 Transitions between colors shall be smooth and seamless, ensuring a continuous flow of relaxation.
 ```
@@ -104,6 +115,7 @@ Transitions between colors shall be smooth and seamless, ensuring a continuous f
 :id: REQ_SPA_004
 :status: open
 :tags: customer-c, spa
+:covered_by: SWDD_BC-100, SWDD_BC-101, SWDD_BC-102
 
 The brightness of the light shall be adjustable.
 ```

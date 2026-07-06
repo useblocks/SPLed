@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "type-req": {
+      "properties": {
+        "type": {
+          "const": "req"
+        }
+      }
+    },
+    "type-spec": {
+      "properties": {
+        "type": {
+          "const": "spec"
+        }
+      }
+    }
+  },
+  "schemas": [
+    {
+      "id": "req-covered-by-required",
+      "severity": "violation",
+      "message": "Each req must define at least one covered_by link to a spec.",
+      "select": {
+        "$ref": "#/$defs/type-req"
+      },
+      "validate": {
+        "local": {
+          "required": [
+            "covered_by"
+          ],
+          "properties": {
+            "covered_by": {
+              "type": "array",
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "req-covered-by-target-type-spec",
+      "severity": "violation",
+      "message": "Each covered_by link from a req must point to needs of type spec.",
+      "select": {
+        "$ref": "#/$defs/type-req"
+      },
+      "validate": {
+        "network": {
+          "covered_by": {
+            "minItems": 1,
+            "items": {
+              "local": {
+                "$ref": "#/$defs/type-spec"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
