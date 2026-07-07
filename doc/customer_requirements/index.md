@@ -4,6 +4,10 @@
 
 Customer A requests a Disco Light that shall offer an ambient lighting experience that resonates with the rhythm of the surroundings.
 
+```{if} var.CUSTOMER == "A"
+This documentation is being built for **Customer A**, the exclusive commissioner of the Disco Light variant.
+```
+
 ```{req} Sync light to ambient music
 :id: REQ_DISCO_001
 :status: open
@@ -44,6 +48,10 @@ The illumination provided shall be vibrant and noticeable, ranging from medium t
 
 Customer B requests a sleep light offering an ambient lighting experience that facilitate a calm and restful environment.
 
+```{if} var.CUSTOMER == "B"
+This documentation is being built for **Customer B**, the exclusive commissioner of the Sleep Light variant.
+```
+
 ```{req} Keep light constant without blink
 :id: REQ_SLEEP_001
 :status: open
@@ -83,6 +91,10 @@ The light color shall be blue.
 ## Customer C - Spa Light
 
 Customer C requests a spa light encapsulating a tranquil and rejuvenating experience, reminiscent of real-world spa environments.
+
+```{if} var.CUSTOMER == "C"
+This documentation is being built for **Customer C**, the exclusive commissioner of the Spa Light variant.
+```
 
 ```{req} Use slow rhythmic blink
 :id: REQ_SPA_001

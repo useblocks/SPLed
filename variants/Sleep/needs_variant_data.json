@@ -1,4 +1,5 @@
 {
+  "CUSTOMER": "B",
   "LINKER_OUTPUT_FILE": "spled.exe",
   "LINKER_BYPRODUCTS_CONFIG": false,
   "LINKER_BYPRODUCTS_EXTENSIONS": "map",
