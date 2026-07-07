@@ -1,0 +1,37 @@
+[codelinks]
+outdir = "output"
+
+[codelinks.projects.brightness_controller.source_discover]
+src_dir = "components/brightness_controller/src"
+include = ["**/*.c", "**/*.h"]
+comment_type = "cpp"
+
+[codelinks.projects.brightness_controller.analyse]
+get_oneline_needs = true
+get_need_id_refs = false
+get_rst = false
+
+[codelinks.projects.brightness_controller.analyse.oneline_comment_style]
+start_sequence = "@need"
+end_sequence = "\n"
+field_split_char = ","
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "title"
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "id"
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "type"
+default = "impl"
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "implements"
+type = "list[str]"
+default = []
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "fulfills"
+type = "list[str]"
+default = []

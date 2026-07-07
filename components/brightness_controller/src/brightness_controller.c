@@ -10,14 +10,7 @@
 /** @brief Calculate the number of ticks for the brightness adjustment period. */
 #define BRIGHTNESS_PERIOD_TICKS ((uint32_t)((CONFIG_BRIGHTNESS_ADJUSTMENT_PERIOD * 1000) / CONFIG_OS_TASK_PERIOD))
 
-/**
- * @rst
- * .. impl:: Periodic Brightness Adjustment
- *    :id: SWIMPL_BC-001
- *    :implements: SWDD_BC-100, SWDD_BC-102
- *    :fulfills: REQ_46, REQ_48
- * @endrst
- */
+// @need Periodic Brightness Adjustment, SWIMPL_BC-001, impl, [SWDD_BC-100, SWDD_BC-102], [REQ_46, REQ_48]
 SPLE_TESTABLE_STATIC brightness_t periodicBrightnessAdjustment(BrightnessAdjustmentData *const data)
 {
     brightness_t brightnessValue = 0;
@@ -41,14 +34,7 @@ SPLE_TESTABLE_STATIC brightness_t periodicBrightnessAdjustment(BrightnessAdjustm
 
 #else /* CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC */
 
-/**
- * @rst
- * .. impl:: Manual Brightness Adjustment
- *    :id: SWIMPL_BC-002
- *    :implements: SWDD_BC-100, SWDD_BC-101, SWDD_BC-201
- *    :fulfills: REQ_46, REQ_47
- * @endrst
- */
+// @need Manual Brightness Adjustment, SWIMPL_BC-002, impl, [SWDD_BC-100, SWDD_BC-101, SWDD_BC-201], [REQ_46, REQ_47]
 static brightness_t manualBrightnessAdjustment(void)
 {
     const percentage_t mainKnobValue = RteGetMainKnobValue();
@@ -67,14 +53,7 @@ static brightness_t manualBrightnessAdjustment(void)
 
 #endif /* CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC */
 
-/**
- * @rst
- * .. impl:: Brightness Controller runnable
- *    :id: SWIMPL_BC-003
- *    :implements: SWDD_BC-200, SWDD_BC-202, SWDD_BC-203
- *    :fulfills: REQ_46, REQ_47, REQ_48
- * @endrst
- */
+// @need Brightness Controller runnable, SWIMPL_BC-003, impl, [SWDD_BC-200, SWDD_BC-202, SWDD_BC-203], [REQ_46, REQ_47, REQ_48]
 void brightnessController(void)
 {
     brightness_t brightnessValue = 0;

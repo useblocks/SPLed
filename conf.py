@@ -45,8 +45,11 @@ html_title = f"{project} {release}"
 html_logo = "doc/_figures/SPLED_logo.png"
 
 # Get default SPL extensions and their configurations
-extensions = SplSphinx.default_extensions
+extensions = [*SplSphinx.default_extensions, "sphinx_codelinks"]
 extension_configs = SplSphinx.default_extension_configs
+
+# sphinx-codelinks: extract one-line need definitions from source code comments
+src_trace_config_from_toml = "codelinks.toml"
 
 # Apply extension-specific configurations
 sphinx_rtd_size_width = extension_configs["sphinx_rtd_size_width"]
