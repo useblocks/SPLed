@@ -7,6 +7,16 @@ on:
         branches: [develop, "release/*"]
     workflow_dispatch:
 
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+# Only one Pages deployment at a time; let in-flight runs finish instead of racing.
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
 jobs:
     build-docs:
         name: Build Sphinx-Needs Docs (${{ matrix.variant }})
@@ -42,3 +52,65 @@ jobs:
                   retention-days: 90
                   path: build/${{ matrix.variant }}/test/Debug/docs/html
                   if-no-files-found: error
+
+    publish-docs:
+        name: Assemble GitHub Pages Site
+        needs: build-docs
+        if: github.ref == 'refs/heads/develop'
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Download Docs Artifacts of All Variants
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: sphinx-needs-docs-*
+                  path: artifacts
+
+            - name: Assemble Combined Site with Index Page
+              shell: bash
+              run: |
+                  set -e
+                  variants=(Disco Sleep Spa)
+
+                  mkdir -p site
+                  for variant in "${variants[@]}"; do
+                      mkdir -p "site/$variant"
+                      cp -r "artifacts/sphinx-needs-docs-$variant"/. "site/$variant/"
+                  done
+
+                  {
+                      echo "<!doctype html>"
+                      echo "<html lang=\"en\">"
+                      echo "<head>"
+                      echo "  <meta charset=\"utf-8\">"
+                      echo "  <title>SPLed Sphinx-Needs Documentation</title>"
+                      echo "</head>"
+                      echo "<body>"
+                      echo "  <h1>SPLed Sphinx-Needs Documentation</h1>"
+                      echo "  <ul>"
+                      for variant in "${variants[@]}"; do
+                          echo "    <li><a href=\"$variant/index.html\">$variant</a></li>"
+                      done
+                      echo "  </ul>"
+                      echo "</body>"
+                      echo "</html>"
+                  } > site/index.html
+
+            - name: Upload Pages Artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: site
+
+    deploy-docs:
+        name: Deploy to GitHub Pages
+        needs: publish-docs
+        runs-on: ubuntu-latest
+
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+
+        steps:
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4
