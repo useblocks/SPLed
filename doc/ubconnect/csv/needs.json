@@ -1,0 +1,143 @@
+{
+  "created": "2026-07-13T14:09:27.415373+00:00",
+  "current_version": "latest",
+  "project": "CSV Project for data.csv",
+  "versions": {
+    "latest": {
+      "created": "2026-07-13T14:09:27.415373+00:00",
+      "creator": {
+        "name": "ubconnect",
+        "version": "0.18.0"
+      },
+      "needs": {
+        "CSV_REQ_1": {
+          "id": "CSV_REQ_1",
+          "type": "req",
+          "title": "",
+          "content": "Text Req 1",
+          "status": "new",
+          "links": [],
+          "level": 1,
+          "image": "",
+          "implements": "",
+          "links_back": [
+            "CSV_REQ_2",
+            "CSV_REQ_3"
+          ]
+        },
+        "CSV_REQ_2": {
+          "id": "CSV_REQ_2",
+          "type": "req",
+          "title": "",
+          "content": "Text Req 2",
+          "status": "open",
+          "links": [
+            "CSV_REQ_1"
+          ],
+          "level": 2,
+          "image": "picture/pic1.jpg",
+          "implements": "",
+          "links_back": [
+            "CSV_REQ_3"
+          ]
+        },
+        "CSV_REQ_3": {
+          "id": "CSV_REQ_3",
+          "type": "req",
+          "title": "",
+          "content": "Text Req 3",
+          "status": "open",
+          "links": [
+            "CSV_REQ_1",
+            "CSV_REQ_2"
+          ],
+          "level": 2,
+          "image": "picture/pic1.jpg",
+          "implements": ""
+        },
+        "CSV_ARCH_1": {
+          "id": "CSV_ARCH_1",
+          "type": "spec",
+          "title": "",
+          "content": "Text Arch 1",
+          "status": "open",
+          "links": [],
+          "level": 1,
+          "image": "",
+          "implements": [
+            "REQ_1",
+            "REQ_2",
+            "REQ_3"
+          ]
+        }
+      },
+      "needs_amount": 4,
+      "needs_schema": {
+        "schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "id": {
+            "type": "string",
+            "required": true,
+            "field_type": "core"
+          },
+          "type": {
+            "type": "string",
+            "required": true,
+            "field_type": "core"
+          },
+          "title": {
+            "type": "string",
+            "required": false,
+            "field_type": "core"
+          },
+          "content": {
+            "type": "string",
+            "required": false,
+            "field_type": "core"
+          },
+          "content_format": {
+            "type": "string",
+            "required": false,
+            "field_type": "core"
+          },
+          "status": {
+            "type": "string",
+            "required": false,
+            "field_type": "core"
+          },
+          "links": {
+            "type": "array",
+            "required": false,
+            "field_type": "links"
+          },
+          "parts": {
+            "type": "object",
+            "required": false,
+            "field_type": "core"
+          },
+          "level": {
+            "type": "integer",
+            "required": false,
+            "field_type": "extra"
+          },
+          "image": {
+            "type": "string",
+            "required": false,
+            "field_type": "extra"
+          },
+          "implements": {
+            "type": "string",
+            "required": false,
+            "field_type": "extra"
+          },
+          "links_back": {
+            "type": "array",
+            "required": false,
+            "field_type": "extra"
+          }
+        },
+        "type": "object"
+      }
+    }
+  }
+}

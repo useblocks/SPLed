@@ -1,0 +1,18 @@
+[ubconnect.from_csv]
+csv_path = "data.csv"         # Relative to the location of this TOML file
+outdir = "."                               # Optional: Output directory for generated files
+id_prefix = ""                                # Prefix for need IDs (default: "CSV_")
+delimiter = ","                                   # Optional: Delimiter used in the CSV file (default: ",")
+
+links_column = "satisfies"                # Column holding linked IDs (without prefix)
+links_delimiter = "|"                 # Optional (default: ";")
+
+[ubconnect.from_csv.mapping]
+content = "text"                         # Maps to need content (default: "content")
+implements = "implements"                # Column holding pipe-separated linked IDs
+#satisfies = "satisfies"                  # Column holding pipe-separated linked IDs
+type = "type"
+
+[ubconnect.from_csv.field_delimiters]
+implements = "|"                         # Split multi-value cells into lists
+#satisfies = "|"
