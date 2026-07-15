@@ -3,6 +3,13 @@ mainmenu "SPLed"
 source "$(SPL_CORE_DIR)/config/KConfig"
 
 menu "Features"
+    config CUSTOMER
+        string "Customer identifier"
+        default "A"
+        help
+            Identifies which customer this variant is built for (e.g. "A", "B", "C").
+            Used to select customer-specific content in the Sphinx-Needs documentation.
+
     config BLINKING
         bool "Blinking Feature"
         default n

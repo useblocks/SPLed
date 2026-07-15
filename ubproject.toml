@@ -16,7 +16,7 @@ include = ["*.md"]
 [needs]
 schema_definitions_from_json = "schema.json"
 
-variant_data_file = "variants/Disco/needs_variant_data.json"
+variant_data_file = "build/Disco/prod/kconfig/autoconf.json"
 
 extra_links = [
     { option = "realizes", incoming = "is realized by", outgoing = "realizes" },
