@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Configuration"""
 import datetime
+import os
 
 from importlib.resources import files
 from spl_core.report_generation.spl_sphinx import SplSphinx
@@ -59,6 +60,10 @@ needs_from_toml = str(files("spl_core.report_generation").joinpath("ubproject.to
 # Additional import required because the configuration references custom functions defined in this module
 needs_functions = SplSphinx.default_needs_functions
 needs_global_options = SplSphinx.default_needs_global_options
+
+# Expose KConfig feature values (e.g. CUSTOMER) as `var.features.*` for the {if} directive
+if "AUTOCONF_JSON_FILE" in os.environ:
+    needs_variant_data_file = os.environ["AUTOCONF_JSON_FILE"]
 
 # Provide all config values to jinja
 html_context = SplSphinx.get_default_html_context()

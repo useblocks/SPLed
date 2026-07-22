@@ -29,6 +29,7 @@
 :maxdepth: 1
 :caption: Contents
 
+doc/customer_requirements/index
 doc/software_architecture/index
 doc/sw_requirements/index
 doc/components/index

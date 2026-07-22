@@ -20,6 +20,9 @@ __pycache__/
 # Any log directory
 **/[Ll][Oo][Gg]/*
 
+# MACOs index files
+.DS_Store
+
 # Any backup file of text editors
 *.bak
 
