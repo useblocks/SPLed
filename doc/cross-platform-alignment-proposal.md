@@ -277,7 +277,12 @@ Implemented and pushed as the working basis:
   upload as an artifact for diagnostics. **CI hygiene:** the `gate_*` marker selection is computed
   once in a shared `determine-gate` job (consumed by both OS jobs via `needs`) instead of being
   duplicated in PowerShell and bash; all runners are pinned to explicit images (`ubuntu-24.04`,
-  `windows-2025`) rather than the moving `*-latest` labels.
+  `windows-2025`) rather than the moving `*-latest` labels. The Linux job also uploads the same
+  `build/**/*.7z` / `build/**/pr_changes.json` artifacts as the Windows job (as `artifacts-linux`,
+  distinct name to avoid colliding with Windows' `artifacts`), but non-blocking
+  (`continue-on-error: true`, `if-no-files-found: warn`) since Linux 7z-toolchain availability isn't
+  gated the way the Windows leg is — this closes the "Artifacts: none" gap noted for the Linux leg
+  in §2.4 without making artifact production a merge-blocking requirement.
 - Removed `test/Disco/test_Disco_linux.py` — the standard `test_Disco.py` is now cross-platform.
 
 > **Dependency pin:** `SPLed` pins `spl-core==8.6.0` (progressed `8.6.0rc1` → `rc2` → final during

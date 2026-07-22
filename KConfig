@@ -5,9 +5,10 @@ source "$(SPL_CORE_DIR)/config/KConfig"
 menu "Features"
     config CUSTOMER
         string "Customer identifier"
-        default "A"
+        default "None"
         help
             Identifies which customer this variant is built for (e.g. "A", "B", "C").
+            Use "None" for variants that are not tied to a specific customer.
             Used to select customer-specific content in the Sphinx-Needs documentation.
 
     config BLINKING
