@@ -1,0 +1,56 @@
+extend = ".venv/lib/python3.11/site-packages/spl_core/report_generation/ubproject.toml"
+
+[server]
+index_on_save = true
+hover_need_refs = true
+
+[parse.parsers.rst]
+
+[parse.parsers.md]
+flavour = "myst"
+include = ["*.md"]
+
+[needs]
+schema_definitions_from_json = "schema.json"
+
+variant_data_file = "build/Disco/prod/kconfig/autoconf.json"
+
+src_trace_config_from_toml = "codelinks.toml"
+
+[codelinks]
+outdir = "output"
+
+[codelinks.projects.brightness_controller.source_discover]
+src_dir = "components/brightness_controller/src"
+include = ["**/*.c", "**/*.h"]
+comment_type = "cpp"
+
+[codelinks.projects.brightness_controller.analyse]
+get_oneline_needs = true
+get_need_id_refs = false
+get_rst = false
+
+[codelinks.projects.brightness_controller.analyse.oneline_comment_style]
+start_sequence = "@need"
+end_sequence = "\n"
+field_split_char = ","
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "title"
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "id"
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "type"
+default = "impl"
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "implements"
+type = "list[str]"
+default = []
+
+[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+name = "fulfills"
+type = "list[str]"
+default = []

@@ -65,3 +65,9 @@ The Brightness Controller is use the RTE interface `RteSetBrightnessValue()` to 
 The Brightness Controller is use the RTE interface `RteSetBrightnessAdjustmentCounter()` to set the brightness adjustment counter.
 ```
 {% endif %}
+
+## Traceability
+
+```{src-trace}
+:project: brightness_controller
+```
