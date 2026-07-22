@@ -149,3 +149,77 @@ jobs:
                       build/**/*.7z
                       build/**/pr_changes.json
                   if-no-files-found: warn
+
+    test-on-macos:
+        name: Build and Test on macOS
+        runs-on: macos-15
+        timeout-minutes: 30
+        needs: determine-gate
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.11"
+
+            - name: Install Poetry
+              run: pipx install poetry
+
+            - name: Install 7z
+              # ArtifactsArchiver shells out to a bare `7z` binary; unlike the Linux/Windows
+              # runner images, macOS runners don't ship one.
+              run: brew install p7zip
+
+            - name: Install GCC
+              # The test/coverage build kit requires GCC. The poks-provisioned GCC is a
+              # conda-forge cross-compiled build with a libc++ ABI mismatch on macOS (see
+              # tools/toolchains/gcc/toolchain_macos.cmake); Homebrew's native GCC works.
+              run: brew install gcc
+
+            - name: Installation of Dependencies and Execute Tests
+              run: |
+                  # Same OS-independent poks-provisioned toolchain path as Linux.
+                  ./build.sh --install
+                  ./build.sh --selftests --marker "${{ needs.determine-gate.outputs.marker }}"
+
+            - name: Deploy Test Results
+              if: always()
+              uses: mikepenz/action-junit-report@v6
+              with:
+                  report_paths: |
+                      test/output/test-report.xml
+                      build/**/variant-junit.xml
+                  detailed_summary: true
+                  include_passed: true
+                  fail_on_failure: true
+                  fail_on_parse_error: true
+                  require_tests: true
+                  check_name: "Test Results (macOS)"
+
+            - name: Upload Test Reports
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: test-reports-macos
+                  retention-days: 14
+                  path: |
+                      test/output/test-report.xml
+                      build/**/variant-junit.xml
+                  if-no-files-found: warn
+
+            - name: Deploy Artifacts
+              # Optional, non-blocking — same rationale as the Linux leg.
+              continue-on-error: true
+              uses: actions/upload-artifact@v4
+              with:
+                  name: artifacts-macos
+                  retention-days: 90
+                  path: |
+                      build/**/*.7z
+                      build/**/pr_changes.json
+                  if-no-files-found: warn

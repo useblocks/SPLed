@@ -78,9 +78,10 @@ CI runs on **GitHub Actions** (`.github/workflows/ci.yml`) for every push/PR to 
 
 Jobs:
 
-- `determine-gate` — computes the `gate_*` quality-gate marker once (by event/branch) and shares it with both build jobs via `needs`.
+- `determine-gate` — computes the `gate_*` quality-gate marker once (by event/branch) and shares it with all three build jobs via `needs`.
 - `test-on-windows` (`windows-2025`) — `build.ps1 -install` then `-selftests -marker <gate>`.
 - `test-on-linux` (`ubuntu-24.04`) — `build.sh --install` then `--selftests --marker <gate>`.
+- `test-on-macos` (`macos-15`) — `build.sh --install` then `--selftests --marker <gate>` (same peer script as Linux; poks provisions the toolchain there too).
 
 CI is a **thin wrapper**: it only sets up the OS and calls the build scripts, so "green in CI" ⇔ "works locally". Runners are pinned to explicit images (never `*-latest`), so an OS/toolchain bump is always a reviewable change rather than a surprise.
 

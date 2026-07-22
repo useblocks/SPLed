@@ -150,7 +150,14 @@ build_variant() {
         cmake_args+=("-DBUILD_TYPE=$BUILD_TYPE" "-DCMAKE_BUILD_TYPE=$BUILD_TYPE")
     fi
     if [ "$BUILD_KIT" = "test" ]; then
-        cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=tools/toolchains/gcc/toolchain_linux.cmake")
+        # The test/coverage build kit requires GCC. On macOS this must be
+        # Homebrew's native GCC (see tools/toolchains/gcc/toolchain_macos.cmake
+        # for why the poks-provisioned one doesn't work there).
+        if [ "$(uname -s)" = "Darwin" ]; then
+            cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=tools/toolchains/gcc/toolchain_macos.cmake")
+        else
+            cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=tools/toolchains/gcc/toolchain_linux.cmake")
+        fi
     fi
 
     echo "Configuring with CMake ..."
