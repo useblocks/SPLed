@@ -136,3 +136,16 @@ jobs:
                       test/output/test-report.xml
                       build/**/variant-junit.xml
                   if-no-files-found: warn
+
+            - name: Deploy Artifacts
+              # Optional: mirrors the Windows job's artifact upload, but non-blocking —
+              # a missing 7z/pr_changes.json on Linux only warns, it never fails the gate.
+              continue-on-error: true
+              uses: actions/upload-artifact@v4
+              with:
+                  name: artifacts-linux
+                  retention-days: 90
+                  path: |
+                      build/**/*.7z
+                      build/**/pr_changes.json
+                  if-no-files-found: warn
