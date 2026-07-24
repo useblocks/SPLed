@@ -1,4 +1,6 @@
-extend = ".venv/lib/python3.11/site-packages/spl_core/report_generation/ubproject.toml"
+"$schema" = "https://ubcode.useblocks.com/ubproject.schema.json"
+
+extend = ".venv/lib/python3.13/site-packages/spl_core/report_generation/ubproject.toml"
 
 [server]
 index_on_save = true
@@ -15,7 +17,7 @@ schema_definitions_from_json = "schema.json"
 
 variant_data_file = "build/Disco/prod/kconfig/autoconf.json"
 
-src_trace_config_from_toml = "codelinks.toml"
+src_trace_config_from_toml = "ubproject.toml"
 
 [codelinks]
 outdir = "output"

@@ -46,8 +46,11 @@ html_title = f"{project} {release}"
 html_logo = "doc/_figures/SPLED_logo.png"
 
 # Get default SPL extensions and their configurations
-extensions = SplSphinx.default_extensions
+extensions = [*SplSphinx.default_extensions, "sphinx_codelinks"]
 extension_configs = SplSphinx.default_extension_configs
+
+# sphinx-codelinks: extract one-line need definitions from source code comments
+src_trace_config_from_toml = "ubproject.toml"
 
 # Apply extension-specific configurations
 tr_report_template = extension_configs["tr_report_template"]
