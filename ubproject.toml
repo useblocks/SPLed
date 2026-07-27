@@ -21,6 +21,10 @@ src_trace_config_from_toml = "ubproject.toml"
 
 [codelinks]
 outdir = "output"
+set_remote_url = true
+
+[codelinks.projects.brightness_controller]
+remote_url_pattern = "https://github.com/avengineers/SPLed/blob/{commit}/{path}#L{line}"
 
 [codelinks.projects.brightness_controller.source_discover]
 src_dir = "components/brightness_controller/src"
