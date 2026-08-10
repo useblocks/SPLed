@@ -3,7 +3,13 @@ pipeline:
     module: pypeline.steps.create_venv
     config:
       bootstrap_script: .bootstrap/bootstrap.py
-      python_version: 3.11
+      # The uv-managed python3.11 (installed by bootstrap_python.sh into ~/.local/bin)
+      # is what "python_version: 3.11" would auto-discover via PATH, but its bundled
+      # ensurepip cannot seed pip into a fresh venv. This step's own throwaway venv
+      # (just used to pip-install poetry) doesn't need 3.11, so point it at the
+      # apt-provisioned system python3 instead -- poetry itself still targets the
+      # uv-managed 3.11 via virtualenvs.use-poetry-python (see bootstrap_python.sh).
+      python_executable: python3
       python_package_manager: poetry>=2.2
   - step: PoksInstall
     module: pypeline.steps.poks_install

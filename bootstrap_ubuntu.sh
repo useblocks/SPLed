@@ -35,7 +35,8 @@ apt-get install -y --no-install-recommends \
     libc6-dev \
     build-essential \
     7zip \
-    pipx
+    pipx \
+    python3-venv
 
 if [ "$clean_apt_cache" = true ]; then
     apt-get clean
