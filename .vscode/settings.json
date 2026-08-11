@@ -15,6 +15,7 @@
     },
     "cmake.configureOnOpen": false,
     "cmake.buildDirectory": "${workspaceFolder}/build/${variant:variant}/${buildKit}/${buildType}",
+    "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",
     "cmake.configureSettings": {
         "BUILD_KIT": "${buildKit}",
         "CMAKE_MESSAGE_LOG_LEVEL": "STATUS",

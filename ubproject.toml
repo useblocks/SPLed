@@ -36,6 +36,9 @@ get_oneline_needs = true
 get_need_id_refs = false
 get_rst = false
 
+[codelinks.projects.brightness_controller.analyse.preprocessor]
+compile_commands = "build/compile_commands.json"
+
 [codelinks.projects.brightness_controller.analyse.oneline_comment_style]
 start_sequence = "@need"
 end_sequence = "\n"
