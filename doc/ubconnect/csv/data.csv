@@ -1,5 +1,5 @@
 level,type,id,text,image,status,implements,satisfies
-1,req,REQ_1,Text Req 1,,new,,
-2,req,REQ_2,Text Req 2,picture/pic1.jpg,open,,REQ_1
-2,req,REQ_3,Text Req 3,picture/pic1.jpg,open,,REQ_1|REQ_2
-1,spec,ARCH_1,Text Arch 1,,open,REQ_1|REQ_2|REQ_3,
+1,req,REQ_CSV_1,Text Req 1,,new,,
+2,req,REQ_CSV_2,Text Req 2,picture/pic1.jpg,open,,REQ_CSV_1
+2,req,REQ_CSV_3,Text Req 3,picture/pic1.jpg,open,,REQ_CSV_1|REQ_CSV_2
+1,spec,ARCH_CSV_1,Text Arch 1,,open,REQ_CSV_1|REQ_CSV_2|REQ_CSV_3,
