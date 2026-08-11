@@ -46,6 +46,14 @@ else()
 endif()
 include("${SPL_CORE_DIR}/spl.cmake")
 
+# Mirror the currently configured variant's KConfig JSON to a fixed path, the same
+# way cmake.copyCompileCommands mirrors compile_commands.json, so tools outside CMake
+# (e.g. ubproject.toml's variant_data_file) can track whichever variant/build kit/build
+# type is currently selected in the CMake Tools extension without a hardcoded path.
+if(EXISTS ${AUTOCONF_JSON})
+    configure_file(${AUTOCONF_JSON} ${CMAKE_SOURCE_DIR}/build/autoconf.json COPYONLY)
+endif()
+
 # The object_deps_report extension is currently Windows-only: its index.cmake
 # hardcodes the runner as "object_deps_report.exe", which does not exist on
 # Linux/macOS (the console script is "object_deps_report"). Guard the include to

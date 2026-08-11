@@ -15,7 +15,7 @@ include = ["*.md"]
 [needs]
 schema_definitions_from_json = "schema.json"
 
-variant_data_file = "build/Spa/test/Debug/kconfig/autoconf.json"
+variant_data_file = "build/autoconf.json"
 
 src_trace_config_from_toml = "ubproject.toml"
 
