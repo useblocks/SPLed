@@ -60,9 +60,22 @@ source_suffix = extension_configs["source_suffix"]
 # Import default SPL sphinx-needs configuration
 needs_from_toml = str(files("spl_core.report_generation").joinpath("ubproject.toml"))
 
+needs_fields = {
+    "image": {
+        "description": "Image associated with the need",
+        "schema": {
+            "type": "string"
+        },
+        "nullable": True,
+    },
+}
+
 # Additional import required because the configuration references custom functions defined in this module
 needs_functions = SplSphinx.default_needs_functions
 needs_global_options = SplSphinx.default_needs_global_options
+
+# Always write the merged needs.json (all needs, after import/resolution) to the build output dir.
+needs_build_json = True
 
 # Expose KConfig feature values (e.g. CUSTOMER) as `var.features.*` for the {if} directive
 if "AUTOCONF_JSON_FILE" in os.environ:
@@ -72,6 +85,12 @@ if "AUTOCONF_JSON_FILE" in os.environ:
 html_context = SplSphinx.get_default_html_context()
 include_patterns.extend(html_context["build_config"].get("include_patterns", []))
 
+build_config = html_context["build_config"].copy()
+build_config.pop("components_info", None)
+
+needs_variant_data = {
+    "build_config": build_config,
+}
 
 def rstjinja(app, docname, source):
     """

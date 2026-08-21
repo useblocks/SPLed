@@ -22,7 +22,7 @@
 
 # Variant Report
 
-**Variant:** {{ build_config.variant }}<br/>
+**Variant:** {variant}`build_config.variant`<br/>
 **Timestamp:** {{ timestamp }}
 
 ```{toctree}

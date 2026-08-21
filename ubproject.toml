@@ -19,6 +19,13 @@ variant_data_file = "build/autoconf.json"
 
 src_trace_config_from_toml = "ubproject.toml"
 
+[needs.fields.image]
+description = "Image associated with the need"
+nullable = true
+
+[needs.fields.image.schema]
+type = "string"
+
 [codelinks]
 outdir = "output"
 set_remote_url = true

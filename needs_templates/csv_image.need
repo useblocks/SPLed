@@ -1,0 +1,9 @@
+{# Place the original content here #}
+{{content}}
+
+{% if image %}
+
+```{image} /doc/ubconnect/csv/{{ image }}
+:width: 300px
+```
+{% endif %}
