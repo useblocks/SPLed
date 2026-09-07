@@ -13,7 +13,8 @@ dependencies = [
     "pypeline-semantic-release>=0,<1",
     "poks>=0.9.4,<1",
     "object-deps-report>=0,<1",
-    "sphinx-codelinks>=1.2,<2"
+    "sphinx-codelinks>=1.2,<2",
+    "sphinx-mounts>=0.2,<1"
 ]
 
 [tool.poetry]

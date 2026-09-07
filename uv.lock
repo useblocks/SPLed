@@ -1952,6 +1952,19 @@ wheels = [
 ]
 
 [[package]]
+name = "sphinx-mounts"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ignore-python" },
+    { name = "sphinx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ed/06/85e09e90824dbf9b81c4f60fe156855d13249c1f1f7b208452b75d8fdc34/sphinx_mounts-0.2.0.tar.gz", hash = "sha256:7c19e867b463bccbff35281e2c6c20dfaa75d4fa88eef6abe97c9c371df6914b", size = 98441, upload-time = "2026-08-27T11:42:44.383Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/4c/c92fe023dec5204dae85690fc110b47d0c6a0fe9e57c2f8b8d82228ef168/sphinx_mounts-0.2.0-py3-none-any.whl", hash = "sha256:9e43cba60834bb648a7d3f0f43bb3fbbf9743e69933a89081a90a30d6d42d230", size = 100201, upload-time = "2026-08-27T11:42:43.045Z" },
+]
+
+[[package]]
 name = "sphinx-needs"
 version = "8.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2172,6 +2185,7 @@ dependencies = [
     { name = "pypeline-semantic-release" },
     { name = "pytest" },
     { name = "sphinx-codelinks" },
+    { name = "sphinx-mounts" },
     { name = "spl-core" },
 ]
 
@@ -2184,6 +2198,7 @@ requires-dist = [
     { name = "pypeline-semantic-release", specifier = ">=0,<1" },
     { name = "pytest", specifier = ">=8,<9" },
     { name = "sphinx-codelinks", specifier = ">=1.2,<2" },
+    { name = "sphinx-mounts", specifier = ">=0.2,<1" },
     { name = "spl-core", specifier = "==8.6.0" },
 ]
 
