@@ -3698,6 +3698,22 @@ theme-rtd = ["sphinx-rtd-theme (>=2.0,<3.0)"]
 theme-sbt = ["sphinx-book-theme (>=1.1,<2.0)"]
 
 [[package]]
+name = "sphinx-mounts"
+version = "0.2.0"
+description = "Mount external sources into a Sphinx build without copying or symlinking"
+optional = false
+python-versions = "<4,>=3.12"
+groups = ["main"]
+files = [
+    {file = "sphinx_mounts-0.2.0-py3-none-any.whl", hash = "sha256:9e43cba60834bb648a7d3f0f43bb3fbbf9743e69933a89081a90a30d6d42d230"},
+    {file = "sphinx_mounts-0.2.0.tar.gz", hash = "sha256:7c19e867b463bccbff35281e2c6c20dfaa75d4fa88eef6abe97c9c371df6914b"},
+]
+
+[package.dependencies]
+ignore-python = ">=0.3.3"
+sphinx = ">=7.4,<10"
+
+[[package]]
 name = "sphinx-needs"
 version = "8.2.0"
 description = "Sphinx needs extension for managing needs/requirements and specifications"
@@ -4609,4 +4625,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "<3.14,>=3.12"
-content-hash = "4b7383057dcd3ed49d5e63500d900332b53995491bed59166e9b7d9c85ae89cf"
+content-hash = "a8a96ba1124b20dd8e18f19343a68ee56c26671f984dc7e9889af5bd9081a188"
