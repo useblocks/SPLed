@@ -2,11 +2,6 @@
 
 **Software Detailed Design**
 
-```{toctree}
-:maxdepth: 2
-:caption: Table of Contents
-```
-
 ## Introduction
 
 The main control knob component is responsible for calculating a value between 0 and 100 percent depending on the user's input.
@@ -56,3 +51,18 @@ The main control knob component uses the RTE interface `RteGetMainKnobValue()` t
 
 The main control knob component uses the RTE interface `RteSetMainKnobValue()` to set the new value of the main control knob.
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/main_control_knob/reports/unit_test_spec
+/build/**/components/main_control_knob/reports/unit_test_results
+/build/**/components/main_control_knob/reports/coverage
+```
+
+````

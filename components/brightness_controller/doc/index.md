@@ -2,11 +2,6 @@
 
 **Software Detailed Design**
 
-```{toctree}
-:maxdepth: 2
-:caption: Table of Contents
-```
-
 ## Introduction
 
 The Brightness Controller is responsible for adjusting the brightness of the LED.
@@ -73,3 +68,18 @@ The Brightness Controller is use the RTE interface `RteSetBrightnessAdjustmentCo
 ```{src-trace}
 :project: brightness_controller
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/brightness_controller/reports/unit_test_spec
+/build/**/components/brightness_controller/reports/unit_test_results
+/build/**/components/brightness_controller/reports/coverage
+```
+
+````

@@ -108,3 +108,18 @@ graph TD
    IsOff -->|No| TurnOff --> End
 ```
 ````
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/power_signal_processing/reports/unit_test_spec
+/build/**/components/power_signal_processing/reports/unit_test_results
+/build/**/components/power_signal_processing/reports/coverage
+```
+
+````

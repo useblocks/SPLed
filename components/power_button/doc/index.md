@@ -2,11 +2,6 @@
 
 **Software Detailed Design**
 
-```{toctree}
-:maxdepth: 2
-:caption: Table of Contents
-```
-
 ## Introduction
 
 This module interfaces with the keyboard and debounces the `POWER_BUTTON_KEY` to provide a stable key press event.
@@ -74,3 +69,18 @@ stateDiagram-v2
    PRESSED --> RELEASED: Button released long enough
    RELEASED --> PRESSED: Button pressed long enough
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/power_button/reports/unit_test_spec
+/build/**/components/power_button/reports/unit_test_results
+/build/**/components/power_button/reports/coverage
+```
+
+````

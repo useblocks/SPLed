@@ -141,19 +141,34 @@ build_config["scope"] = "component" if build_config.get("component_info") else "
 
 _extra_include_patterns = html_context["build_config"].get("include_patterns", [])
 if build_config["scope"] == "variant":
-    # Component design documents are mounted per feature by sphinx-mounts, see
+    # Component design documents are mounted by sphinx-mounts, see
     # [[source.mounts]] in ubproject.toml. Reading them as ordinary sources as
     # well would parse every need in them a second time under a second docname.
+    # Only the hand-written trees are dropped; the generated ones under build/
+    # stay, because they are not mounted.
     _extra_include_patterns = [
         pattern
         for pattern in _extra_include_patterns
-        if not (pattern.startswith("components/") and pattern.endswith("/doc/**"))
+        if not (pattern.endswith("/doc/**") and not pattern.startswith("build/"))
+        # The generated report pages are only ever shown by the reports target.
+        # The docs target used to read them anyway and then leave them out of
+        # every toctree, which is 15 orphan warnings for pages nobody sees.
+        and not (
+            build_config["target"] == "docs"
+            and pattern.startswith("build/")
+            and pattern.endswith("/reports/**")
+        )
     ]
     root_doc = "index"
     exclude_patterns.append("doc/component_report.md")
 else:
     root_doc = "doc/component_report"
     exclude_patterns.append("index.md")
+    # A per-component report builds one component and stitches its own table of
+    # contents, so none of the mounts apply. Switching TOML reading off here is
+    # what lets every `if` in ubproject.toml speak only about the variant, which
+    # is the only way a reader that never runs Sphinx can decide them too.
+    sources_from_toml = None
 include_patterns.extend(_extra_include_patterns)
 
 needs_variant_data = {

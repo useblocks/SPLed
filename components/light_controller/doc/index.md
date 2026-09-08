@@ -2,11 +2,6 @@
 
 **Software Detailed Design**
 
-```{toctree}
-:maxdepth: 2
-:caption: Table of Contents
-```
-
 ## Introduction
 
 The Light Controller is responsible for managing the behavior of the LED based on the system's power state.
@@ -115,4 +110,19 @@ stateDiagram-v2
     LIGHT_OFF --> LIGHT_ON : Power State != OFF
     LIGHT_ON --> LIGHT_OFF : Power State == OFF
 ```
+````
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/light_controller/reports/unit_test_spec
+/build/**/components/light_controller/reports/unit_test_results
+/build/**/components/light_controller/reports/coverage
+```
+
 ````

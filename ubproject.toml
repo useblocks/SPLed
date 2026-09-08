@@ -80,8 +80,10 @@ default = []
 # KConfig feature that owns it is enabled for the variant being built. The
 # feature values come from the variant's autoconf.json, see conf.py.
 #
-# `scope == "variant"` keeps these out of the per-component reports, which build
-# a single component and stitch their own table of contents.
+# Every condition names only what the variant data file declares, so ubCode and any
+# other reader of this file decide exactly what the Sphinx build decides. Keeping the
+# per-component reports out of this is conf.py's job: it switches TOML reading off for
+# those builds rather than encoding the build shape in a condition nothing else can see.
 #
 # This is the file-level half of variant handling. The block-level half is the
 # {if} directive of Sphinx-Needs, used inside the component documents.
@@ -92,43 +94,49 @@ default = []
 # ---------------------------------------------------------------------------
 
 [[source.mounts]]
-if = 'var.build_config.scope == "variant"'
 dir = "components/light_controller/doc"
 mount_at = "components/light_controller/doc"
 attach_to = "doc/components/index"
 path_check = "off"
 
 [[source.mounts]]
-if = 'var.build_config.scope == "variant"'
 dir = "components/main_control_knob/doc"
 mount_at = "components/main_control_knob/doc"
 attach_to = "doc/components/index"
 path_check = "off"
 
 [[source.mounts]]
-if = 'var.build_config.scope == "variant"'
 dir = "components/power_button/doc"
 mount_at = "components/power_button/doc"
 attach_to = "doc/components/index"
 path_check = "off"
 
 [[source.mounts]]
-if = 'var.build_config.scope == "variant"'
 dir = "components/power_signal_processing/doc"
 mount_at = "components/power_signal_processing/doc"
 attach_to = "doc/components/index"
 path_check = "off"
 
 [[source.mounts]]
-if = 'var.build_config.scope == "variant" and var.features.BRIGHTNESS_ADJUSTMENT_ENABLED == True'
+if = "var.features.BRIGHTNESS_ADJUSTMENT_ENABLED == True"
 dir = "components/brightness_controller/doc"
 mount_at = "components/brightness_controller/doc"
 attach_to = "doc/components/index"
 path_check = "off"
 
 [[source.mounts]]
-if = 'var.build_config.scope == "variant" and var.features.AUTO_OFF == True'
+if = "var.features.AUTO_OFF == True"
 dir = "components/auto_off/doc"
 mount_at = "components/auto_off/doc"
+attach_to = "doc/components/index"
+path_check = "off"
+
+# The integration test suite is not owned by a feature. It is added by Disco's
+# parts.cmake for the test build kit only, so its document follows the variant
+# rather than a KConfig symbol.
+[[source.mounts]]
+if = 'var.build_config.variant == "Disco"'
+dir = "test/spled_integration/doc"
+mount_at = "test/spled_integration/doc"
 attach_to = "doc/components/index"
 path_check = "off"

@@ -159,6 +159,15 @@ enabled. `attach_to` appends it to the empty toctree in
 `doc/components/index.md`, which is why that page needs no loop. Adding a
 component to the report means adding one mount block, not editing a document.
 
+A mount condition may only name data that the file in `[needs] variant_data_file`
+actually declares. That file is the mirror `CMakeLists.txt` writes for the
+configured variant, holding the KConfig features plus `build_config.variant`.
+Naming anything else — a key that only `conf.py` injects at build time — makes
+the condition unevaluable for ubCode and every other reader of this file, and
+their view of the project then silently disagrees with the build. Build-shape
+distinctions belong in `conf.py` instead: it switches TOML reading off entirely
+for a per-component report rather than encoding the scope in a condition.
+
 **Blocks inside a document: the `{if}` directive of Sphinx-Needs.** Wrap the
 content in a four-backtick fence and give the condition as the argument, for
 example ```` ````{if} var.features.BLINKING ````. Content behind a false

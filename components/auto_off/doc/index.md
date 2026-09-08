@@ -2,11 +2,6 @@
 
 **Software Detailed Design**
 
-```{toctree}
-:maxdepth: 2
-:caption: Table of Contents
-```
-
 ## Introduction
 
 The Auto Off Controller is responsible for monitoring user activity and automatically triggering system shutdown after a configurable period of inactivity. This component helps conserve power by detecting when no user input has occurred for a specified duration.
@@ -126,3 +121,18 @@ The internal timer calculation follows the formula:
 
 Key press detection and timer reset occur within one execution cycle (CONFIG_OS_TASK_PERIOD), ensuring immediate response to user activity.
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/auto_off/reports/unit_test_spec
+/build/**/components/auto_off/reports/unit_test_results
+/build/**/components/auto_off/reports/coverage
+```
+
+````
