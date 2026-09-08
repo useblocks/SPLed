@@ -1,4 +1,6 @@
-# Software Detailed Design
+# Light Controller
+
+**Software Detailed Design**
 
 ```{toctree}
 :maxdepth: 2
@@ -18,16 +20,14 @@ The Light Controller is responsible for managing the behavior of the LED based o
 The light can be in one of two states: ON or OFF. The state transitions are triggered by changes in the system's power state.
 ```
 
-{% if config.BLINKING %}
-
+````{if} var.features.BLINKING
 ```{spec} Blinking Behavior
 :id: SWDD_LC-101
 :refines: SWARCH_001
 
 When the light is ON, it may exhibit a blinking behavior. The blinking rate is configurable and is determined based on an external input (main knob value).
 ```
-
-{% endif %}
+````
 
 ```{spec} Color Management
 :id: SWDD_LC-102
@@ -67,27 +67,23 @@ The Light Controller uses the RTE interface `RteGetPowerState()` to get the curr
 The Light Controller uses the RTE interface `RteSetLightValue()` to set the light color.
 ```
 
-{% if config.BLINKING %}
-
+````{if} var.features.BLINKING
 ```{spec} Main Knob Input
 :id: SWDD_LC-203
 :refines: SWARCH_001
 
 The Light Controller uses the RTE interface `RteGetMainKnobValue()` to get the main knob value for controlling the blinking rate.
 ```
+````
 
-{% endif %}
-
-{% if config.BRIGHTNESS_ADJUSTMENT_ENABLED %}
-
+````{if} var.features.BRIGHTNESS_ADJUSTMENT_ENABLED
 ```{spec} Brightness Adjustment
 :id: SWDD_LC-204
 :refines: SWARCH_001
 
 The Light Controller uses the RTE interface `RteGetBrightnessValue()` to get the required brightness value for the light.
 ```
-
-{% endif %}
+````
 
 ## Internal Behavior
 
@@ -98,16 +94,25 @@ The Light Controller uses the RTE interface `RteGetBrightnessValue()` to get the
 The Light Controller is implemented as a state machine. The state machine is shown below.
 ```
 
+````{if} var.features.BLINKING
 ```{mermaid}
 stateDiagram-v2
     [*] --> LIGHT_OFF: Initial State
     LIGHT_OFF --> LIGHT_ON : Power State != OFF
     LIGHT_ON --> LIGHT_OFF : Power State == OFF
-{% if config.BLINKING %}
     LIGHT_ON --> BlinkON : Blink Counter >= Blink Period
     BlinkON --> BlinkOFF : Blink State == TRUE
     BlinkOFF --> BlinkON : Blink State == FALSE
     BlinkON --> LIGHT_ON : Reset Blink Counter
     BlinkOFF --> LIGHT_ON : Reset Blink Counter
-{% endif %}
 ```
+````
+
+````{if} not var.features.BLINKING
+```{mermaid}
+stateDiagram-v2
+    [*] --> LIGHT_OFF: Initial State
+    LIGHT_OFF --> LIGHT_ON : Power State != OFF
+    LIGHT_ON --> LIGHT_OFF : Power State == OFF
+```
+````

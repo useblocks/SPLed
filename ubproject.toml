@@ -70,3 +70,65 @@ default = []
 name = "fulfills"
 type = "list[str]"
 default = []
+
+# ---------------------------------------------------------------------------
+# Variant-dependent documentation, read by sphinx-mounts.
+#
+# Each component's design documentation is mounted at its own real path, so the
+# docname is exactly what it would be if the file were an ordinary source. What
+# the mount adds is the `if` condition: the bundle is in the build only when the
+# KConfig feature that owns it is enabled for the variant being built. The
+# feature values come from the variant's autoconf.json, see conf.py.
+#
+# `scope == "variant"` keeps these out of the per-component reports, which build
+# a single component and stitch their own table of contents.
+#
+# This is the file-level half of variant handling. The block-level half is the
+# {if} directive of Sphinx-Needs, used inside the component documents.
+#
+# `path_check = "off"` because these bundles are not self-contained by design:
+# a component's design document legitimately reaches its own `src/` headers and
+# the compilation database through sphinx-codelinks.
+# ---------------------------------------------------------------------------
+
+[[source.mounts]]
+if = 'var.build_config.scope == "variant"'
+dir = "components/light_controller/doc"
+mount_at = "components/light_controller/doc"
+attach_to = "doc/components/index"
+path_check = "off"
+
+[[source.mounts]]
+if = 'var.build_config.scope == "variant"'
+dir = "components/main_control_knob/doc"
+mount_at = "components/main_control_knob/doc"
+attach_to = "doc/components/index"
+path_check = "off"
+
+[[source.mounts]]
+if = 'var.build_config.scope == "variant"'
+dir = "components/power_button/doc"
+mount_at = "components/power_button/doc"
+attach_to = "doc/components/index"
+path_check = "off"
+
+[[source.mounts]]
+if = 'var.build_config.scope == "variant"'
+dir = "components/power_signal_processing/doc"
+mount_at = "components/power_signal_processing/doc"
+attach_to = "doc/components/index"
+path_check = "off"
+
+[[source.mounts]]
+if = 'var.build_config.scope == "variant" and var.features.BRIGHTNESS_ADJUSTMENT_ENABLED == True'
+dir = "components/brightness_controller/doc"
+mount_at = "components/brightness_controller/doc"
+attach_to = "doc/components/index"
+path_check = "off"
+
+[[source.mounts]]
+if = 'var.build_config.scope == "variant" and var.features.AUTO_OFF == True'
+dir = "components/auto_off/doc"
+mount_at = "components/auto_off/doc"
+attach_to = "doc/components/index"
+path_check = "off"

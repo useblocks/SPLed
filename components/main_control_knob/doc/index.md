@@ -1,4 +1,6 @@
-# Software Detailed Design
+# Main Control Knob
+
+**Software Detailed Design**
 
 ```{toctree}
 :maxdepth: 2

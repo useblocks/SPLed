@@ -1,4 +1,6 @@
-# Software Detailed Design
+# Brightness Controller
+
+**Software Detailed Design**
 
 ```{toctree}
 :maxdepth: 2

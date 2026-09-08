@@ -144,6 +144,41 @@ Edit feature config: `.\build.ps1 -command ".venv\Scripts\poetry run guiconfig"`
 
 Check feature values in source code via generated `autoconf.h` header.
 
+## Variant-Dependent Documentation
+
+Documents must never use Jinja to select variant-dependent content. Two
+mechanisms cover every case, and both read the same data: the feature values of
+the variant being built, exposed as `var.features.*`, plus `var.build_config.*`
+for the shape of the build (`variant` name, `target` of `docs` or `reports`,
+and `scope` of `variant` or `component`).
+
+**Whole documents: `[[source.mounts]]` in `ubproject.toml`**, read by
+sphinx-mounts. Each component's design document is mounted at its own real path
+under an `if` condition, so it enters the build only when its feature is
+enabled. `attach_to` appends it to the empty toctree in
+`doc/components/index.md`, which is why that page needs no loop. Adding a
+component to the report means adding one mount block, not editing a document.
+
+**Blocks inside a document: the `{if}` directive of Sphinx-Needs.** Wrap the
+content in a four-backtick fence and give the condition as the argument, for
+example ```` ````{if} var.features.BLINKING ````. Content behind a false
+condition is never parsed, so its needs never enter the traceability data.
+
+Two differences between the engines are worth knowing. The `{if}` directive is
+a real Python expression, so a bare `var.features.BLINKING` is enough, while a
+mount condition uses a restricted grammar that needs `== True`. And a mount
+condition that cannot be evaluated excludes what it gates, so a typo silently
+shrinks the document set rather than failing loudly.
+
+`conf.py` defaults every boolean in the feature model to `False` before
+overlaying the variant's own values, because KConfig omits a promptless boolean
+from `autoconf.json` when it evaluates to n. Without that, a condition naming
+such a feature would fail to evaluate for exactly the variants where it is off.
+
+The Jinja `source-read` hook in `conf.py` still runs, but only for the source
+listings that spl-core generates under `__source_docs`, which wrap their code
+blocks in `{% raw %}`. Do not reintroduce Jinja into a hand-written document.
+
 ## Project-Specific Conventions
 
 1. **No direct CMake invocation**: Always use `build.ps1` wrapper (handles variant selection, environment, Poetry, etc.)

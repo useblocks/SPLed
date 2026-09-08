@@ -1,4 +1,6 @@
-# Software Detailed Design
+# Power Button
+
+**Software Detailed Design**
 
 ```{toctree}
 :maxdepth: 2
