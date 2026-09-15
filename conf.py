@@ -43,8 +43,11 @@ numfig = True
 # html config ###############################################################
 # @see https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-# Omit "documentation" in title
-html_title = f"{project} {release}"
+# Omit "documentation" in title. Include the variant, so that a browser tab or
+# the sidebar logo tells two variants' builds apart -- both otherwise render the
+# same generic title and are indistinguishable when opened side by side.
+_html_title_variant = os.environ.get("VARIANT", "")
+html_title = f"{project} {_html_title_variant} {release}".strip() if _html_title_variant else f"{project} {release}"
 
 html_logo = "doc/_figures/SPLED_logo.png"
 
