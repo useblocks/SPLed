@@ -108,16 +108,6 @@ needs_global_options = SplSphinx.default_needs_global_options
 # supply the docs data and every report fence would evaluate false.
 _variant_data_file = os.environ.get("VARIANT_DATA_FILE")
 
-
-def setup(app):
-    if not _variant_data_file:
-        return
-
-    def _select_variant_data(app, config):
-        config.needs_variant_data_file = _variant_data_file
-
-    app.connect("config-inited", _select_variant_data, priority=20)
-
 # build shape ###############################################################
 #
 # The rest of this file is Sphinx plumbing, not variant data: which documents
@@ -154,3 +144,14 @@ else:
             "generated/components/**/__source_docs/**",
         ]
     )
+
+
+def setup(app):
+    """Apply the per-build-shape variant data file, after the TOML is read."""
+    if not _variant_data_file:
+        return
+
+    def _select_variant_data(app, config):
+        config.needs_variant_data_file = _variant_data_file
+
+    app.connect("config-inited", _select_variant_data, priority=20)
