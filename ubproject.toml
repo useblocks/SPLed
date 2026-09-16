@@ -1,6 +1,6 @@
 "$schema" = "https://ubcode.useblocks.com/ubproject.schema.json"
 
-extend = ".venv/lib/python3.13/site-packages/spl_core/report_generation/ubproject.toml"
+extend = ".venv/lib/python3.12/site-packages/spl_core/report_generation/ubproject.toml"
 
 [server]
 index_on_save = true
@@ -13,8 +13,6 @@ flavour = "myst"
 include = ["*.md"]
 
 [needs]
-schema_definitions_from_json = "schema.json"
-
 variant_data_file = "build/autoconf.json"
 
 src_trace_config_from_toml = "ubproject.toml"

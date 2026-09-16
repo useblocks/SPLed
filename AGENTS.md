@@ -37,7 +37,7 @@ On a **bare Linux host (e.g. WSL Ubuntu) that is not a devcontainer**, `build.sh
 
 ```bash
 sudo ./bootstrap_ubuntu.sh    # root: apt packages (libc6-dev, build-essential, 7zip, pipx)
-./bootstrap_python.sh         # user: uv, CPython 3.11, Poetry (into ~/.local)
+./bootstrap_python.sh         # user: uv, CPython 3.12, Poetry (into ~/.local)
 # then open a fresh shell (see note below) so ~/.local/bin is on PATH:
 ./build.sh --install          # user: poetry install + poks toolchain
 ```
@@ -45,6 +45,24 @@ sudo ./bootstrap_ubuntu.sh    # root: apt packages (libc6-dev, build-essential, 
 If `poetry` is not found after `bootstrap_python.sh`, open a new shell (or `source ~/.bashrc`) so `~/.local/bin` is on `PATH`, then run `./build.sh --install`. Inside the devcontainer this is automatic: the Dockerfile bakes both `bootstrap_ubuntu.sh` and `bootstrap_python.sh` into the image at build time, and `onCreateCommand` runs `build.sh --install`.
 
 **Always** start VS Code with: `.\build.ps1 -startVSCode` to ensure proper environment variables and Python virtual environment activation (`.venv` with Poetry dependencies).
+
+### Working against a local spl-core checkout
+
+Some changes to this project need a change in `spl-core` first. `CMakeLists.txt`
+locates spl-core by importing it from the venv and then includes its
+`spl.cmake`, so a single editable install redirects **both** the Python and the
+CMake side at a local checkout:
+
+```bash
+.venv/bin/python -m pip install -e ../spl-core --no-deps   # point at the checkout
+./build.sh --install                                       # ...and back to the pinned release
+```
+
+The path is deliberately **not** committed to `pyproject.toml`: CI must keep
+resolving the released spl-core, so a local override never silently becomes the
+build everyone gets. Land the spl-core change upstream, release it, and bump the
+pin in `pyproject.toml` — the override is for the span of one change, not a
+working mode.
 
 ### VS Code CMake Extension Configuration
 

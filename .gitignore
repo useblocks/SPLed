@@ -1,6 +1,11 @@
 # Binary output dir, not recommended to push binary results to Git.
 /build
 
+# Current-variant pointer written by tools/variant_data.py: a symlink (or, on
+# Windows without Developer Mode, a copy) of the configured variant's build
+# output directory. Generated output, never committed.
+/generated
+
 # Output directory of test results
 /test/output
 
