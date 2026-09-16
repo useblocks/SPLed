@@ -14,17 +14,17 @@ doc/components/index
 
 ````{if} var.build_config.target == "reports"
 
-The glob below matches the variant-wide coverage page for any variant name and
-any build type, and does not match a component's own coverage page, because the
-directory in front of `reports` is the build type there and the component name
-here.
+`generated` is the build directory of the configured variant, maintained by
+`tools/variant_data.py`. Naming it directly is what lets this be one entry
+rather than a glob over every variant and build type that happens to be on
+disk -- a glob that only ever resolved to one page because `conf.py` narrowed
+the source set behind the scenes.
 
 ```{toctree}
 :caption: Code Coverage
 :maxdepth: 1
-:glob:
 
-/build/**/[A-Z]*/reports/coverage
+/generated/reports/coverage
 ```
 
 ````

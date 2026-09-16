@@ -164,47 +164,111 @@ Check feature values in source code via generated `autoconf.h` header.
 
 ## Variant-Dependent Documentation
 
-Documents must never use Jinja to select variant-dependent content. Two
-mechanisms cover every case, and both read the same data: the feature values of
-the variant being built, exposed as `var.features.*`, plus `var.build_config.*`
-for the shape of the build (`variant` name, `target` of `docs` or `reports`,
-and `scope` of `variant` or `component`).
+Documents never use Jinja. There is no `source-read` hook any more, and
+reintroducing one is a regression, not a shortcut.
 
-**Whole documents: `[[source.mounts]]` in `ubproject.toml`**, read by
-sphinx-mounts. Each component's design document is mounted at its own real path
-under an `if` condition, so it enters the build only when its feature is
-enabled. `attach_to` appends it to the empty toctree in
-`doc/components/index.md`, which is why that page needs no loop. Adding a
-component to the report means adding one mount block, not editing a document.
+Everything variant-dependent is decided from **one file**: the variant data
+that `tools/variant_data.py` writes, exposed as `var.*`. The governing rule:
 
-A mount condition may only name data that the file in `[needs] variant_data_file`
-actually declares. That file is the mirror `CMakeLists.txt` writes for the
-configured variant, holding the KConfig features plus `build_config.variant`.
-Naming anything else — a key that only `conf.py` injects at build time — makes
-the condition unevaluable for ubCode and every other reader of this file, and
-their view of the project then silently disagrees with the build. Build-shape
-distinctions belong in `conf.py` instead: it switches TOML reading off entirely
-for a per-component report rather than encoding the scope in a condition.
+> **Everything a condition may name has to be IN the variant data file.**
 
-**Blocks inside a document: the `{if}` directive of Sphinx-Needs.** Wrap the
-content in a four-backtick fence and give the condition as the argument, for
-example ```` ````{if} var.features.BLINKING ````. Content behind a false
-condition is never parsed, so its needs never enter the traceability data.
+A key that only `conf.py` knows is invisible to ubCode, `ubc` and a reviewer's
+editor, so their view of the project silently disagrees with the build —
+silently, because a condition a tool cannot evaluate gates content **off**
+rather than failing. That is why `conf.py` reads the file and adds nothing to
+it.
 
-Two differences between the engines are worth knowing. The `{if}` directive is
-a real Python expression, so a bare `var.features.BLINKING` is enough, while a
-mount condition uses a restricted grammar that needs `== True`. And a mount
-condition that cannot be evaluated excludes what it gates, so a typo silently
-shrinks the document set rather than failing loudly.
+### The three mechanisms
 
-`conf.py` defaults every boolean in the feature model to `False` before
-overlaying the variant's own values, because KConfig omits a promptless boolean
-from `autoconf.json` when it evaluates to n. Without that, a condition naming
-such a feature would fail to evaluate for exactly the variants where it is off.
+**Whole documents: `[[source.variant_sources]]` in `ubproject.toml`.** One rule
+per component, gated on membership of the variant's component list:
 
-The Jinja `source-read` hook in `conf.py` still runs, but only for the source
-listings that spl-core generates under `__source_docs`, which wrap their code
-blocks in `{% raw %}`. Do not reintroduce Jinja into a hand-written document.
+```toml
+[[source.variant_sources]]
+if = "'components/auto_off' in var.build_config.components"
+files = [
+    "components/auto_off/doc/**",
+    "generated/components/auto_off/reports/**",
+    "generated/components/auto_off/__source_docs/**",
+]
+```
+
+Membership, never identity. The component list comes from that variant's
+`parts.cmake`, so the product structure is stated once, in the file that already
+states it. **Never gate on the variant name** — that is a second encoding of the
+same fact, free to drift.
+
+Rules are *subtractive*: a FALSE rule removes the files it names, a TRUE rule
+does nothing. Two rules naming the same file therefore compose as AND, which is
+how generated output is gated on both the build shape and the component.
+
+**Blocks inside a document: the `{if}` directive of Sphinx-Needs.** Four-backtick
+fence, condition as the argument:
+
+````text
+````{if} var.features.BLINKING
+...
+````
+````
+
+Content behind a false condition is never parsed, so its needs never enter the
+traceability data.
+
+**External trees: `[[source.mounts]]`.** Currently unused. Everything this
+project shows lives in the tree or under `generated/`.
+
+### What the data holds
+
+| Key | |
+| --- | --- |
+| `var.features.*` | every KConfig symbol, with **every** declared boolean present — including the promptless ones KConfig omits when they are off |
+| `var.build_config.variant` | e.g. `Disco`, `Base/Dev` |
+| `var.build_config.kit` | `prod` or `test` |
+| `var.build_config.target` | `docs` or `reports` |
+| `var.build_config.components` | the variant's component list, from `parts.cmake` |
+
+### Two differences between the engines
+
+The `{if}` directive takes a real Python expression, so a bare
+`var.features.BLINKING` is enough. A `variant_sources` condition uses a
+restricted grammar that needs `== True`. And a condition that cannot be
+evaluated **excludes** what it gates, so a typo silently shrinks the document
+set rather than failing loudly — which is what `test_ubproject_config.py` is
+for.
+
+### Adding a component
+
+1. Add it to the variant's `parts.cmake`.
+2. Add one `[[source.variant_sources]]` rule in `ubproject.toml`.
+3. Add one line to the 150% toctree in `doc/components/index.md`.
+
+Nothing is generated, no loop is edited, and nothing under `build/` is touched.
+
+### Generated output
+
+`build/` and `generated/` are output. **Nobody edits them — not a person, not an
+assistant.** The editor is configured to refuse it (`files.readonlyInclude`) and
+`build/variants/GENERATED` says so on disk.
+
+`generated/` is the configured variant's build directory. Documents name it
+directly instead of globbing `/build/**`; a glob matched every variant and build
+type on disk and only ever resolved to one page because `conf.py` narrowed the
+source set behind the scenes.
+
+Regenerate without a compiler — KConfig is pure Python, and CMake's top-level
+`project()` call demands a C toolchain before it will configure at all:
+
+```bash
+python tools/variant_data.py --all                     # the whole matrix
+python tools/variant_data.py --variant Sleep --kit test # ...and point at one cell
+python tools/variant_data.py --all --check             # CI: regenerate and diff
+```
+
+Preview a variant by pointing the build at its cell:
+
+```bash
+VARIANT_DATA_FILE=build/variants/Sleep/test/docs.json sphinx-build -b html . out
+```
 
 ## Project-Specific Conventions
 

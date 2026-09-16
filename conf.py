@@ -29,7 +29,19 @@ exclude_patterns = [
     "**/test_results.rst",  # We renamed this file, but nobody deletes it.
 ]
 
-include_patterns = ["index.md", "doc/**"]
+# The 150% source set: every hand-written document the product line has.
+#
+# Which of them the build actually contains is decided by the
+# [[source.variant_sources]] rules in ubproject.toml, against the variant data.
+# Narrowing the set here as well would put a second, invisible gate in front of
+# the declared one -- and an invisible gate is the thing this whole design
+# exists to remove.
+include_patterns = [
+    "index.md",
+    "doc/**",
+    "components/**/doc/**",
+    "test/**/doc/**",
+]
 
 # configuration of built-in stuff ###########################################
 # @see https://www.sphinx-doc.org/en/master/usage/configuration.html
@@ -113,38 +125,32 @@ def setup(app):
 # decide these, and none of it may leak into `var.*`.
 
 _build_config = SplSphinx.get_default_html_context()["build_config"]
-_extra_include_patterns = _build_config.get("include_patterns", [])
 
 # Two shapes of build use this configuration: the variant-wide one, and the
-# per-component report that spl-core builds for a single component.
+# per-component report that spl-core builds for a single component. This is the
+# only build-shape decision left here, and it is a Sphinx one -- which document
+# is the root -- not variant data. No other reader has to decide it.
 if _build_config.get("component_info"):
     root_doc = "doc/component_report"
     exclude_patterns.append("index.md")
     # A per-component report builds one component and stitches its own table of
-    # contents, so none of the mounts apply. Switching TOML reading off here is
-    # what lets every `if` in ubproject.toml speak only about the variant, which
-    # is the only way a reader that never runs Sphinx can decide them too.
+    # contents, so the project-wide variant rules do not apply to it.
     sources_from_toml = None
+    include_patterns.extend(_build_config.get("include_patterns", []))
 else:
     root_doc = "index"
     exclude_patterns.append("doc/component_report.md")
-    # Component design documents are mounted by sphinx-mounts, see
-    # [[source.mounts]] in ubproject.toml. Reading them as ordinary sources as
-    # well would parse every need in them a second time under a second docname.
-    # Only the hand-written trees are dropped; the generated ones under build/
-    # stay, because they are not mounted.
-    _extra_include_patterns = [
-        pattern
-        for pattern in _extra_include_patterns
-        if not (pattern.endswith("/doc/**") and not pattern.startswith("build/"))
-        # The generated report pages are only ever shown by the reports target.
-        # The docs target used to read them anyway and then leave them out of
-        # every toctree, which is 15 orphan warnings for pages nobody sees.
-        and not (
-            _build_config.get("target") != "reports"
-            and pattern.startswith("build/")
-            and pattern.endswith("/reports/**")
-        )
-    ]
-
-include_patterns.extend(_extra_include_patterns)
+    # The generated report pages of the CONFIGURED variant, reached through the
+    # stable `generated` path rather than by globbing every build directory on
+    # disk. spl-core's own include patterns are deliberately not used here: they
+    # name the real build/<Variant>/<kit>/<type> paths, so the same file would
+    # enter the build under a second docname and every need in it would be
+    # parsed twice.
+    include_patterns.extend(
+        [
+            "generated/reports/**",
+            "generated/components/**/reports/**",
+            "generated/test/**/reports/**",
+            "generated/components/**/__source_docs/**",
+        ]
+    )

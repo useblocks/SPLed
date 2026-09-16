@@ -183,71 +183,119 @@ type = "list[str]"
 default = []
 
 # ---------------------------------------------------------------------------
-# Variant-dependent documentation, read by sphinx-mounts.
+# Variant-dependent documentation.
 #
-# Each component's design documentation is mounted at its own real path, so the
-# docname is exactly what it would be if the file were an ordinary source. What
-# the mount adds is the `if` condition: the bundle is in the build only when the
-# KConfig feature that owns it is enabled for the variant being built. The
-# feature values come from the variant's autoconf.json, see conf.py.
+# Two mechanisms, one data source. Both read the file named by
+# `[needs] variant_data_file` above, which tools/variant_data.py writes, so
+# ubCode, ubc and the Sphinx build decide every condition identically.
 #
-# Every condition names only what the variant data file declares, so ubCode and any
-# other reader of this file decide exactly what the Sphinx build decides. Keeping the
-# per-component reports out of this is conf.py's job: it switches TOML reading off for
-# those builds rather than encoding the build shape in a condition nothing else can see.
+# `[[source.variant_sources]]` gates whole documents that live IN this tree.
+# `[[source.mounts]]` brings in trees that do not -- here, the generated report
+# output. Blocks inside a document are gated by the {if} directive of
+# Sphinx-Needs, which reads the same `var.*`.
 #
-# This is the file-level half of variant handling. The block-level half is the
-# {if} directive of Sphinx-Needs, used inside the component documents.
-#
-# `path_check = "off"` because these bundles are not self-contained by design:
-# a component's design document legitimately reaches its own `src/` headers and
-# the compilation database through sphinx-codelinks.
+# A condition may only name what the variant data file declares. Naming
+# anything else makes it unevaluable, and an unevaluable condition EXCLUDES
+# what it gates -- so a typo silently shrinks the document set rather than
+# failing loudly.
 # ---------------------------------------------------------------------------
 
-[[source.mounts]]
-dir = "components/light_controller/doc"
-mount_at = "components/light_controller/doc"
-attach_to = "doc/components/index"
-path_check = "off"
+# Rules are subtractive: a rule whose condition is FALSE removes the files it
+# names, and a TRUE rule does nothing. Two rules naming the same file therefore
+# compose as AND, which is what gates the generated report pages on both the
+# build shape and the component being part of the variant.
 
-[[source.mounts]]
-dir = "components/main_control_knob/doc"
-mount_at = "components/main_control_knob/doc"
-attach_to = "doc/components/index"
-path_check = "off"
+# Generated output belongs to the `reports` build shape only.
+#
+# `generated` is the configured variant's build directory, maintained by
+# tools/variant_data.py. Without this rule a `docs` build with a populated
+# build directory would read every report page and then leave it out of every
+# toctree -- pages nobody asked for, one orphan warning each.
+[[source.variant_sources]]
+if = 'var.build_config.target == "reports"'
+files = ["generated/**"]
 
-[[source.mounts]]
-dir = "components/power_button/doc"
-mount_at = "components/power_button/doc"
-attach_to = "doc/components/index"
-path_check = "off"
+# Component documentation, hand-written and generated alike.
+#
+# Gated on membership of the variant's component list, which the generator
+# reads out of that variant's parts.cmake. That is the point: the product
+# structure is stated once, in the file that already states it. Gating on the
+# owning KConfig feature instead would be a second encoding of the same fact,
+# free to drift -- and gating the integration suite on `variant == "Disco"`, as
+# this did before, was exactly that drift made concrete: it claimed the suite
+# for Disco's prod kit too, where parts.cmake does not add it.
+#
+# doc/components/index.md carries the full 150% toctree. An entry naming a
+# document a rule excluded is reported as INFO by both tools, by design.
 
-[[source.mounts]]
-dir = "components/power_signal_processing/doc"
-mount_at = "components/power_signal_processing/doc"
-attach_to = "doc/components/index"
-path_check = "off"
+[[source.variant_sources]]
+if = "'components/light_controller' in var.build_config.components"
+files = [
+    "components/light_controller/doc/**",
+    "generated/components/light_controller/reports/**",
+    "generated/components/light_controller/__source_docs/**",
+]
 
-[[source.mounts]]
-if = "var.features.BRIGHTNESS_ADJUSTMENT_ENABLED == True"
-dir = "components/brightness_controller/doc"
-mount_at = "components/brightness_controller/doc"
-attach_to = "doc/components/index"
-path_check = "off"
+[[source.variant_sources]]
+if = "'components/main_control_knob' in var.build_config.components"
+files = [
+    "components/main_control_knob/doc/**",
+    "generated/components/main_control_knob/reports/**",
+    "generated/components/main_control_knob/__source_docs/**",
+]
 
-[[source.mounts]]
-if = "var.features.AUTO_OFF == True"
-dir = "components/auto_off/doc"
-mount_at = "components/auto_off/doc"
-attach_to = "doc/components/index"
-path_check = "off"
+[[source.variant_sources]]
+if = "'components/power_button' in var.build_config.components"
+files = [
+    "components/power_button/doc/**",
+    "generated/components/power_button/reports/**",
+    "generated/components/power_button/__source_docs/**",
+]
 
-# The integration test suite is not owned by a feature. It is added by Disco's
-# parts.cmake for the test build kit only, so its document follows the variant
-# rather than a KConfig symbol.
-[[source.mounts]]
-if = 'var.build_config.variant == "Disco"'
-dir = "test/spled_integration/doc"
-mount_at = "test/spled_integration/doc"
-attach_to = "doc/components/index"
-path_check = "off"
+[[source.variant_sources]]
+if = "'components/power_signal_processing' in var.build_config.components"
+files = [
+    "components/power_signal_processing/doc/**",
+    "generated/components/power_signal_processing/reports/**",
+    "generated/components/power_signal_processing/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/brightness_controller' in var.build_config.components"
+files = [
+    "components/brightness_controller/doc/**",
+    "generated/components/brightness_controller/reports/**",
+    "generated/components/brightness_controller/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/auto_off' in var.build_config.components"
+files = [
+    "components/auto_off/doc/**",
+    "generated/components/auto_off/reports/**",
+    "generated/components/auto_off/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'test/spled_integration' in var.build_config.components"
+files = [
+    "test/spled_integration/doc/**",
+    "generated/test/spled_integration/reports/**",
+    "generated/test/spled_integration/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/examples/hello_gmock' in var.build_config.components"
+files = [
+    "components/examples/hello_gmock/doc/**",
+    "generated/components/examples/hello_gmock/reports/**",
+    "generated/components/examples/hello_gmock/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/examples/flight_controller' in var.build_config.components"
+files = [
+    "components/examples/flight_controller/doc/**",
+    "generated/components/examples/flight_controller/reports/**",
+    "generated/components/examples/flight_controller/__source_docs/**",
+]
