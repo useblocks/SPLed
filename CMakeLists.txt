@@ -46,22 +46,59 @@ else()
 endif()
 include("${SPL_CORE_DIR}/spl.cmake")
 
-# Mirror the currently configured variant's KConfig JSON to a fixed path, the same
-# way cmake.copyCompileCommands mirrors compile_commands.json, so tools outside CMake
-# (e.g. ubproject.toml's variant_data_file) can track whichever variant/build kit/build
-# type is currently selected in the CMake Tools extension without a hardcoded path.
+# Variant data: one generation step, everything downstream declarative.
 #
-# The variant NAME is added alongside the features. KConfig only knows features, but
-# the `if` conditions in ubproject.toml are read by tools that never run CMake or
-# Sphinx (ubCode, the language server). Everything such a condition names has to be in
-# this file, or the tool cannot decide it and its view of the project disagrees with
-# the build.
-if(EXISTS ${AUTOCONF_JSON})
-    file(READ ${AUTOCONF_JSON} _spled_variant_data)
-    string(JSON _spled_variant_data SET "${_spled_variant_data}"
-        build_config "{\"variant\": \"${VARIANT}\"}")
-    file(WRITE ${CMAKE_SOURCE_DIR}/build/autoconf.json "${_spled_variant_data}")
+# tools/variant_data.py writes build/variants/<Variant>/<kit>/<target>.json for
+# every variant, plus build/autoconf.json as the "current" pointer and a
+# `generated` symlink to this build directory. It is invoked here so that
+# configuring in the IDE keeps the pointer in step with whatever CMake Tools
+# selected -- the same role cmake.copyCompileCommands plays for the compilation
+# database.
+#
+# It is deliberately a standalone script and not CMake code. KConfig is pure
+# Python, while the top-level project() call above demands a C toolchain before
+# CMake will configure at all, so anything expressed here could only ever run on
+# a machine that can build the software. The documentation, its quality gate and
+# the IDE must not need a compiler, so the same script has to be runnable on its
+# own:
+#
+#     python tools/variant_data.py --all
+#
+# Everything a condition in ubproject.toml or an {if} directive may name lives in
+# these files -- the complete feature vector including the booleans KConfig omits,
+# the variant, the build kit, the build target and the component list. A key that
+# only conf.py knew would be invisible to ubCode and every other reader, and their
+# view of the project would then silently disagree with the build.
+set(_SPLED_VARIANT_DATA_SCRIPT ${CMAKE_SOURCE_DIR}/tools/variant_data.py)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${_SPLED_VARIANT_DATA_SCRIPT}
+    ${CMAKE_SOURCE_DIR}/variants/${VARIANT}/parts.cmake
+)
+execute_process(
+    COMMAND "${_VENV_PYTHON}" ${_SPLED_VARIANT_DATA_SCRIPT}
+        --variant ${VARIANT}
+        --kit ${BUILD_KIT}
+        --target docs
+        --current
+        --build-dir ${CMAKE_BINARY_DIR}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE _spled_variant_data_result
+    OUTPUT_VARIABLE _spled_variant_data_output
+    ERROR_VARIABLE _spled_variant_data_output
+)
+if(NOT _spled_variant_data_result EQUAL 0)
+    message(FATAL_ERROR "tools/variant_data.py failed:\n${_spled_variant_data_output}")
 endif()
+
+# Point each Sphinx build shape at its own cell of the matrix. The `docs` cell is
+# also the one build/autoconf.json holds, so ubCode and the docs build evaluate
+# byte-identical data. The reports fences then resolve to a clean false in the
+# IDE rather than being undecidable -- `target` is present, it simply is not
+# "reports" there.
+set(SPL_VARIANT_DATA_FILE_DOCS
+    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/docs.json CACHE FILEPATH "" FORCE)
+set(SPL_VARIANT_DATA_FILE_REPORTS
+    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/reports.json CACHE FILEPATH "" FORCE)
 
 # The object_deps_report extension is currently Windows-only: its index.cmake
 # hardcodes the runner as "object_deps_report.exe", which does not exist on

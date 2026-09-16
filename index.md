@@ -1,7 +1,6 @@
 # Variant Report
 
 **Variant:** {variant}`build_config.variant`
-**Timestamp:** {{ timestamp }}
 
 ```{toctree}
 :maxdepth: 1

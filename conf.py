@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 """Configuration"""
 import datetime
-import json
 import os
-
-from pathlib import Path
 
 from importlib.resources import files
 from spl_core.report_generation.spl_sphinx import SplSphinx
@@ -83,67 +80,47 @@ needs_global_options = SplSphinx.default_needs_global_options
 # Always write the merged needs.json (all needs, after import/resolution) to the build output dir.
 needs_build_json = True
 
-# Expose KConfig feature values (e.g. CUSTOMER) as `var.features.*`.
-# Used by the {if} directive in the documents and by the `if` conditions of
-# [[source.mounts]] in ubproject.toml. CMake exports AUTOCONF_JSON_FILE for the
-# variant it is building; the mirrored copy written by CMakeLists.txt is the
-# fallback so a bare `sphinx-build` (or the IDE) resolves the same variant
-# instead of silently dropping every variant-gated document.
-_autoconf_json_file = os.environ.get("AUTOCONF_JSON_FILE", "build/autoconf.json")
-if os.path.exists(_autoconf_json_file):
-    needs_variant_data_file = _autoconf_json_file
+# variant data ##############################################################
+#
+# ONE file, and nothing computed here.
+#
+# Everything a document's {if} directive or a condition in ubproject.toml may
+# name -- the complete feature vector, the variant, the build kit, the build
+# target, the component list -- is written by tools/variant_data.py and read
+# from here verbatim. That is the whole point: ubCode, ubc and a reviewer's
+# editor cannot execute this file, so anything synthesized here would be
+# invisible to them and their view of the project would silently disagree with
+# the build. The rule is "everything a condition may name has to be IN the
+# file", and it only holds if this file adds nothing.
+#
+# CMake exports VARIANT_DATA_FILE for the build shape it is building. The
+# fallback is the "current" pointer that tools/variant_data.py maintains, which
+# is also what ubproject.toml names -- so a bare `sphinx-build`, the IDE and the
+# docs target all resolve byte-identical data.
+needs_variant_data_file = os.environ.get("VARIANT_DATA_FILE", "build/autoconf.json")
 
+# build shape ###############################################################
+#
+# The rest of this file is Sphinx plumbing, not variant data: which documents
+# are in the source set and which one is the root. No other tool needs to
+# decide these, and none of it may leak into `var.*`.
 
-def _feature_defaults() -> dict:
-    """Every boolean the feature model declares, defaulted to False.
+_build_config = SplSphinx.get_default_html_context()["build_config"]
+_extra_include_patterns = _build_config.get("include_patterns", [])
 
-    KConfig writes a boolean into autoconf.json only when it has a prompt or
-    evaluates to y. A helper symbol such as BRIGHTNESS_ADJUSTMENT_ENABLED is
-    therefore simply absent from the variants where it is off, and a document
-    or a mount condition naming it would fail to evaluate for exactly those
-    variants. Reading the model once and defaulting its booleans keeps the
-    variant data complete without anyone having to maintain a list by hand.
-    """
-    try:
-        import kconfiglib
-        import spl_core
-
-        os.environ.setdefault("SPL_CORE_DIR", str(Path(spl_core.__file__).parent))
-        os.environ.setdefault("srctree", str(Path(__file__).parent))
-        model = kconfiglib.Kconfig("KConfig", warn=False)
-    except Exception:  # noqa: BLE001 - the feature model is optional context here
-        return {}
-    return {
-        name: False
-        for name, symbol in model.syms.items()
-        if name and symbol.orig_type == kconfiglib.BOOL
-    }
-
-
-_features = _feature_defaults()
-if os.path.exists(_autoconf_json_file):
-    with open(_autoconf_json_file) as _handle:
-        _features.update(json.load(_handle)["features"])
-
-html_context = SplSphinx.get_default_html_context()
-
-build_config = html_context["build_config"].copy()
-build_config.pop("components_info", None)
-
-# Two shapes of build use this configuration: the variant-wide report, and the
-# per-component report that spl-core builds for a single component. Normalize
-# the difference into plain keys so a document or a mount condition can test it
-# without having to know which keys CMake happens to write. CMake writes
-# `target` only for the variant-wide builds; for a per-component build it is the
-# name of the directory holding the configuration file CMake pointed us at.
-_build_config_file = os.environ.get("SPHINX_BUILD_CONFIGURATION_FILE", "")
-build_config.setdefault(
-    "target", "reports" if Path(_build_config_file).parent.name == "reports" else "docs"
-)
-build_config["scope"] = "component" if build_config.get("component_info") else "variant"
-
-_extra_include_patterns = html_context["build_config"].get("include_patterns", [])
-if build_config["scope"] == "variant":
+# Two shapes of build use this configuration: the variant-wide one, and the
+# per-component report that spl-core builds for a single component.
+if _build_config.get("component_info"):
+    root_doc = "doc/component_report"
+    exclude_patterns.append("index.md")
+    # A per-component report builds one component and stitches its own table of
+    # contents, so none of the mounts apply. Switching TOML reading off here is
+    # what lets every `if` in ubproject.toml speak only about the variant, which
+    # is the only way a reader that never runs Sphinx can decide them too.
+    sources_from_toml = None
+else:
+    root_doc = "index"
+    exclude_patterns.append("doc/component_report.md")
     # Component design documents are mounted by sphinx-mounts, see
     # [[source.mounts]] in ubproject.toml. Reading them as ordinary sources as
     # well would parse every need in them a second time under a second docname.
@@ -157,46 +134,10 @@ if build_config["scope"] == "variant":
         # The docs target used to read them anyway and then leave them out of
         # every toctree, which is 15 orphan warnings for pages nobody sees.
         and not (
-            build_config["target"] == "docs"
+            _build_config.get("target") != "reports"
             and pattern.startswith("build/")
             and pattern.endswith("/reports/**")
         )
     ]
-    root_doc = "index"
-    exclude_patterns.append("doc/component_report.md")
-else:
-    root_doc = "doc/component_report"
-    exclude_patterns.append("index.md")
-    # A per-component report builds one component and stitches its own table of
-    # contents, so none of the mounts apply. Switching TOML reading off here is
-    # what lets every `if` in ubproject.toml speak only about the variant, which
-    # is the only way a reader that never runs Sphinx can decide them too.
-    sources_from_toml = None
+
 include_patterns.extend(_extra_include_patterns)
-
-needs_variant_data = {
-    "features": _features,
-    "build_config": build_config,
-}
-
-
-def rstjinja(app, docname, source):
-    """Render every source file as a Jinja template before Sphinx parses it.
-
-    No hand-written document in this project uses Jinja any more: variant
-    dependent content is selected by the {if} directive of Sphinx-Needs inside
-    a document, and by [[source.mounts]] conditions in ubproject.toml for whole
-    documents. The hook still has to run, because the source listings that
-    spl-core generates under `__source_docs` wrap their code blocks in
-    `{% raw %}` and depend on this pass to strip those markers.
-    """
-    # Make sure we're outputting HTML
-    if app.builder.format != "html":
-        return
-    src = source[0]
-    rendered = app.builder.templates.render_string(src, app.config.html_context)
-    source[0] = rendered
-
-
-def setup(app):
-    app.connect("source-read", rstjinja)
