@@ -41,18 +41,17 @@ include = [
 ]
 
 # Every .rst in this project is generated: the clanguru source listings and the
-# report pages, under `generated`, the configured variant's build directory.
-# They are indexed when the current variant data names the `reports` target and
-# excluded by the variant rule below when it does not.
+# report pages, which live under the configured variant's build directory and
+# are therefore covered by `extend_exclude = ["build/**"]` above. ubCode
+# deliberately shows none of them -- they are build output, and indexing them
+# for every variant ever built is the problem that exclusion solves.
 #
-# KNOWN LIMITATION, verified: ubCode does not descend symlinked directories
-# ("directories are skipped and symlinked directories are not descended"), and
-# tools/variant_data.py makes `generated` a symlink. So this include is correct
-# and currently inert FOR UBCODE -- Sphinx follows the link and does read these
-# pages. Point `generated` at a real directory and ubCode indexes them, gated
-# exactly as intended; that is verified, not assumed. Until the generated
-# documents are materialised rather than linked, the IDE simply shows no report
-# pages, which costs nothing today because no needs live in them yet.
+# The include below names `generated`, the stable path a future spl-core will
+# let the report pages live at. It is inert twice over today: nothing is written
+# there yet, and ubCode does not descend symlinked directories anyway
+# ("directories are skipped and symlinked directories are not descended"),
+# which is what tools/variant_data.py currently makes it. Both were verified,
+# not assumed.
 [parse.parsers.rst]
 include = ["generated/**/*.rst"]
 

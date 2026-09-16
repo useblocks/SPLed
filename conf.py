@@ -146,19 +146,21 @@ if _build_config.get("component_info"):
 else:
     root_doc = "index"
     exclude_patterns.append("doc/component_report.md")
-    # The generated report pages of the CONFIGURED variant, reached through the
-    # stable `generated` path rather than by globbing every build directory on
-    # disk. spl-core's own include patterns are deliberately not used here: they
-    # name the real build/<Variant>/<kit>/<type> paths, so the same file would
-    # enter the build under a second docname and every need in it would be
-    # parsed twice.
+    # The generated pages of the CONFIGURED variant, named by spl-core for the
+    # build it is running. This is what makes the `/build/**` globs in the report
+    # sections resolve to one page each rather than one per variant on disk.
+    #
+    # A stable path would be better and `generated` exists for it, but spl-core
+    # writes the gcovr tree at `reports/html/<build-relative page path>/coverage`
+    # and looks its report artifacts up there too. Moving the page without moving
+    # those breaks the coverage link, so the stable path waits for the spl-core
+    # change. Only the hand-written component trees are dropped, because the
+    # variant rules already own those; keeping them here would parse every need
+    # in them a second time under a second docname.
     include_patterns.extend(
-        [
-            "generated/reports/**",
-            "generated/components/**/reports/**",
-            "generated/test/**/reports/**",
-            "generated/components/**/__source_docs/**",
-        ]
+        pattern
+        for pattern in _build_config.get("include_patterns", [])
+        if pattern.startswith("build/")
     )
 
 

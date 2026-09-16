@@ -58,10 +58,11 @@ The main control knob component uses the RTE interface `RteSetMainKnobValue()` t
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/main_control_knob/reports/unit_test_spec
-/generated/components/main_control_knob/reports/unit_test_results
-/generated/components/main_control_knob/reports/coverage
+/build/**/components/main_control_knob/reports/unit_test_spec
+/build/**/components/main_control_knob/reports/unit_test_results
+/build/**/components/main_control_knob/reports/coverage
 ```
 
 ````

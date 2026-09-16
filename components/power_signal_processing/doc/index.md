@@ -115,10 +115,11 @@ graph TD
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/power_signal_processing/reports/unit_test_spec
-/generated/components/power_signal_processing/reports/unit_test_results
-/generated/components/power_signal_processing/reports/coverage
+/build/**/components/power_signal_processing/reports/unit_test_spec
+/build/**/components/power_signal_processing/reports/unit_test_results
+/build/**/components/power_signal_processing/reports/coverage
 ```
 
 ````

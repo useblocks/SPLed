@@ -299,30 +299,27 @@ def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_pa
     false and the reports target would contain no reports -- with no error
     anywhere, and with the reports test still passing, because it asserts that
     the build succeeded and not that it produced anything.
+
+    Checked on the rendered page rather than on a file list, because the fence
+    is what is under test: the report sections only appear when the variant data
+    says `reports`.
     """
-    published = PROJECT_ROOT / "build" / "variant-data-reports.json"
-    published.write_text((PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json").read_text())
-    docs_published = PROJECT_ROOT / "build" / "variant-data-docs.json"
-    docs_published.write_text((PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "docs.json").read_text())
+    published = {
+        "reports": PROJECT_ROOT / "build" / "variant-data-reports.json",
+        "docs": PROJECT_ROOT / "build" / "variant-data-docs.json",
+    }
+    for shape, path in published.items():
+        path.write_text((PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / f"{shape}.json").read_text())
 
-    # A minimal generated tree, so the report toctrees have something to resolve.
-    generated = PROJECT_ROOT / "generated"
-    reports = generated / "components" / "light_controller" / "reports"
     try:
-        reports.mkdir(parents=True, exist_ok=True)
-        for page in ("unit_test_spec", "unit_test_results", "coverage"):
-            (reports / f"{page}.rst").write_text("Sim\n===\n\nbody\n")
-
-        reports_out = tmp_path / "reports_html"
-        assert _build_with_spl_core_env("reports", reports_out, tmp_path).returncode == 0
-        assert (reports_out / "generated" / "components" / "light_controller" / "reports" / "coverage.html").is_file(), (
-            "the reports shape did not read the reports cell"
-        )
-
-        docs_out = tmp_path / "docs_html"
-        assert _build_with_spl_core_env("docs", docs_out, tmp_path).returncode == 0
-        assert not (docs_out / "generated").exists(), "the docs shape must not build report pages"
+        for shape, expect_verification in (("reports", True), ("docs", False)):
+            out = tmp_path / f"{shape}_html"
+            result = _build_with_spl_core_env(shape, out, tmp_path)
+            assert result.returncode == 0, result.stdout[-2000:]
+            page = (out / "components" / "light_controller" / "doc" / "index.html").read_text()
+            assert ("Verification" in page) is expect_verification, (
+                f"the {shape} shape {'should' if expect_verification else 'should not'} render the verification section"
+            )
     finally:
-        shutil.rmtree(generated, ignore_errors=True)
-        published.unlink(missing_ok=True)
-        docs_published.unlink(missing_ok=True)
+        for path in published.values():
+            path.unlink(missing_ok=True)
