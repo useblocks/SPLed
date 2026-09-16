@@ -90,15 +90,29 @@ if(NOT _spled_variant_data_result EQUAL 0)
     message(FATAL_ERROR "tools/variant_data.py failed:\n${_spled_variant_data_output}")
 endif()
 
-# Point each Sphinx build shape at its own cell of the matrix. The `docs` cell is
-# also the one build/autoconf.json holds, so ubCode and the docs build evaluate
-# byte-identical data. The reports fences then resolve to a clean false in the
-# IDE rather than being undecidable -- `target` is present, it simply is not
-# "reports" there.
+# Publish the configured variant's two cells under fixed names, so a Sphinx
+# build can find the one matching its build shape without being told the variant
+# or the kit. conf.py reads these; `build/autoconf.json` (the docs cell) stays
+# the pointer ubCode reads, so the IDE and the docs build see identical data and
+# the report fences resolve to a clean false in the IDE rather than being
+# undecidable.
+#
+# Fixed names rather than an environment variable because spl-core only passes
+# one in from 8.9 onwards, and this project builds against the version pinned in
+# pyproject.toml. Where that variable IS passed, conf.py prefers it.
+configure_file(
+    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/docs.json
+    ${CMAKE_SOURCE_DIR}/build/variant-data-docs.json COPYONLY)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/reports.json
+    ${CMAKE_SOURCE_DIR}/build/variant-data-reports.json COPYONLY)
+
+# Honoured by spl-core 8.9+; harmlessly unused before that, which is why the
+# fixed-name files above exist.
 set(SPL_VARIANT_DATA_FILE_DOCS
-    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/docs.json CACHE FILEPATH "" FORCE)
+    ${CMAKE_SOURCE_DIR}/build/variant-data-docs.json CACHE FILEPATH "" FORCE)
 set(SPL_VARIANT_DATA_FILE_REPORTS
-    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/reports.json CACHE FILEPATH "" FORCE)
+    ${CMAKE_SOURCE_DIR}/build/variant-data-reports.json CACHE FILEPATH "" FORCE)
 
 # The object_deps_report extension is currently Windows-only: its index.cmake
 # hardcodes the runner as "object_deps_report.exe", which does not exist on

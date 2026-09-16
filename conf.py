@@ -3,6 +3,8 @@
 import datetime
 import os
 
+from pathlib import Path
+
 from spl_core.report_generation.spl_sphinx import SplSphinx
 from spl_core.report_generation.spl_html_settings import html_theme, html_show_sourcelink, html_theme_options, html_sidebars, html_last_updated_fmt  # noqa: F401
 
@@ -102,16 +104,25 @@ needs_global_options = SplSphinx.default_needs_global_options
 # the build. The rule is "everything a condition may name has to be IN the
 # file", and it only holds if this file adds nothing.
 #
-# CMake exports VARIANT_DATA_FILE for the build shape it is building. Without
-# it -- a bare `sphinx-build`, or the IDE -- the "current" pointer applies,
-# which is also what ubproject.toml names, so the two readers see byte-identical
-# data by default.
+# Which cell of the matrix this build reads. Selecting a file is not the same as
+# synthesizing data: the file is complete and generated, and nothing here adds a
+# key to it.
 #
-# It has to be applied after sphinx-needs has read ubproject.toml, which happens
-# on `config-inited` and would otherwise put the pointer back. For the docs
-# target that is the same file; for the reports target the pointer would quietly
-# supply the docs data and every report fence would evaluate false.
+# Three sources, in order. VARIANT_DATA_FILE if something passed one -- spl-core
+# does from 8.9, and the tests do. Otherwise the fixed-name cell that CMake
+# publishes for this build shape, which spl-core tells us via the directory its
+# per-target configuration file sits in. Otherwise nothing, and the pointer named
+# in ubproject.toml applies, which is what a bare `sphinx-build` and the IDE get.
+#
+# Without the middle step the reports build would quietly read the docs cell and
+# every report fence would evaluate false -- a reports target with no reports in
+# it, and no error anywhere.
 _variant_data_file = os.environ.get("VARIANT_DATA_FILE")
+if not _variant_data_file:
+    _shape = "reports" if Path(os.environ.get("SPHINX_BUILD_CONFIGURATION_FILE", "")).parent.name == "reports" else "docs"
+    _published = Path(__file__).parent / "build" / f"variant-data-{_shape}.json"
+    if _published.is_file():
+        _variant_data_file = str(_published)
 
 # build shape ###############################################################
 #

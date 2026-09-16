@@ -13,6 +13,9 @@ rather than discovered later as a link type that exists in one reader and not
 the other.
 """
 
+import json
+import subprocess
+import sys
 import tomllib
 from importlib.resources import files
 from pathlib import Path
@@ -182,9 +185,23 @@ def rules(project_config: dict) -> list[dict]:
     return project_config["source"]["variant_sources"]
 
 
-def _variant_data(variant: str, kit: str, target: str) -> dict:
-    import json
+@pytest.fixture(scope="module", autouse=True)
+def generated_variant_data() -> None:
+    """Generate the matrix before reading it.
 
+    build/ is gitignored, so on a fresh checkout -- which is every CI run --
+    these files do not exist yet. Reading them without generating them made
+    these tests pass only on a machine that had happened to build already.
+    """
+    subprocess.run(
+        [sys.executable, str(PROJECT_ROOT / "tools" / "variant_data.py"), "--all"],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+    )
+
+
+def _variant_data(variant: str, kit: str, target: str) -> dict:
     with (PROJECT_ROOT / "build" / "variants" / variant / kit / f"{target}.json").open() as handle:
         return json.load(handle)
 

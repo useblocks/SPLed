@@ -265,3 +265,64 @@ def test_ubc_excludes_exactly_what_sphinx_excludes(all_variant_data: None, varia
         f"  ubCode excluded : {sorted(excluded_by_ubc)}\n"
         f"  expected        : {sorted(expected)}"
     )
+
+
+# --- the build shape must select its own cell -------------------------------
+
+
+def _build_with_spl_core_env(shape: str, out_dir: Path, tmp_path: Path) -> subprocess.CompletedProcess:
+    """Build the way spl-core starts Sphinx: a per-target config.json, no more.
+
+    spl-core only passes VARIANT_DATA_FILE from 8.9; against the version this
+    project pins it passes SPHINX_BUILD_CONFIGURATION_FILE, and the directory
+    that file sits in is what names the build shape.
+    """
+    config_dir = tmp_path / "cfg" / shape
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.json").write_text("{}")
+
+    env = {**os.environ, "SPHINX_BUILD_CONFIGURATION_FILE": str(config_dir / "config.json"), "VARIANT": "Disco"}
+    env.pop("VARIANT_DATA_FILE", None)
+    return subprocess.run(
+        [sys.executable, "-m", "sphinx", "-b", "html", str(PROJECT_ROOT), str(out_dir)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_path: Path) -> None:
+    """Without this, a reports build quietly reads the docs cell.
+
+    Every `{if} var.build_config.target == "reports"` fence would then evaluate
+    false and the reports target would contain no reports -- with no error
+    anywhere, and with the reports test still passing, because it asserts that
+    the build succeeded and not that it produced anything.
+    """
+    published = PROJECT_ROOT / "build" / "variant-data-reports.json"
+    published.write_text((PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json").read_text())
+    docs_published = PROJECT_ROOT / "build" / "variant-data-docs.json"
+    docs_published.write_text((PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "docs.json").read_text())
+
+    # A minimal generated tree, so the report toctrees have something to resolve.
+    generated = PROJECT_ROOT / "generated"
+    reports = generated / "components" / "light_controller" / "reports"
+    try:
+        reports.mkdir(parents=True, exist_ok=True)
+        for page in ("unit_test_spec", "unit_test_results", "coverage"):
+            (reports / f"{page}.rst").write_text("Sim\n===\n\nbody\n")
+
+        reports_out = tmp_path / "reports_html"
+        assert _build_with_spl_core_env("reports", reports_out, tmp_path).returncode == 0
+        assert (reports_out / "generated" / "components" / "light_controller" / "reports" / "coverage.html").is_file(), (
+            "the reports shape did not read the reports cell"
+        )
+
+        docs_out = tmp_path / "docs_html"
+        assert _build_with_spl_core_env("docs", docs_out, tmp_path).returncode == 0
+        assert not (docs_out / "generated").exists(), "the docs shape must not build report pages"
+    finally:
+        shutil.rmtree(generated, ignore_errors=True)
+        published.unlink(missing_ok=True)
+        docs_published.unlink(missing_ok=True)
