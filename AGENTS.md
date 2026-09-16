@@ -116,7 +116,8 @@ CI runs on **GitHub Actions** (`.github/workflows/ci.yml`) for every push/PR to 
 
 Jobs:
 
-- `determine-gate` — computes the `gate_*` quality-gate marker once (by event/branch) and shares it with all three build jobs via `needs`.
+- `determine-gate` — computes the `gate_*` quality-gate marker once (by event/branch) and shares it with all four jobs via `needs`.
+- `documentation` (`ubuntu-24.04`) — the compiler-free gate: a Python and the locked dependencies, then `pytest -m "docs and <gate>"`. It generates the variant data for **every** variant and builds each one's documents, where the build jobs only cover the variants they build. No poks, no scoop, no cross-compiler, so it is also the fastest signal in the workflow.
 - `test-on-windows` (`windows-2025`) — `build.ps1 -install` then `-selftests -marker <gate>`.
 - `test-on-linux` (`ubuntu-24.04`) — bare-runner path: `bootstrap_ubuntu.sh` + `bootstrap_python.sh`, then `build.sh --install` and `--selftests --marker <gate>`.
 - `test-devcontainer` (`ubuntu-24.04`) — builds `.devcontainer/` via `devcontainers/ci` (which runs `onCreateCommand`, i.e. `build.sh --install`) and runs `build.sh --selftests --marker <gate>` inside the container.
