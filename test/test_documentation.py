@@ -155,14 +155,14 @@ def test_no_document_is_rendered_through_jinja(all_variant_data: None, tmp_path:
     offenders = []
     for pattern in ("index.md", "doc/**/*.md", "components/**/doc/*.md", "test/*/doc/*.md"):
         for path in PROJECT_ROOT.glob(pattern):
-            text = path.read_text()
+            text = path.read_text(encoding="utf-8")
             if "{{" in text or "{%" in text:
                 offenders.append(str(path.relative_to(PROJECT_ROOT)))
     assert not offenders, f"Jinja constructs in documents: {offenders}"
 
 
 def test_conf_py_registers_no_source_read_handler() -> None:
-    conf = (PROJECT_ROOT / "conf.py").read_text()
+    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
     assert "source-read" not in conf, "the global Jinja pass must not come back"
 
 
@@ -279,7 +279,7 @@ def _build_with_spl_core_env(shape: str, out_dir: Path, tmp_path: Path) -> subpr
     """
     config_dir = tmp_path / "cfg" / shape
     config_dir.mkdir(parents=True, exist_ok=True)
-    (config_dir / "config.json").write_text("{}")
+    (config_dir / "config.json").write_text("{}", encoding="utf-8")
 
     env = {**os.environ, "SPHINX_BUILD_CONFIGURATION_FILE": str(config_dir / "config.json"), "VARIANT": "Disco"}
     env.pop("VARIANT_DATA_FILE", None)
@@ -309,14 +309,14 @@ def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_pa
         "docs": PROJECT_ROOT / "build" / "variant-data-docs.json",
     }
     for shape, path in published.items():
-        path.write_text((PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / f"{shape}.json").read_text())
+        path.write_text((PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / f"{shape}.json").read_text(encoding="utf-8"))
 
     try:
         for shape, expect_verification in (("reports", True), ("docs", False)):
             out = tmp_path / f"{shape}_html"
             result = _build_with_spl_core_env(shape, out, tmp_path)
             assert result.returncode == 0, result.stdout[-2000:]
-            page = (out / "components" / "light_controller" / "doc" / "index.html").read_text()
+            page = (out / "components" / "light_controller" / "doc" / "index.html").read_text(encoding="utf-8")
             assert ("Verification" in page) is expect_verification, (
                 f"the {shape} shape {'should' if expect_verification else 'should not'} render the verification section"
             )

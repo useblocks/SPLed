@@ -62,7 +62,7 @@ def test_does_not_extend_anything(project_config: dict) -> None:
 
 
 def test_sphinx_reads_this_exact_file() -> None:
-    conf = (PROJECT_ROOT / "conf.py").read_text()
+    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
     assert 'needs_from_toml = "ubproject.toml"' in conf
 
 
@@ -146,7 +146,7 @@ def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
     with different document sets cannot agree about the project, which is the
     whole thing this configuration exists to prevent.
     """
-    conf = (PROJECT_ROOT / "conf.py").read_text()
+    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
     markdown_includes = project_config["parse"]["parsers"]["md"]["include"]
 
     assert markdown_includes == [
@@ -202,7 +202,7 @@ def generated_variant_data() -> None:
 
 
 def _variant_data(variant: str, kit: str, target: str) -> dict:
-    with (PROJECT_ROOT / "build" / "variants" / variant / kit / f"{target}.json").open() as handle:
+    with (PROJECT_ROOT / "build" / "variants" / variant / kit / f"{target}.json").open(encoding="utf-8") as handle:
         return json.load(handle)
 
 
@@ -303,15 +303,15 @@ def test_report_globs_resolve_through_the_configured_build_only() -> None:
     What keeps a glob honest meanwhile is that conf.py admits exactly the
     configured variant's build directory, so each pattern resolves to one page.
     """
-    conf = (PROJECT_ROOT / "conf.py").read_text()
+    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
     assert 'pattern.startswith("build/")' in conf, "conf.py must narrow the source set to the configured build"
 
     globbed = [
         path
         for pattern in ("components/*/doc/index.md", "test/*/doc/index.md")
         for path in PROJECT_ROOT.glob(pattern)
-        if "/build/**" in path.read_text()
+        if "/build/**" in path.read_text(encoding="utf-8")
     ]
     for path in globbed:
-        body = path.read_text()
+        body = path.read_text(encoding="utf-8")
         assert ":glob:" in body, f"{path.relative_to(PROJECT_ROOT)} uses /build/** without :glob:"

@@ -85,7 +85,7 @@ def test_component_order_follows_the_file() -> None:
 def _write_parts(tmp_path: Path, body: str) -> Path:
     parts_dir = tmp_path / "variants" / "Fake"
     parts_dir.mkdir(parents=True)
-    (parts_dir / "parts.cmake").write_text(body)
+    (parts_dir / "parts.cmake").write_text(body, encoding="utf-8")
     return tmp_path
 
 

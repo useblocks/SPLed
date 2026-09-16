@@ -162,7 +162,7 @@ def components(project_root: Path, variant: str, kit: str) -> list[str]:
     branch_kit: str | None = None
     depth = 0
 
-    for number, raw_line in enumerate(parts.read_text().splitlines(), start=1):
+    for number, raw_line in enumerate(parts.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw_line.split("#", 1)[0].strip()
         if not line:
             continue
@@ -231,7 +231,7 @@ def cell_path(project_root: Path, variant: str, kit: str, target: str) -> Path:
 def write_cell(project_root: Path, variant: str, kit: str, target: str, data: dict[str, Any]) -> Path:
     path = cell_path(project_root, variant, kit, target)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 
 
@@ -261,7 +261,7 @@ def write_pointer(project_root: Path, data: dict[str, Any], build_dir: Path | No
     """
     pointer = project_root / "build" / "autoconf.json"
     pointer.parent.mkdir(parents=True, exist_ok=True)
-    pointer.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    pointer.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     if build_dir is None:
         return
@@ -291,7 +291,7 @@ GENERATED_MARKER = (
 def mark_generated(project_root: Path) -> None:
     for directory in (project_root / "build", project_root / "build" / "variants"):
         directory.mkdir(parents=True, exist_ok=True)
-        (directory / "GENERATED").write_text(GENERATED_MARKER)
+        (directory / "GENERATED").write_text(GENERATED_MARKER, encoding="utf-8")
 
 
 def _check(project_root: Path, selected: list[str]) -> int:
@@ -311,7 +311,7 @@ def _check(project_root: Path, selected: list[str]) -> int:
                 rel = path.relative_to(project_root)
                 if not path.exists():
                     stale.append(f"{rel}: missing")
-                elif path.read_text() != expected:
+                elif path.read_text(encoding="utf-8") != expected:
                     stale.append(f"{rel}: stale")
 
     if stale:
