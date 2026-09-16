@@ -3,7 +3,6 @@
 import datetime
 import os
 
-from importlib.resources import files
 from spl_core.report_generation.spl_sphinx import SplSphinx
 from spl_core.report_generation.spl_html_settings import html_theme, html_show_sourcelink, html_theme_options, html_sidebars, html_last_updated_fmt  # noqa: F401
 
@@ -60,25 +59,18 @@ tr_report_template = extension_configs["tr_report_template"]
 myst_enable_extensions = extension_configs["myst_enable_extensions"]
 source_suffix = extension_configs["source_suffix"]
 
-# Import default SPL sphinx-needs configuration
-needs_from_toml = str(files("spl_core.report_generation").joinpath("ubproject.toml"))
+# The needs model -- types, link types, fields, and the build_json switch --
+# lives in ubproject.toml, which ubCode and ubc read directly. sphinx-needs
+# reads exactly one TOML file and does not implement ubCode's `extend`, so the
+# only way both readers can agree is for that one file to be complete. It is;
+# spl-core's base configuration is vendored into it.
+needs_from_toml = "ubproject.toml"
 
-needs_fields = {
-    "image": {
-        "description": "Image associated with the need",
-        "schema": {
-            "type": "string"
-        },
-        "nullable": True,
-    },
-}
-
-# Additional import required because the configuration references custom functions defined in this module
+# Registers project Python that the configuration references by name. This is
+# the last thing in the needs model that ubCode cannot see, because it cannot
+# run project functions; it goes away with sple_tr_link.
 needs_functions = SplSphinx.default_needs_functions
 needs_global_options = SplSphinx.default_needs_global_options
-
-# Always write the merged needs.json (all needs, after import/resolution) to the build output dir.
-needs_build_json = True
 
 # variant data ##############################################################
 #
@@ -93,11 +85,26 @@ needs_build_json = True
 # the build. The rule is "everything a condition may name has to be IN the
 # file", and it only holds if this file adds nothing.
 #
-# CMake exports VARIANT_DATA_FILE for the build shape it is building. The
-# fallback is the "current" pointer that tools/variant_data.py maintains, which
-# is also what ubproject.toml names -- so a bare `sphinx-build`, the IDE and the
-# docs target all resolve byte-identical data.
-needs_variant_data_file = os.environ.get("VARIANT_DATA_FILE", "build/autoconf.json")
+# CMake exports VARIANT_DATA_FILE for the build shape it is building. Without
+# it -- a bare `sphinx-build`, or the IDE -- the "current" pointer applies,
+# which is also what ubproject.toml names, so the two readers see byte-identical
+# data by default.
+#
+# It has to be applied after sphinx-needs has read ubproject.toml, which happens
+# on `config-inited` and would otherwise put the pointer back. For the docs
+# target that is the same file; for the reports target the pointer would quietly
+# supply the docs data and every report fence would evaluate false.
+_variant_data_file = os.environ.get("VARIANT_DATA_FILE")
+
+
+def setup(app):
+    if not _variant_data_file:
+        return
+
+    def _select_variant_data(app, config):
+        config.needs_variant_data_file = _variant_data_file
+
+    app.connect("config-inited", _select_variant_data, priority=20)
 
 # build shape ###############################################################
 #

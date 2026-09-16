@@ -1,6 +1,22 @@
 "$schema" = "https://ubcode.useblocks.com/ubproject.schema.json"
 
-extend = ".venv/lib/python3.12/site-packages/spl_core/report_generation/ubproject.toml"
+# ---------------------------------------------------------------------------
+# The one configuration file. Both readers of this project's documentation read
+# it: ubCode and ubc directly, and the Sphinx build through `needs_from_toml`
+# in conf.py.
+#
+# It used to `extend` spl-core's base configuration out of the virtualenv, by a
+# path with the Python minor version baked into it. That was wrong twice over.
+# The path named a Python that did not exist, so the base configuration silently
+# failed to resolve for ubCode; and sphinx-needs does not implement `extend` at
+# all -- it reads exactly one file's [needs] table -- so conf.py resolved the
+# same base file a second time, through importlib. Two mechanisms for one file,
+# one of them broken, and no way to tell from either end.
+#
+# spl-core's base needs configuration is therefore vendored below rather than
+# referenced. test_ubproject_config.py fails if it drifts from what the
+# installed spl-core ships, so vendoring cannot rot quietly.
+# ---------------------------------------------------------------------------
 
 [server]
 index_on_save = true
@@ -12,10 +28,107 @@ hover_need_refs = true
 flavour = "myst"
 include = ["*.md"]
 
+[source]
+exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".svn", ".venv", ".vscode", "_build", "dist", "node_modules", "site-packages"]
+respect_gitignore = false
+# The generated source listings are documents; the rest of build/ is build
+# output. Without the exclude, ubCode indexes every variant and every kit ever
+# built, so need IDs appear many times over and the IDE disagrees with any one
+# build about what the project contains. Sphinx never saw this because conf.py
+# narrows its source set per build shape.
+extend_include = ["generated/**/__source_docs/**"]
+extend_exclude = ["build/**"]
+
 [needs]
 variant_data_file = "build/autoconf.json"
 
 src_trace_config_from_toml = "ubproject.toml"
+
+# Write the merged needs.json (all needs, after import and resolution).
+build_json = true
+
+# --- vendored from spl-core -------------------------------------------------
+# Modernized to the `links`/`fields` tables while copying: the `extra_links`
+# and `extra_options` lists spl-core still ships are deprecated in sphinx-needs
+# and warned about on every build, and the `image` field below already used the
+# new form, so the file was mixing both.
+
+[needs.links.realizes]
+incoming = "is realized by"
+outgoing = "realizes"
+
+[needs.links.fulfills]
+incoming = "is fulfilled by"
+outgoing = "fulfills"
+
+[needs.links.refines]
+incoming = "is refined by"
+outgoing = "refines"
+
+[needs.links.implements]
+incoming = "is implemented by"
+outgoing = "implements"
+
+[needs.links.results]
+incoming = "results from"
+outgoing = "results"
+
+[needs.links.verifies]
+incoming = "is verified by"
+outgoing = "verifies"
+
+[needs.links.tests]
+incoming = "is tested by"
+outgoing = "tests"
+
+[needs.fields.integrity]
+# spl-core declares this through the deprecated `extra_options` list. That form
+# implies an empty-string default, which is what every existing need carries, so
+# it is stated explicitly here -- the modern form warns when a field declares
+# neither schema, nullable nor default, and defaulting to null instead would
+# change the value of `integrity` on all 87 needs.
+description = "Integrity level of the need"
+default = ""
+
+[needs.fields.integrity.schema]
+type = "string"
+
+[[needs.types]]
+directive = "arch"
+title = "Architecture"
+prefix = "A_"
+color = "#DF744A"
+style = "node"
+
+[[needs.types]]
+directive = "req"
+title = "Requirement"
+prefix = "R_"
+color = "#BFD8D2"
+style = "node"
+
+[[needs.types]]
+directive = "spec"
+title = "Specification"
+prefix = "S_"
+color = "#FEDCD2"
+style = "node"
+
+[[needs.types]]
+directive = "impl"
+title = "Implementation"
+prefix = "I_"
+color = "#DF744A"
+style = "node"
+
+[[needs.types]]
+directive = "test"
+title = "Test Case"
+prefix = "T_"
+color = "#DCB239"
+style = "node"
+
+# --- end vendored -----------------------------------------------------------
 
 [needs.fields.image]
 description = "Image associated with the need"
