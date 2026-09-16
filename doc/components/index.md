@@ -1,20 +1,17 @@
 # Components
 
-{% for component_info in build_config.components_info %}
-{% if component_info.has_docs %}
+Only the components that the built variant actually contains appear below.
+Each component's design document is mounted by sphinx-mounts under the KConfig
+feature that owns it, so this page needs no templating: the declarations live
+in `[[source.mounts]]` in `ubproject.toml`, and sphinx-mounts appends each
+mounted entry to the empty toctree below.
 
-## {{ component_info.long_name or component_info.name }}
+Each entry is a group. A component's own document is the entry point of its
+bundle and carries the toctree for its verification pages, so unit test results
+and coverage appear underneath the component they belong to rather than in one
+flat list.
 
 ```{toctree}
 :maxdepth: 2
 
-/{{ component_info.path }}/doc/index
-{% if (build_config.target == 'reports') and component_info.has_reports %}
-/{{ component_info.reports_output_dir }}/unit_test_results
-/{{ component_info.reports_output_dir }}/doxygen/html/index
-/{{ component_info.reports_output_dir }}/coverage
-{% endif %}
 ```
-
-{% endif %}
-{% endfor %}

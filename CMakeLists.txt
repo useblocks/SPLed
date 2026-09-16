@@ -50,8 +50,17 @@ include("${SPL_CORE_DIR}/spl.cmake")
 # way cmake.copyCompileCommands mirrors compile_commands.json, so tools outside CMake
 # (e.g. ubproject.toml's variant_data_file) can track whichever variant/build kit/build
 # type is currently selected in the CMake Tools extension without a hardcoded path.
+#
+# The variant NAME is added alongside the features. KConfig only knows features, but
+# the `if` conditions in ubproject.toml are read by tools that never run CMake or
+# Sphinx (ubCode, the language server). Everything such a condition names has to be in
+# this file, or the tool cannot decide it and its view of the project disagrees with
+# the build.
 if(EXISTS ${AUTOCONF_JSON})
-    configure_file(${AUTOCONF_JSON} ${CMAKE_SOURCE_DIR}/build/autoconf.json COPYONLY)
+    file(READ ${AUTOCONF_JSON} _spled_variant_data)
+    string(JSON _spled_variant_data SET "${_spled_variant_data}"
+        build_config "{\"variant\": \"${VARIANT}\"}")
+    file(WRITE ${CMAKE_SOURCE_DIR}/build/autoconf.json "${_spled_variant_data}")
 endif()
 
 # The object_deps_report extension is currently Windows-only: its index.cmake

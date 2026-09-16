@@ -1,28 +1,6 @@
-{% if build_config.component_info %}
-
-# Software Component Report
-
-**Variant:** {{ build_config.variant }}<br/>
-**Component:** {{ build_config.component_info.long_name }}<br/>
-**Timestamp:** {{ timestamp }}
-
-```{toctree}
-:maxdepth: 2
-
-{{ build_config.component_info.path }}/doc/index
-{% if build_config.component_info.has_reports %}
-{{ build_config.component_info.reports_output_dir }}/unit_test_spec
-{{ build_config.component_info.reports_output_dir }}/unit_test_results
-{{ build_config.component_info.reports_output_dir }}/doxygen/html/index
-{{ build_config.component_info.reports_output_dir }}/coverage
-{% endif %}
-```
-
-{% else %}
-
 # Variant Report
 
-**Variant:** {variant}`build_config.variant`<br/>
+**Variant:** {variant}`build_config.variant`
 **Timestamp:** {{ timestamp }}
 
 ```{toctree}
@@ -33,9 +11,21 @@ doc/customer_requirements/index
 doc/software_architecture/index
 doc/sw_requirements/index
 doc/components/index
-{% if build_config.target == 'reports' %}
-{{ build_config.reports_output_dir }}/coverage
-{% endif %}
 ```
 
-{% endif %}
+````{if} var.build_config.target == "reports"
+
+The glob below matches the variant-wide coverage page for any variant name and
+any build type, and does not match a component's own coverage page, because the
+directory in front of `reports` is the build type there and the component name
+here.
+
+```{toctree}
+:caption: Code Coverage
+:maxdepth: 1
+:glob:
+
+/build/**/[A-Z]*/reports/coverage
+```
+
+````
