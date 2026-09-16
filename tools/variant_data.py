@@ -224,6 +224,14 @@ def write_pointer(project_root: Path, data: dict[str, Any], build_dir: Path | No
     so the only way one toctree entry can mean one page in both is for the path
     and the prefix to be the same string. And ubCode's default `exclude` contains
     "build", which would otherwise drop the whole mounted tree.
+
+    KNOWN LIMITATION: a symlink gets this right for Sphinx and wrong for ubCode,
+    which does not descend symlinked directories. The generated report pages are
+    therefore invisible to the IDE. Materialising them -- copying the .rst files
+    into a real `generated/` tree after the reports target has produced them --
+    is the fix, and it has to happen after that target runs, not here at
+    configure time when they do not exist yet. Pointing `generated` at a real
+    directory makes ubCode index them, gated exactly as intended.
     """
     pointer = project_root / "build" / "autoconf.json"
     pointer.parent.mkdir(parents=True, exist_ok=True)
@@ -246,13 +254,18 @@ def write_pointer(project_root: Path, data: dict[str, Any], build_dir: Path | No
         shutil.copytree(build_dir, current, dirs_exist_ok=True)
 
 
+#: Dropped into every directory this script owns. `build/` itself gets one too,
+#: because that is the directory somebody is most likely to open and edit in.
+GENERATED_MARKER = (
+    "Written by tools/variant_data.py. Everything under build/ is generated\n"
+    "output: nobody edits it, neither a person nor an assistant.\n"
+)
+
+
 def mark_generated(project_root: Path) -> None:
-    marker = project_root / "build" / "variants" / "GENERATED"
-    marker.parent.mkdir(parents=True, exist_ok=True)
-    marker.write_text(
-        "Written by tools/variant_data.py. Everything under build/ is generated\n"
-        "output: nobody edits it, neither a person nor an assistant.\n"
-    )
+    for directory in (project_root / "build", project_root / "build" / "variants"):
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "GENERATED").write_text(GENERATED_MARKER)
 
 
 def _check(project_root: Path, selected: list[str]) -> int:

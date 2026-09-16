@@ -41,11 +41,18 @@ include = [
 ]
 
 # Every .rst in this project is generated: the clanguru source listings and the
-# report pages, reached through `generated`, the configured variant's build
-# directory. They are indexed when the current variant data names the `reports`
-# target, and excluded by the variant rule below when it does not -- so the IDE
-# shows what a reports build would show, rather than whatever happens to be on
-# disk.
+# report pages, under `generated`, the configured variant's build directory.
+# They are indexed when the current variant data names the `reports` target and
+# excluded by the variant rule below when it does not.
+#
+# KNOWN LIMITATION, verified: ubCode does not descend symlinked directories
+# ("directories are skipped and symlinked directories are not descended"), and
+# tools/variant_data.py makes `generated` a symlink. So this include is correct
+# and currently inert FOR UBCODE -- Sphinx follows the link and does read these
+# pages. Point `generated` at a real directory and ubCode indexes them, gated
+# exactly as intended; that is verified, not assumed. Until the generated
+# documents are materialised rather than linked, the IDE simply shows no report
+# pages, which costs nothing today because no needs live in them yet.
 [parse.parsers.rst]
 include = ["generated/**/*.rst"]
 

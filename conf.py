@@ -78,6 +78,11 @@ source_suffix = extension_configs["source_suffix"]
 # spl-core's base configuration is vendored into it.
 needs_from_toml = "ubproject.toml"
 
+# The same file, named again for the other extension that reads it. sphinx-mounts
+# already defaults to this path; naming it makes the coupling visible in conf.py
+# rather than resting on a library default.
+sources_from_toml = "ubproject.toml"
+
 # Registers project Python that the configuration references by name. This is
 # the last thing in the needs model that ubCode cannot see, because it cannot
 # run project functions; it goes away with sple_tr_link.
