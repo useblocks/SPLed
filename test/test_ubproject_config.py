@@ -119,16 +119,42 @@ def test_build_output_is_not_indexed(project_config: dict) -> None:
     assert project_config["source"]["extend_exclude"] == ["build/**"]
 
 
-def test_generated_listings_are_included_through_the_stable_path(project_config: dict, spl_core_config: dict) -> None:
-    """A deliberate deviation from spl-core's `build/**/__source_docs/**`.
+def test_extend_include_is_not_used_because_it_would_be_inert(project_config: dict, spl_core_config: dict) -> None:
+    """Configuring parsers puts ubCode in parser mode, where this key is ignored.
 
-    `generated` is the current variant's build directory, maintained by
-    tools/variant_data.py. Going through it means one variant's listings are
-    indexed -- the configured one -- instead of all of them, and it survives the
-    `build/**` exclusion above.
+    spl-core's base config includes the generated listings with
+    `[source] extend_include`, which works only while no parser is configured.
+    This project configures both parsers, so file discovery comes from their
+    `include` lists and `extend_include` does nothing -- silently, apart from
+    one config warning. Carrying the key anyway would look like configuration
+    and behave like a comment. `ubc check` is what caught this.
     """
     assert spl_core_config["source"]["extend_include"] == ["build/**/__source_docs/**"]
-    assert project_config["source"]["extend_include"] == ["generated/**/__source_docs/**"]
+    assert "extend_include" not in project_config["source"]
+    assert project_config["parse"]["parsers"]["rst"]["include"] == ["generated/**/*.rst"]
+
+
+def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
+    """The parser includes have to match conf.py's include_patterns.
+
+    They did not: `include = ["*.md"]` matched every Markdown file in the tree,
+    so ubCode parsed AGENTS.md, README.md, CLAUDE.md and three dozen agent skill
+    definitions as project documents -- 38 files Sphinx never sees. Two readers
+    with different document sets cannot agree about the project, which is the
+    whole thing this configuration exists to prevent.
+    """
+    conf = (PROJECT_ROOT / "conf.py").read_text()
+    markdown_includes = project_config["parse"]["parsers"]["md"]["include"]
+
+    assert markdown_includes == [
+        "index.md",
+        "doc/**/*.md",
+        "components/**/doc/**/*.md",
+        "test/**/doc/**/*.md",
+    ]
+    # Every tree the parser reads is a tree conf.py also names.
+    for tree in ("index.md", "doc/**", "components/**/doc/**", "test/**/doc/**"):
+        assert f'"{tree}"' in conf, f"conf.py does not include {tree}, which the md parser reads"
 
 
 # --- what the variant machinery needs --------------------------------------

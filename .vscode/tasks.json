@@ -67,6 +67,14 @@
             "problemMatcher": []
         },
         {
+            "label": "Check documentation with ubc (all variants)",
+            "detail": "Lint every variant with the reader that never runs conf.py",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} -m pytest -m docs -k ubc",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
             "label": "Open variant test report",
             "detail": "Open the variant's overall test report in your web browser",
             "command": "${workspaceFolder}/build/${input:variant}/test/Debug/reports/html/index.html",

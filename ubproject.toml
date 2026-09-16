@@ -22,11 +22,32 @@
 index_on_save = true
 hover_need_refs = true
 
-[parse.parsers.rst]
+# File discovery. Configuring parsers puts ubCode in "parser mode", where the
+# document set comes from each parser's `include` and `[source] extend_include`
+# is IGNORED -- silently, apart from one config warning. So the document set
+# lives here, and it has to be the same set conf.py gives Sphinx through
+# `include_patterns`. It was not: `include = ["*.md"]` matched every Markdown
+# file in the tree, so ubCode was also parsing AGENTS.md, README.md, CLAUDE.md
+# and three dozen agent skill definitions as project documents -- 38 documents
+# Sphinx never sees, each reported as missing from a toctree.
 
 [parse.parsers.md]
 flavour = "myst"
-include = ["*.md"]
+include = [
+    "index.md",
+    "doc/**/*.md",
+    "components/**/doc/**/*.md",
+    "test/**/doc/**/*.md",
+]
+
+# Every .rst in this project is generated: the clanguru source listings and the
+# report pages, reached through `generated`, the configured variant's build
+# directory. They are indexed when the current variant data names the `reports`
+# target, and excluded by the variant rule below when it does not -- so the IDE
+# shows what a reports build would show, rather than whatever happens to be on
+# disk.
+[parse.parsers.rst]
+include = ["generated/**/*.rst"]
 
 [source]
 exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".svn", ".venv", ".vscode", "_build", "dist", "node_modules", "site-packages"]
@@ -36,7 +57,8 @@ respect_gitignore = false
 # built, so need IDs appear many times over and the IDE disagrees with any one
 # build about what the project contains. Sphinx never saw this because conf.py
 # narrows its source set per build shape.
-extend_include = ["generated/**/__source_docs/**"]
+# `extend_include` is deliberately absent: it is ignored in parser mode, so the
+# generated listings are named by [parse.parsers.rst] instead.
 extend_exclude = ["build/**"]
 
 [needs]

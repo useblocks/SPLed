@@ -237,6 +237,39 @@ evaluated **excludes** what it gates, so a typo silently shrinks the document
 set rather than failing loudly — which is what `test_ubproject_config.py` is
 for.
 
+### Checking with the other reader
+
+The Sphinx build is only half the story: the point of keeping everything in the
+variant data file is that a reader which never runs `conf.py` decides the same
+things. `ubc` is that reader, and `pytest -m docs -k ubc` proves it — per
+variant, it asserts that ubCode removes **exactly** the component documents the
+variant's component list omits.
+
+`ubc` ships inside the ubCode VS Code extension and is on neither PyPI nor npm,
+so there is no install step this repository can own. The tests find it on
+`PATH`, via the `UBC` environment variable, or in the extension directory, and
+**skip** when it is absent rather than pretending to cover it:
+
+```bash
+export UBC="$HOME/.vscode/extensions/useblocks.ubcode-0.35.0-darwin-arm64/server/cli/ubc"
+pytest -m docs -k ubc
+```
+
+To look at one variant by hand, override the data file rather than switching
+the project:
+
+```bash
+ubc check -c "needs.variant_data_file = 'build/variants/Sleep/test/docs.json'"
+```
+
+Two things to know about `ubproject.toml` when editing it. Configuring parsers
+puts ubCode in **parser mode**, where the document set comes from each
+`[parse.parsers.*].include` and `[source] extend_include` is *ignored* — so the
+parser includes have to stay in step with `include_patterns` in `conf.py`, or
+the two readers are looking at different files. And `[[source.variant_sources]]`
+rules are implemented as exclusions, which is why a rule that cannot be
+evaluated removes what it gates.
+
 ### Adding a component
 
 1. Add it to the variant's `parts.cmake`.
