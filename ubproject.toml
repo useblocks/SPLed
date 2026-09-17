@@ -65,7 +65,17 @@ respect_gitignore = false
 # narrows its source set per build shape.
 # `extend_include` is deliberately absent: it is ignored in parser mode, so the
 # generated listings are named by [parse.parsers.rst] instead.
-extend_exclude = ["build/**"]
+extend_exclude = [
+    "build/**",
+    # The root document of spl-core's PER-COMPONENT report, a build shape
+    # ubCode never performs. conf.py excludes it from every variant-wide
+    # build, so Sphinx never sees it either; without this line ubCode indexed
+    # it and reported it as an orphan -- the two readers disagreeing about the
+    # document set, which is the one thing this configuration exists to
+    # prevent. `[parse.parsers.*]` has no `exclude`, and extend_exclude IS
+    # honoured in parser mode (unlike extend_include), so this is the knob.
+    "doc/component_report.md",
+]
 
 [needs]
 variant_data_file = "build/autoconf.json"

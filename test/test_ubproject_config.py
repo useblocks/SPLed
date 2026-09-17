@@ -119,7 +119,25 @@ def test_build_output_is_not_indexed(project_config: dict) -> None:
     set per build shape -- which is exactly the kind of divergence between
     readers this configuration exists to remove.
     """
-    assert project_config["source"]["extend_exclude"] == ["build/**"]
+    assert "build/**" in project_config["source"]["extend_exclude"]
+
+
+def test_the_per_component_report_root_is_hidden_from_ubcode(project_config: dict) -> None:
+    """conf.py excludes it from every variant build, so ubCode must too.
+
+    doc/component_report.md is the root document of spl-core's PER-COMPONENT
+    report -- a build shape ubCode never performs. conf.py drops it from the
+    variant-wide source set, so Sphinx never sees it; ubCode indexed it anyway
+    and reported it as an orphan. Four orphans in one reader and five in the
+    other is the two of them disagreeing about the document set, which is the
+    one thing this configuration exists to prevent.
+
+    `[parse.parsers.*]` has no `exclude`, but `extend_exclude` is honoured in
+    parser mode -- unlike `extend_include` -- so that is where it belongs.
+    """
+    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
+    assert 'exclude_patterns.append("doc/component_report.md")' in conf
+    assert "doc/component_report.md" in project_config["source"]["extend_exclude"]
 
 
 def test_extend_include_is_not_used_because_it_would_be_inert(project_config: dict, spl_core_config: dict) -> None:
