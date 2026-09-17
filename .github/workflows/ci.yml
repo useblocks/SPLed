@@ -41,6 +41,39 @@ jobs:
                   echo "Selected gate marker: $marker"
                   echo "marker=$marker" >> "$GITHUB_OUTPUT"
 
+    documentation:
+        name: Documentation (no compiler)
+        runs-on: ubuntu-24.04
+        timeout-minutes: 15
+        needs: determine-gate
+
+        # The documentation is derivable from the sources alone: KConfig is pure
+        # Python and the documents are text. Only CMake's top-level project()
+        # call needs a C toolchain, and nothing here goes through it. So this
+        # gate installs a Python and the locked dependencies, and nothing else --
+        # no poks, no scoop, no cross-compiler. It is the fastest signal in the
+        # workflow and it covers every variant, where the build jobs cover the
+        # variants they build.
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.12"
+
+            - name: Install documentation dependencies
+              run: |
+                  pipx install poetry==2.4.1
+                  poetry config virtualenvs.in-project true
+                  poetry install --no-root
+
+            - name: Documentation gate
+              run: poetry run pytest -m "docs and ${{ needs.determine-gate.outputs.marker }}"
+
     test-on-windows:
         name: Build and Test on Windows
         runs-on: windows-2025

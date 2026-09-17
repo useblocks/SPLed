@@ -28,6 +28,53 @@
             "problemMatcher": []
         },
         {
+            "label": "Select documentation variant",
+            "detail": "Point the docs and ubCode at one variant -- no CMake, no compiler",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} tools/variant_data.py --variant ${input:variant} --kit ${input:buildKit} --target ${input:docsTarget} --current",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Generate all variant data",
+            "detail": "Write build/variants/<Variant>/<kit>/<target>.json for every variant",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} tools/variant_data.py --all",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build documentation for a variant",
+            "detail": "Sphinx docs for one variant, without configuring or building the software",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} -m sphinx -b html . build/docs/${input:variant}",
+            "options": {
+                "env": {
+                    "VARIANT": "${input:variant}",
+                    "VARIANT_DATA_FILE": "build/variants/${input:variant}/${input:buildKit}/${input:docsTarget}.json"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Documentation gate (all variants)",
+            "detail": "What CI's compiler-free job runs: generate every variant and build its documents",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} -m pytest -m docs",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Check documentation with ubc (all variants)",
+            "detail": "Lint every variant with the reader that never runs conf.py",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} -m pytest -m docs -k ubc",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
             "label": "Open variant test report",
             "detail": "Open the variant's overall test report in your web browser",
             "command": "${workspaceFolder}/build/${input:variant}/test/Debug/reports/html/index.html",
@@ -109,6 +156,24 @@
                 "components/power_signal_processing",
                 "components/rte",
                 "components/spled"
+            ]
+        },
+        {
+            "type": "pickString",
+            "id": "buildKit",
+            "description": "Which build kit? (the test kit adds a variant's test suites to its component list)",
+            "options": [
+                "test",
+                "prod"
+            ]
+        },
+        {
+            "type": "pickString",
+            "id": "docsTarget",
+            "description": "Which build shape? (reports additionally shows the generated test and coverage pages)",
+            "options": [
+                "docs",
+                "reports"
             ]
         },
         {

@@ -3,7 +3,8 @@
 import datetime
 import os
 
-from importlib.resources import files
+from pathlib import Path
+
 from spl_core.report_generation.spl_sphinx import SplSphinx
 from spl_core.report_generation.spl_html_settings import html_theme, html_show_sourcelink, html_theme_options, html_sidebars, html_last_updated_fmt  # noqa: F401
 
@@ -30,7 +31,19 @@ exclude_patterns = [
     "**/test_results.rst",  # We renamed this file, but nobody deletes it.
 ]
 
-include_patterns = ["index.md", "doc/**"]
+# The 150% source set: every hand-written document the product line has.
+#
+# Which of them the build actually contains is decided by the
+# [[source.variant_sources]] rules in ubproject.toml, against the variant data.
+# Narrowing the set here as well would put a second, invisible gate in front of
+# the declared one -- and an invisible gate is the thing this whole design
+# exists to remove.
+include_patterns = [
+    "index.md",
+    "doc/**",
+    "components/**/doc/**",
+    "test/**/doc/**",
+]
 
 # configuration of built-in stuff ###########################################
 # @see https://www.sphinx-doc.org/en/master/usage/configuration.html
@@ -40,8 +53,11 @@ numfig = True
 # html config ###############################################################
 # @see https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-# Omit "documentation" in title
-html_title = f"{project} {release}"
+# Omit "documentation" in title. Include the variant, so that a browser tab or
+# the sidebar logo tells two variants' builds apart -- both otherwise render the
+# same generic title and are indistinguishable when opened side by side.
+_html_title_variant = os.environ.get("VARIANT", "")
+html_title = f"{project} {_html_title_variant} {release}".strip() if _html_title_variant else f"{project} {release}"
 
 html_logo = "doc/_figures/SPLED_logo.png"
 
@@ -57,52 +73,103 @@ tr_report_template = extension_configs["tr_report_template"]
 myst_enable_extensions = extension_configs["myst_enable_extensions"]
 source_suffix = extension_configs["source_suffix"]
 
-# Import default SPL sphinx-needs configuration
-needs_from_toml = str(files("spl_core.report_generation").joinpath("ubproject.toml"))
+# The needs model -- types, link types, fields, and the build_json switch --
+# lives in ubproject.toml, which ubCode and ubc read directly. sphinx-needs
+# reads exactly one TOML file and does not implement ubCode's `extend`, so the
+# only way both readers can agree is for that one file to be complete. It is;
+# spl-core's base configuration is vendored into it.
+needs_from_toml = "ubproject.toml"
 
-needs_fields = {
-    "image": {
-        "description": "Image associated with the need",
-        "schema": {
-            "type": "string"
-        },
-        "nullable": True,
-    },
-}
+# The same file, named again for the other extension that reads it. sphinx-mounts
+# already defaults to this path; naming it makes the coupling visible in conf.py
+# rather than resting on a library default.
+sources_from_toml = "ubproject.toml"
 
-# Additional import required because the configuration references custom functions defined in this module
+# Registers project Python that the configuration references by name. This is
+# the last thing in the needs model that ubCode cannot see, because it cannot
+# run project functions; it goes away with sple_tr_link.
 needs_functions = SplSphinx.default_needs_functions
 needs_global_options = SplSphinx.default_needs_global_options
 
-# Always write the merged needs.json (all needs, after import/resolution) to the build output dir.
-needs_build_json = True
+# variant data ##############################################################
+#
+# ONE file, and nothing computed here.
+#
+# Everything a document's {if} directive or a condition in ubproject.toml may
+# name -- the complete feature vector, the variant, the build kit, the build
+# target, the component list -- is written by tools/variant_data.py and read
+# from here verbatim. That is the whole point: ubCode, ubc and a reviewer's
+# editor cannot execute this file, so anything synthesized here would be
+# invisible to them and their view of the project would silently disagree with
+# the build. The rule is "everything a condition may name has to be IN the
+# file", and it only holds if this file adds nothing.
+#
+# Which cell of the matrix this build reads. Selecting a file is not the same as
+# synthesizing data: the file is complete and generated, and nothing here adds a
+# key to it.
+#
+# Three sources, in order. VARIANT_DATA_FILE if something passed one -- spl-core
+# does from 8.9, and the tests do. Otherwise the fixed-name cell that CMake
+# publishes for this build shape, which spl-core tells us via the directory its
+# per-target configuration file sits in. Otherwise nothing, and the pointer named
+# in ubproject.toml applies, which is what a bare `sphinx-build` and the IDE get.
+#
+# Without the middle step the reports build would quietly read the docs cell and
+# every report fence would evaluate false -- a reports target with no reports in
+# it, and no error anywhere.
+_variant_data_file = os.environ.get("VARIANT_DATA_FILE")
+if not _variant_data_file:
+    _shape = "reports" if Path(os.environ.get("SPHINX_BUILD_CONFIGURATION_FILE", "")).parent.name == "reports" else "docs"
+    _published = Path(__file__).parent / "build" / f"variant-data-{_shape}.json"
+    if _published.is_file():
+        _variant_data_file = str(_published)
 
-# Expose KConfig feature values (e.g. CUSTOMER) as `var.features.*` for the {if} directive
-if "AUTOCONF_JSON_FILE" in os.environ:
-    needs_variant_data_file = os.environ["AUTOCONF_JSON_FILE"]
+# build shape ###############################################################
+#
+# The rest of this file is Sphinx plumbing, not variant data: which documents
+# are in the source set and which one is the root. No other tool needs to
+# decide these, and none of it may leak into `var.*`.
 
-# Provide all config values to jinja
-html_context = SplSphinx.get_default_html_context()
-include_patterns.extend(html_context["build_config"].get("include_patterns", []))
+_build_config = SplSphinx.get_default_html_context()["build_config"]
 
-build_config = html_context["build_config"].copy()
-build_config.pop("components_info", None)
-
-needs_variant_data = {
-    "build_config": build_config,
-}
-
-def rstjinja(app, docname, source):
-    """
-    Render our pages as a jinja template for fancy templating goodness.
-    """
-    # Make sure we're outputting HTML
-    if app.builder.format != "html":
-        return
-    src = source[0]
-    rendered = app.builder.templates.render_string(src, app.config.html_context)
-    source[0] = rendered
+# Two shapes of build use this configuration: the variant-wide one, and the
+# per-component report that spl-core builds for a single component. This is the
+# only build-shape decision left here, and it is a Sphinx one -- which document
+# is the root -- not variant data. No other reader has to decide it.
+if _build_config.get("component_info"):
+    root_doc = "doc/component_report"
+    exclude_patterns.append("index.md")
+    # A per-component report builds one component and stitches its own table of
+    # contents, so the project-wide variant rules do not apply to it.
+    sources_from_toml = None
+    include_patterns.extend(_build_config.get("include_patterns", []))
+else:
+    root_doc = "index"
+    exclude_patterns.append("doc/component_report.md")
+    # The generated pages of the CONFIGURED variant, named by spl-core for the
+    # build it is running. This is what makes the `/build/**` globs in the report
+    # sections resolve to one page each rather than one per variant on disk.
+    #
+    # A stable path would be better and `generated` exists for it, but spl-core
+    # writes the gcovr tree at `reports/html/<build-relative page path>/coverage`
+    # and looks its report artifacts up there too. Moving the page without moving
+    # those breaks the coverage link, so the stable path waits for the spl-core
+    # change. Only the hand-written component trees are dropped, because the
+    # variant rules already own those; keeping them here would parse every need
+    # in them a second time under a second docname.
+    include_patterns.extend(
+        pattern
+        for pattern in _build_config.get("include_patterns", [])
+        if pattern.startswith("build/")
+    )
 
 
 def setup(app):
-    app.connect("source-read", rstjinja)
+    """Apply the per-build-shape variant data file, after the TOML is read."""
+    if not _variant_data_file:
+        return
+
+    def _select_variant_data(app, config):
+        config.needs_variant_data_file = _variant_data_file
+
+    app.connect("config-inited", _select_variant_data, priority=20)

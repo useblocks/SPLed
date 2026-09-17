@@ -14,6 +14,14 @@
         "editor.defaultFormatter": "josetr.cmake-language-support-vscode"
     },
     "cmake.configureOnOpen": false,
+    // Generated output. tools/variant_data.py writes the variant data here and
+    // CMake writes everything else; an edit under build/ is lost on the next
+    // configure, and worse, it looks like it worked. Making the editor refuse
+    // the edit is the only guard rail that also applies to an assistant.
+    "files.readonlyInclude": {
+        "build/**": true,
+        "generated/**": true
+    },
     "cmake.buildDirectory": "${workspaceFolder}/build/${variant:variant}/${buildKit}/${buildType}",
     "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",
     "cmake.configureSettings": {

@@ -37,7 +37,7 @@ On a **bare Linux host (e.g. WSL Ubuntu) that is not a devcontainer**, `build.sh
 
 ```bash
 sudo ./bootstrap_ubuntu.sh    # root: apt packages (libc6-dev, build-essential, 7zip, pipx)
-./bootstrap_python.sh         # user: uv, CPython 3.11, Poetry (into ~/.local)
+./bootstrap_python.sh         # user: uv, CPython 3.12, Poetry (into ~/.local)
 # then open a fresh shell (see note below) so ~/.local/bin is on PATH:
 ./build.sh --install          # user: poetry install + poks toolchain
 ```
@@ -45,6 +45,24 @@ sudo ./bootstrap_ubuntu.sh    # root: apt packages (libc6-dev, build-essential, 
 If `poetry` is not found after `bootstrap_python.sh`, open a new shell (or `source ~/.bashrc`) so `~/.local/bin` is on `PATH`, then run `./build.sh --install`. Inside the devcontainer this is automatic: the Dockerfile bakes both `bootstrap_ubuntu.sh` and `bootstrap_python.sh` into the image at build time, and `onCreateCommand` runs `build.sh --install`.
 
 **Always** start VS Code with: `.\build.ps1 -startVSCode` to ensure proper environment variables and Python virtual environment activation (`.venv` with Poetry dependencies).
+
+### Working against a local spl-core checkout
+
+Some changes to this project need a change in `spl-core` first. `CMakeLists.txt`
+locates spl-core by importing it from the venv and then includes its
+`spl.cmake`, so a single editable install redirects **both** the Python and the
+CMake side at a local checkout:
+
+```bash
+.venv/bin/python -m pip install -e ../spl-core --no-deps   # point at the checkout
+./build.sh --install                                       # ...and back to the pinned release
+```
+
+The path is deliberately **not** committed to `pyproject.toml`: CI must keep
+resolving the released spl-core, so a local override never silently becomes the
+build everyone gets. Land the spl-core change upstream, release it, and bump the
+pin in `pyproject.toml` — the override is for the span of one change, not a
+working mode.
 
 ### VS Code CMake Extension Configuration
 
@@ -98,7 +116,8 @@ CI runs on **GitHub Actions** (`.github/workflows/ci.yml`) for every push/PR to 
 
 Jobs:
 
-- `determine-gate` — computes the `gate_*` quality-gate marker once (by event/branch) and shares it with all three build jobs via `needs`.
+- `determine-gate` — computes the `gate_*` quality-gate marker once (by event/branch) and shares it with all four jobs via `needs`.
+- `documentation` (`ubuntu-24.04`) — the compiler-free gate: a Python and the locked dependencies, then `pytest -m "docs and <gate>"`. It generates the variant data for **every** variant and builds each one's documents, where the build jobs only cover the variants they build. No poks, no scoop, no cross-compiler, so it is also the fastest signal in the workflow.
 - `test-on-windows` (`windows-2025`) — `build.ps1 -install` then `-selftests -marker <gate>`.
 - `test-on-linux` (`ubuntu-24.04`) — bare-runner path: `bootstrap_ubuntu.sh` + `bootstrap_python.sh`, then `build.sh --install` and `--selftests --marker <gate>`.
 - `test-devcontainer` (`ubuntu-24.04`) — builds `.devcontainer/` via `devcontainers/ci` (which runs `onCreateCommand`, i.e. `build.sh --install`) and runs `build.sh --selftests --marker <gate>` inside the container.
@@ -143,6 +162,147 @@ Features defined in `KConfig` (menuconfig syntax) generate CMake variables via `
 Edit feature config: `.\build.ps1 -command ".venv\Scripts\poetry run guiconfig"` (requires KCONFIG_CONFIG env var set to variant's config.txt).
 
 Check feature values in source code via generated `autoconf.h` header.
+
+## Variant-Dependent Documentation
+
+Documents never use Jinja. There is no `source-read` hook any more, and
+reintroducing one is a regression, not a shortcut.
+
+Everything variant-dependent is decided from **one file**: the variant data
+that `tools/variant_data.py` writes, exposed as `var.*`. The governing rule:
+
+> **Everything a condition may name has to be IN the variant data file.**
+
+A key that only `conf.py` knows is invisible to ubCode, `ubc` and a reviewer's
+editor, so their view of the project silently disagrees with the build —
+silently, because a condition a tool cannot evaluate gates content **off**
+rather than failing. That is why `conf.py` reads the file and adds nothing to
+it.
+
+### The three mechanisms
+
+**Whole documents: `[[source.variant_sources]]` in `ubproject.toml`.** One rule
+per component, gated on membership of the variant's component list:
+
+```toml
+[[source.variant_sources]]
+if = "'components/auto_off' in var.build_config.components"
+files = [
+    "components/auto_off/doc/**",
+    "generated/components/auto_off/reports/**",
+    "generated/components/auto_off/__source_docs/**",
+]
+```
+
+Membership, never identity. The component list comes from that variant's
+`parts.cmake`, so the product structure is stated once, in the file that already
+states it. **Never gate on the variant name** — that is a second encoding of the
+same fact, free to drift.
+
+Rules are *subtractive*: a FALSE rule removes the files it names, a TRUE rule
+does nothing. Two rules naming the same file therefore compose as AND, which is
+how generated output is gated on both the build shape and the component.
+
+**Blocks inside a document: the `{if}` directive of Sphinx-Needs.** Four-backtick
+fence, condition as the argument:
+
+````text
+````{if} var.features.BLINKING
+...
+````
+````
+
+Content behind a false condition is never parsed, so its needs never enter the
+traceability data.
+
+**External trees: `[[source.mounts]]`.** Currently unused. Everything this
+project shows lives in the tree or under `generated/`.
+
+### What the data holds
+
+| Key | |
+| --- | --- |
+| `var.features.*` | every KConfig symbol, with **every** declared boolean present — including the promptless ones KConfig omits when they are off |
+| `var.build_config.variant` | e.g. `Disco`, `Base/Dev` |
+| `var.build_config.kit` | `prod` or `test` |
+| `var.build_config.target` | `docs` or `reports` |
+| `var.build_config.components` | the variant's component list, from `parts.cmake` |
+
+### Two differences between the engines
+
+The `{if}` directive takes a real Python expression, so a bare
+`var.features.BLINKING` is enough. A `variant_sources` condition uses a
+restricted grammar that needs `== True`. And a condition that cannot be
+evaluated **excludes** what it gates, so a typo silently shrinks the document
+set rather than failing loudly — which is what `test_ubproject_config.py` is
+for.
+
+### Checking with the other reader
+
+The Sphinx build is only half the story: the point of keeping everything in the
+variant data file is that a reader which never runs `conf.py` decides the same
+things. `ubc` is that reader, and `pytest -m docs -k ubc` proves it — per
+variant, it asserts that ubCode removes **exactly** the component documents the
+variant's component list omits.
+
+`ubc` ships inside the ubCode VS Code extension and is on neither PyPI nor npm,
+so there is no install step this repository can own. The tests find it on
+`PATH`, via the `UBC` environment variable, or in the extension directory, and
+**skip** when it is absent rather than pretending to cover it:
+
+```bash
+export UBC="$HOME/.vscode/extensions/useblocks.ubcode-0.35.0-darwin-arm64/server/cli/ubc"
+pytest -m docs -k ubc
+```
+
+To look at one variant by hand, override the data file rather than switching
+the project:
+
+```bash
+ubc check -c "needs.variant_data_file = 'build/variants/Sleep/test/docs.json'"
+```
+
+Two things to know about `ubproject.toml` when editing it. Configuring parsers
+puts ubCode in **parser mode**, where the document set comes from each
+`[parse.parsers.*].include` and `[source] extend_include` is *ignored* — so the
+parser includes have to stay in step with `include_patterns` in `conf.py`, or
+the two readers are looking at different files. And `[[source.variant_sources]]`
+rules are implemented as exclusions, which is why a rule that cannot be
+evaluated removes what it gates.
+
+### Adding a component
+
+1. Add it to the variant's `parts.cmake`.
+2. Add one `[[source.variant_sources]]` rule in `ubproject.toml`.
+3. Add one line to the 150% toctree in `doc/components/index.md`.
+
+Nothing is generated, no loop is edited, and nothing under `build/` is touched.
+
+### Generated output
+
+`build/` and `generated/` are output. **Nobody edits them — not a person, not an
+assistant.** The editor is configured to refuse it (`files.readonlyInclude`) and
+`build/variants/GENERATED` says so on disk.
+
+`generated/` is the configured variant's build directory. Documents name it
+directly instead of globbing `/build/**`; a glob matched every variant and build
+type on disk and only ever resolved to one page because `conf.py` narrowed the
+source set behind the scenes.
+
+Regenerate without a compiler — KConfig is pure Python, and CMake's top-level
+`project()` call demands a C toolchain before it will configure at all:
+
+```bash
+python tools/variant_data.py --all                     # the whole matrix
+python tools/variant_data.py --variant Sleep --kit test # ...and point at one cell
+python tools/variant_data.py --all --check             # CI: regenerate and diff
+```
+
+Preview a variant by pointing the build at its cell:
+
+```bash
+VARIANT_DATA_FILE=build/variants/Sleep/test/docs.json sphinx-build -b html . out
+```
 
 ## Project-Specific Conventions
 
