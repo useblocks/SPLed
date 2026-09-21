@@ -274,10 +274,30 @@ def write_pointer(project_root: Path, data: dict[str, Any], build_dir: Path | No
     try:
         current.symlink_to(build_dir.resolve(), target_is_directory=True)
     except OSError:
-        # Windows without Developer Mode refuses a symlink. A copy keeps the
-        # path stable at the cost of duplicating the tree; the reports target
-        # rewrites its output wholesale anyway.
-        shutil.copytree(build_dir, current, dirs_exist_ok=True)
+        # Windows without Developer Mode refuses a symlink.
+        #
+        # This used to copy the tree. That was wrong three times over: it ran at
+        # CONFIGURE time, when the reports the path exists for have not been
+        # generated yet, so it only ever copied object files, binaries and
+        # CMakeFiles; `dirs_exist_ok` meant a later configure never removed what
+        # an earlier one left, so the copy grew stale rather than wrong-and-
+        # obvious; and nothing reads `generated/` yet anyway, so the whole cost
+        # bought nothing.
+        #
+        # A marker instead. It keeps the path present and self-explanatory, and
+        # when the path does acquire a consumer this is where the decision --
+        # copy the documents, or require Developer Mode -- gets made with the
+        # facts of that day.
+        current.mkdir(parents=True, exist_ok=True)
+        (current / "NO_SYMLINK").write_text(
+            "This platform refused a symlink, so `generated` is a plain directory.\n"
+            f"It would have pointed at: {build_dir.resolve()}\n"
+            "\n"
+            "Nothing reads `generated` yet, so nothing is copied here. Enable\n"
+            "Developer Mode on Windows to get the symlink, or see\n"
+            "tools/variant_data.py if this path has since gained a consumer.\n",
+            encoding="utf-8",
+        )
 
 
 #: Dropped into every directory this script owns. `build/` itself gets one too,

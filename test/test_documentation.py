@@ -207,6 +207,29 @@ UBC = _find_ubc()
 needs_ubc = pytest.mark.skipif(UBC is None, reason="ubc not found; set UBC or put it on PATH")
 
 
+def test_ubc_is_available_where_it_is_required() -> None:
+    """A skipped parity test must not be able to pass the gate by omission.
+
+    The tests below are the only check that the two readers agree, and they
+    skip when ubc is absent -- which it is on any machine that has not
+    installed it. A check that silently does not run is worse than no check,
+    because the green tick claims it did.
+
+    So the CI job that installs ubc sets CI_REQUIRE_UBC, and this turns the
+    skip into one clear failure. The other tests still skip rather than
+    erroring on a missing binary, so the reason is stated once.
+    """
+    if not os.environ.get("CI_REQUIRE_UBC"):
+        pytest.skip("CI_REQUIRE_UBC is not set; ubc is optional here")
+
+    assert UBC is not None, (
+        "CI_REQUIRE_UBC is set but ubc was not found on PATH, in $UBC, or in the "
+        "VS Code extension directory. The parity tests would have skipped and the "
+        "documentation gate would have passed without checking that ubCode and "
+        "Sphinx agree, which is the property it exists for."
+    )
+
+
 def _ubc_check(variant: str, kit: str, target: str) -> list[dict]:
     result = subprocess.run(
         [

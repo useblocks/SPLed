@@ -71,7 +71,21 @@ jobs:
                   poetry config virtualenvs.in-project true
                   poetry install --no-root
 
+            # `ubc` is the second reader. Without it the parity tests skip, and
+            # a guarantee that only holds on a developer machine is not a
+            # guarantee -- so the gate installs it and CI_REQUIRE_UBC turns a
+            # skip into a failure. No licence is needed for `check`; the inputs
+            # are passed anyway so that adding the secrets later just works.
+            - name: Install ubc
+              uses: useblocks/ubc-action@0.1
+              with:
+                  version: "0.35.0"
+                  license-key: ${{ secrets.UBCODE_LICENSE_KEY }}
+                  license-user: ${{ secrets.UBCODE_LICENSE_USER }}
+
             - name: Documentation gate
+              env:
+                  CI_REQUIRE_UBC: "1"
               run: poetry run pytest -m "docs and ${{ needs.determine-gate.outputs.marker }}"
 
     test-on-windows:

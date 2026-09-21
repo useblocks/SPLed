@@ -197,3 +197,47 @@ def test_every_cell_carries_the_whole_contract(variant: str, kit: str, target: s
 
     # It has to survive the round trip to the file both tools read.
     assert json.loads(json.dumps(data)) == data
+
+
+# --- the current-variant pointer -------------------------------------------
+
+
+def test_the_pointer_is_a_symlink_where_the_platform_allows_one(tmp_path: Path) -> None:
+    build_dir = tmp_path / "build" / "V" / "test" / "Debug"
+    build_dir.mkdir(parents=True)
+    (build_dir / "payload.txt").write_text("x", encoding="utf-8")
+
+    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, build_dir)
+
+    generated = tmp_path / "generated"
+    assert generated.is_symlink()
+    assert (generated / "payload.txt").is_file()
+
+
+def test_a_refused_symlink_copies_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fallback must not duplicate the CMake binary directory.
+
+    It used to `copytree` the whole thing at CONFIGURE time -- objects,
+    binaries, CMakeFiles -- before the reports it exists for had been generated,
+    and `dirs_exist_ok` meant a later configure never cleared an earlier one's
+    leftovers. Nothing reads `generated/` yet, so it bought nothing at all.
+
+    Only Windows without Developer Mode takes this path, which is why it needs a
+    test rather than the platform nobody develops on finding out.
+    """
+    build_dir = tmp_path / "build" / "V" / "test" / "Debug"
+    (build_dir / "CMakeFiles").mkdir(parents=True)
+    (build_dir / "CMakeFiles" / "huge.o").write_text("x" * 1000, encoding="utf-8")
+
+    def refuse(*args, **kwargs):
+        raise OSError("symlinks not permitted")
+
+    monkeypatch.setattr(Path, "symlink_to", refuse)
+
+    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, build_dir)
+
+    generated = tmp_path / "generated"
+    assert generated.is_dir() and not generated.is_symlink()
+    assert (generated / "NO_SYMLINK").is_file(), "the fallback must explain itself"
+    assert not (generated / "CMakeFiles").exists(), "the fallback copied the binary directory"
+    assert [p.name for p in generated.iterdir()] == ["NO_SYMLINK"]
