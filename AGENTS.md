@@ -291,10 +291,23 @@ Nothing is generated, no loop is edited, and nothing under `build/` is touched.
 assistant.** The editor is configured to refuse it (`files.readonlyInclude`) and
 `build/variants/GENERATED` says so on disk.
 
-`generated/` is the configured variant's build directory. Documents name it
-directly instead of globbing `/build/**`; a glob matched every variant and build
-type on disk and only ever resolved to one page because `conf.py` narrowed the
-source set behind the scenes.
+`generated/` is the configured variant's build directory, and today **nothing
+reads it**. The report toctrees still glob `/build/**`, and `conf.py` narrows
+the source set to the configured build so each glob resolves to one page.
+
+That is a deferral, not the end state. A fixed path under `generated/` would be
+better, and the configuration for it is already in place -- the rst parser
+include and the `generated/...` entries in every variant rule. It cannot be
+switched on from this repository: spl-core writes the gcovr tree at
+`reports/html/<build-relative page path>/coverage/index.html` and looks its
+report artifacts up in the same place, so moving the page that links to it
+without moving the tree breaks every coverage link.
+
+When spl-core does write the tree relative to the page, the `build/` forwarding
+in `conf.py` and the `generated` entry in its `exclude_patterns` have to go in
+the *same* change, or Sphinx discovers every report page under both names.
+`test_generated_and_build_discovery_are_never_both_live` fails if only half of
+that is done.
 
 Regenerate without a compiler — KConfig is pure Python, and CMake's top-level
 `project()` call demands a C toolchain before it will configure at all:

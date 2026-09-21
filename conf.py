@@ -29,6 +29,19 @@ exclude_patterns = [
     ".venv",
     ".git",
     "**/test_results.rst",  # We renamed this file, but nobody deletes it.
+    # `generated` is a symlink to the configured variant's build directory, and
+    # Sphinx walks with followlinks=True -- so without this it descends the
+    # whole build tree a second time, under a second set of paths that the
+    # `build/...` exclusions above do not match. Excluding it prunes the walk
+    # (get_matching_files applies exclude_patterns to directories, not just
+    # files), which halves the scan on a small build directory and more on a
+    # real one.
+    #
+    # It also means Sphinx CANNOT discover anything through `generated`, which
+    # is the invariant test_ubproject_config.py guards: the report pages are
+    # discovered through spl-core's `build/` patterns instead, and exactly one
+    # of those two routes may ever be live or every page exists twice.
+    "generated",
 ]
 
 # The 150% source set: every hand-written document the product line has.

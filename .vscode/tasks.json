@@ -31,7 +31,13 @@
             "label": "Select documentation variant",
             "detail": "Point the docs and ubCode at one variant -- no CMake, no compiler",
             "type": "shell",
-            "command": "${command:python.interpreterPath} tools/variant_data.py --variant ${input:variant} --kit ${input:buildKit} --target ${input:docsTarget} --current",
+            // Always the docs cell. Choosing `reports` here would open every
+            // report fence in the IDE, and each one globs into build/**, which
+            // ubCode excludes -- so every component would report an unmatched
+            // glob. CMake writes the docs cell as the pointer for the same
+            // reason. The target choice belongs to the build task below, which
+            // is where it changes what is produced rather than what is linted.
+            "command": "${command:python.interpreterPath} tools/variant_data.py --variant ${input:variant} --kit ${input:buildKit} --target docs --current",
             "problemMatcher": [],
             "presentation": {
                 "reveal": "silent",

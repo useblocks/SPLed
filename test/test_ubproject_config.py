@@ -333,3 +333,36 @@ def test_report_globs_resolve_through_the_configured_build_only() -> None:
     for path in globbed:
         body = path.read_text(encoding="utf-8")
         assert ":glob:" in body, f"{path.relative_to(PROJECT_ROOT)} uses /build/** without :glob:"
+
+
+def test_generated_and_build_discovery_are_never_both_live(project_config: dict) -> None:
+    """Exactly one route to the generated report pages, or they exist twice.
+
+    Two routes are configured, on purpose, and only one is switched on:
+
+    * Sphinx reaches them through spl-core's `build/...` include patterns,
+      which conf.py forwards for the reports shape. Live today.
+    * `generated/`, the stable path, is named by the rst parser and by every
+      component's variant rule. Inert today -- conf.py excludes `generated`
+      from the Sphinx walk, and ubCode does not descend symlinks.
+
+    The forward-looking half stays because it is the shape we want once
+    spl-core writes the gcovr tree relative to the page. But when that lands,
+    dropping the `build/` forwarding has to happen in the SAME change, or
+    Sphinx discovers every report page under both names. A comment saying so
+    would be read once; this fails the build instead.
+    """
+    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
+
+    sphinx_walks_generated = '"generated",' not in conf
+    forwards_build_patterns = 'pattern.startswith("build/")' in conf
+
+    assert not (sphinx_walks_generated and forwards_build_patterns), (
+        "conf.py both lets Sphinx walk `generated/` and forwards spl-core's "
+        "`build/` patterns. Every generated report page is then discovered "
+        "twice, under two docnames. Drop the `build/` forwarding in the same "
+        "change that makes `generated/` real."
+    )
+
+    # And the forward-looking configuration is still there to be switched on.
+    assert project_config["parse"]["parsers"]["rst"]["include"] == ["generated/**/*.rst"]
