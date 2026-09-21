@@ -1,23 +1,172 @@
 "$schema" = "https://ubcode.useblocks.com/ubproject.schema.json"
 
-extend = ".venv/lib/python3.13/site-packages/spl_core/report_generation/ubproject.toml"
+# ---------------------------------------------------------------------------
+# The one configuration file. Both readers of this project's documentation read
+# it: ubCode and ubc directly, and the Sphinx build through `needs_from_toml`
+# in conf.py.
+#
+# It used to `extend` spl-core's base configuration out of the virtualenv, by a
+# path with the Python minor version baked into it. That was wrong twice over.
+# The path named a Python that did not exist, so the base configuration silently
+# failed to resolve for ubCode; and sphinx-needs does not implement `extend` at
+# all -- it reads exactly one file's [needs] table -- so conf.py resolved the
+# same base file a second time, through importlib. Two mechanisms for one file,
+# one of them broken, and no way to tell from either end.
+#
+# spl-core's base needs configuration is therefore vendored below rather than
+# referenced. test_ubproject_config.py fails if it drifts from what the
+# installed spl-core ships, so vendoring cannot rot quietly.
+# ---------------------------------------------------------------------------
 
 [server]
 index_on_save = true
 hover_need_refs = true
 
-[parse.parsers.rst]
+# File discovery. Configuring parsers puts ubCode in "parser mode", where the
+# document set comes from each parser's `include` and `[source] extend_include`
+# is IGNORED -- silently, apart from one config warning. So the document set
+# lives here, and it has to be the same set conf.py gives Sphinx through
+# `include_patterns`. It was not: `include = ["*.md"]` matched every Markdown
+# file in the tree, so ubCode was also parsing AGENTS.md, README.md, CLAUDE.md
+# and three dozen agent skill definitions as project documents -- 38 documents
+# Sphinx never sees, each reported as missing from a toctree.
 
 [parse.parsers.md]
 flavour = "myst"
-include = ["*.md"]
+include = [
+    "index.md",
+    "doc/**/*.md",
+    "components/**/doc/**/*.md",
+    "test/**/doc/**/*.md",
+]
+
+# Every .rst in this project is generated: the clanguru source listings and the
+# report pages, which live under the configured variant's build directory and
+# are therefore covered by `extend_exclude = ["build/**"]` above. ubCode
+# deliberately shows none of them -- they are build output, and indexing them
+# for every variant ever built is the problem that exclusion solves.
+#
+# The include below names `generated`, the stable path a future spl-core will
+# let the report pages live at. It is inert twice over today: nothing is written
+# there yet, and ubCode does not descend symlinked directories anyway
+# ("directories are skipped and symlinked directories are not descended"),
+# which is what tools/variant_data.py currently makes it. Both were verified,
+# not assumed.
+[parse.parsers.rst]
+include = ["generated/**/*.rst"]
+
+[source]
+exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".svn", ".venv", ".vscode", "_build", "dist", "node_modules", "site-packages"]
+respect_gitignore = false
+# The generated source listings are documents; the rest of build/ is build
+# output. Without the exclude, ubCode indexes every variant and every kit ever
+# built, so need IDs appear many times over and the IDE disagrees with any one
+# build about what the project contains. Sphinx never saw this because conf.py
+# narrows its source set per build shape.
+# `extend_include` is deliberately absent: it is ignored in parser mode, so the
+# generated listings are named by [parse.parsers.rst] instead.
+extend_exclude = [
+    "build/**",
+    # The root document of spl-core's PER-COMPONENT report, a build shape
+    # ubCode never performs. conf.py excludes it from every variant-wide
+    # build, so Sphinx never sees it either; without this line ubCode indexed
+    # it and reported it as an orphan -- the two readers disagreeing about the
+    # document set, which is the one thing this configuration exists to
+    # prevent. `[parse.parsers.*]` has no `exclude`, and extend_exclude IS
+    # honoured in parser mode (unlike extend_include), so this is the knob.
+    "doc/component_report.md",
+]
 
 [needs]
-schema_definitions_from_json = "schema.json"
-
 variant_data_file = "build/autoconf.json"
 
 src_trace_config_from_toml = "ubproject.toml"
+
+# Write the merged needs.json (all needs, after import and resolution).
+build_json = true
+
+# --- vendored from spl-core -------------------------------------------------
+# Modernized to the `links`/`fields` tables while copying: the `extra_links`
+# and `extra_options` lists spl-core still ships are deprecated in sphinx-needs
+# and warned about on every build, and the `image` field below already used the
+# new form, so the file was mixing both.
+
+[needs.links.realizes]
+incoming = "is realized by"
+outgoing = "realizes"
+
+[needs.links.fulfills]
+incoming = "is fulfilled by"
+outgoing = "fulfills"
+
+[needs.links.refines]
+incoming = "is refined by"
+outgoing = "refines"
+
+[needs.links.implements]
+incoming = "is implemented by"
+outgoing = "implements"
+
+[needs.links.results]
+incoming = "results from"
+outgoing = "results"
+
+[needs.links.verifies]
+incoming = "is verified by"
+outgoing = "verifies"
+
+[needs.links.tests]
+incoming = "is tested by"
+outgoing = "tests"
+
+[needs.fields.integrity]
+# spl-core declares this through the deprecated `extra_options` list. That form
+# implies an empty-string default, which is what every existing need carries, so
+# it is stated explicitly here -- the modern form warns when a field declares
+# neither schema, nullable nor default, and defaulting to null instead would
+# change the value of `integrity` on all 87 needs.
+description = "Integrity level of the need"
+default = ""
+
+[needs.fields.integrity.schema]
+type = "string"
+
+[[needs.types]]
+directive = "arch"
+title = "Architecture"
+prefix = "A_"
+color = "#DF744A"
+style = "node"
+
+[[needs.types]]
+directive = "req"
+title = "Requirement"
+prefix = "R_"
+color = "#BFD8D2"
+style = "node"
+
+[[needs.types]]
+directive = "spec"
+title = "Specification"
+prefix = "S_"
+color = "#FEDCD2"
+style = "node"
+
+[[needs.types]]
+directive = "impl"
+title = "Implementation"
+prefix = "I_"
+color = "#DF744A"
+style = "node"
+
+[[needs.types]]
+directive = "test"
+title = "Test Case"
+prefix = "T_"
+color = "#DCB239"
+style = "node"
+
+# --- end vendored -----------------------------------------------------------
 
 [needs.fields.image]
 description = "Image associated with the need"
@@ -70,3 +219,121 @@ default = []
 name = "fulfills"
 type = "list[str]"
 default = []
+
+# ---------------------------------------------------------------------------
+# Variant-dependent documentation.
+#
+# Two mechanisms, one data source. Both read the file named by
+# `[needs] variant_data_file` above, which tools/variant_data.py writes, so
+# ubCode, ubc and the Sphinx build decide every condition identically.
+#
+# `[[source.variant_sources]]` gates whole documents that live IN this tree.
+# `[[source.mounts]]` brings in trees that do not -- here, the generated report
+# output. Blocks inside a document are gated by the {if} directive of
+# Sphinx-Needs, which reads the same `var.*`.
+#
+# A condition may only name what the variant data file declares. Naming
+# anything else makes it unevaluable, and an unevaluable condition EXCLUDES
+# what it gates -- so a typo silently shrinks the document set rather than
+# failing loudly.
+# ---------------------------------------------------------------------------
+
+# Rules are subtractive: a rule whose condition is FALSE removes the files it
+# names, and a TRUE rule does nothing. Two rules naming the same file therefore
+# compose as AND, which is what gates the generated report pages on both the
+# build shape and the component being part of the variant.
+
+# Generated output belongs to the `reports` build shape only.
+#
+# `generated` is the configured variant's build directory, maintained by
+# tools/variant_data.py. Without this rule a `docs` build with a populated
+# build directory would read every report page and then leave it out of every
+# toctree -- pages nobody asked for, one orphan warning each.
+[[source.variant_sources]]
+if = 'var.build_config.target == "reports"'
+files = ["generated/**"]
+
+# Component documentation, hand-written and generated alike.
+#
+# Gated on membership of the variant's component list, which the generator
+# reads out of that variant's parts.cmake. That is the point: the product
+# structure is stated once, in the file that already states it. Gating on the
+# owning KConfig feature instead would be a second encoding of the same fact,
+# free to drift -- and gating the integration suite on `variant == "Disco"`, as
+# this did before, was exactly that drift made concrete: it claimed the suite
+# for Disco's prod kit too, where parts.cmake does not add it.
+#
+# doc/components/index.md carries the full 150% toctree. An entry naming a
+# document a rule excluded is reported as INFO by both tools, by design.
+
+[[source.variant_sources]]
+if = "'components/light_controller' in var.build_config.components"
+files = [
+    "components/light_controller/doc/**",
+    "generated/components/light_controller/reports/**",
+    "generated/components/light_controller/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/main_control_knob' in var.build_config.components"
+files = [
+    "components/main_control_knob/doc/**",
+    "generated/components/main_control_knob/reports/**",
+    "generated/components/main_control_knob/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/power_button' in var.build_config.components"
+files = [
+    "components/power_button/doc/**",
+    "generated/components/power_button/reports/**",
+    "generated/components/power_button/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/power_signal_processing' in var.build_config.components"
+files = [
+    "components/power_signal_processing/doc/**",
+    "generated/components/power_signal_processing/reports/**",
+    "generated/components/power_signal_processing/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/brightness_controller' in var.build_config.components"
+files = [
+    "components/brightness_controller/doc/**",
+    "generated/components/brightness_controller/reports/**",
+    "generated/components/brightness_controller/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/auto_off' in var.build_config.components"
+files = [
+    "components/auto_off/doc/**",
+    "generated/components/auto_off/reports/**",
+    "generated/components/auto_off/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'test/spled_integration' in var.build_config.components"
+files = [
+    "test/spled_integration/doc/**",
+    "generated/test/spled_integration/reports/**",
+    "generated/test/spled_integration/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/examples/hello_gmock' in var.build_config.components"
+files = [
+    "components/examples/hello_gmock/doc/**",
+    "generated/components/examples/hello_gmock/reports/**",
+    "generated/components/examples/hello_gmock/__source_docs/**",
+]
+
+[[source.variant_sources]]
+if = "'components/examples/flight_controller' in var.build_config.components"
+files = [
+    "components/examples/flight_controller/doc/**",
+    "generated/components/examples/flight_controller/reports/**",
+    "generated/components/examples/flight_controller/__source_docs/**",
+]

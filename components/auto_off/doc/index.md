@@ -1,9 +1,6 @@
-# Software Detailed Design
+# Auto Off
 
-```{toctree}
-:maxdepth: 2
-:caption: Table of Contents
-```
+**Software Detailed Design**
 
 ## Introduction
 
@@ -30,16 +27,14 @@ The Auto Off Controller monitors three types of user input to determine system a
 Any of these inputs will reset the inactivity timer.
 ```
 
-{% if config.AUTO_OFF %}
-
+````{if} var.features.AUTO_OFF
 ```{spec} Configurable Timeout Period
 :id: SWDD_AO-102
 :refines: SWARCH_001
 
 The auto off timeout period is configurable through CONFIG_AUTO_OFF_PERIOD_SECONDS, with a valid range of 5 to 7200 seconds (5 seconds to 2 hours).
 ```
-
-{% endif %}
+````
 
 ```{spec} Timer Countdown Behavior
 :id: SWDD_AO-103
@@ -92,16 +87,14 @@ The Auto Off Controller shall use the RTE interface `RteIsKeyPressed()` to monit
 Any activity detected from these monitored keys will reset the inactivity timer.
 ```
 
-{% if config.AUTO_OFF %}
-
+````{if} var.features.AUTO_OFF
 ```{spec} Auto Off State Output
 :id: SWDD_AO-205
 :refines: SWARCH_001
 
 The Auto Off Controller shall use the RTE interface `RteSetAutoOffState()` to communicate the current auto off state to other system components. The state is set to FALSE when the system is active and TRUE when the timeout period has elapsed.
 ```
-
-{% endif %}
+````
 
 ## Timing Behavior
 
@@ -128,3 +121,18 @@ The internal timer calculation follows the formula:
 
 Key press detection and timer reset occur within one execution cycle (CONFIG_OS_TASK_PERIOD), ensuring immediate response to user activity.
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/auto_off/reports/unit_test_spec
+/build/**/components/auto_off/reports/unit_test_results
+/build/**/components/auto_off/reports/coverage
+```
+
+````
