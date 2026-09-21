@@ -117,9 +117,13 @@ needs_global_options = SplSphinx.default_needs_global_options
 # Without the middle step the reports build would quietly read the docs cell and
 # every report fence would evaluate false -- a reports target with no reports in
 # it, and no error anywhere.
+# spl-core names the build shape by the directory holding the per-target
+# configuration file it points us at. Derived once: the variant data file and
+# the source set both depend on it, and two derivations of one fact drift.
+_shape = "reports" if Path(os.environ.get("SPHINX_BUILD_CONFIGURATION_FILE", "")).parent.name == "reports" else "docs"
+
 _variant_data_file = os.environ.get("VARIANT_DATA_FILE")
 if not _variant_data_file:
-    _shape = "reports" if Path(os.environ.get("SPHINX_BUILD_CONFIGURATION_FILE", "")).parent.name == "reports" else "docs"
     _published = Path(__file__).parent / "build" / f"variant-data-{_shape}.json"
     if _published.is_file():
         _variant_data_file = str(_published)
@@ -157,10 +161,18 @@ else:
     # change. Only the hand-written component trees are dropped, because the
     # variant rules already own those; keeping them here would parse every need
     # in them a second time under a second docname.
+    #
+    # The report pages are admitted ONLY by the reports shape. spl-core writes
+    # unit_test_spec.rst, unit_test_results.rst and coverage.rst at configure
+    # time and lists them for both shapes, so a docs build would read all three
+    # per component and reference none of them -- the fences that would have
+    # linked them are false in a docs build. That is three orphan warnings per
+    # component, fifteen on Spa, and no reader is better off for it.
     include_patterns.extend(
         pattern
         for pattern in _build_config.get("include_patterns", [])
         if pattern.startswith("build/")
+        and (_shape == "reports" or not pattern.endswith("/reports/**"))
     )
 
 
