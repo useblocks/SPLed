@@ -165,8 +165,15 @@ Check feature values in source code via generated `autoconf.h` header.
 
 ## Variant-Dependent Documentation
 
-Documents never use Jinja. There is no `source-read` hook any more, and
-reintroducing one is a regression, not a shortcut.
+Documents never use Jinja. The global `source-read` pass that rendered every
+document is gone, and bringing it back is a regression, not a shortcut.
+
+One narrowly scoped `source-read` handler does exist, and it is not that.
+spl-core passes `--jinja-raw-tags` to clanguru, so generated source listings
+under `__source_docs` wrap their code in `{% raw %}` markers that nothing else
+removes. `conf.py` blanks those two lines, for those docnames only: a line
+filter, not a template render. It goes away when `pyproject.toml` can pin an
+spl-core that lets the flag be turned off -- no released version does yet.
 
 Everything variant-dependent is decided from **one file**: the variant data
 that `tools/variant_data.py` writes, exposed as `var.*`. The governing rule:

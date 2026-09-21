@@ -176,8 +176,46 @@ else:
     )
 
 
+# generated source listings ##################################################
+#
+# COMPATIBILITY SHIM, not a return of the Jinja pass.
+#
+# spl-core passes --jinja-raw-tags to clanguru, so every generated listing under
+# __source_docs wraps its code-block in `{% raw %}` / `{% endraw %}` lines. The
+# only thing that ever consumed those markers was the global Jinja `source-read`
+# hook this project deleted, so without this they render as two literal
+# paragraphs on every listing page in a reports build.
+#
+# This is a line filter, not a template render. Nothing is evaluated; no brace
+# anywhere else in the project is touched; hand-written documents are not seen
+# at all. The markers are replaced by EMPTY LINES rather than removed, so the
+# file keeps its line count and a warning about a generated page still points at
+# the right line -- the source-mapping breakage was one of the reasons the Jinja
+# pass had to go, and re-creating it here would be missing the point.
+#
+# REMOVE THIS once pyproject.toml pins an spl-core that lets the flag be turned
+# off (`SPL_SOURCE_DOCS_JINJA_RAW_TAGS`). No released version does today: 8.8.0
+# is the newest stable and 9.0.1rc4 the newest prerelease, and both hardcode it.
+# Until then this is load-bearing, not a TODO.
+_JINJA_RAW_MARKERS = frozenset({"{% raw %}", "{% endraw %}"})
+
+
+def _strip_jinja_raw_markers(app, docname, source):
+    if "__source_docs/" not in f"{docname}/":
+        return
+    lines = source[0].splitlines(keepends=True)
+    if not any(line.strip() in _JINJA_RAW_MARKERS for line in lines):
+        return
+    source[0] = "".join(
+        ("\n" if line.endswith("\n") else "") if line.strip() in _JINJA_RAW_MARKERS else line
+        for line in lines
+    )
+
+
 def setup(app):
-    """Apply the per-build-shape variant data file, after the TOML is read."""
+    """Register the two handlers this configuration needs."""
+    app.connect("source-read", _strip_jinja_raw_markers)
+
     if not _variant_data_file:
         return
 

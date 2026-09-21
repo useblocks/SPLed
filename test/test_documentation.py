@@ -161,9 +161,24 @@ def test_no_document_is_rendered_through_jinja(all_variant_data: None, tmp_path:
     assert not offenders, f"Jinja constructs in documents: {offenders}"
 
 
-def test_conf_py_registers_no_source_read_handler() -> None:
+def test_the_only_source_read_handler_is_the_scoped_marker_strip() -> None:
+    """The rule is "no templating of documents", not "no handler at all".
+
+    conf.py does register one `source-read` handler: a line filter that blanks
+    the `{% raw %}` markers spl-core puts in generated listings, scoped to
+    docnames under __source_docs. That is categorically different from the
+    global Jinja pass this branch removed -- nothing is evaluated and no
+    hand-written document is seen -- so this asserts the shape rather than the
+    absence of a string.
+    """
     conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
-    assert "source-read" not in conf, "the global Jinja pass must not come back"
+
+    handlers = re.findall(r'app\.connect\(\s*"source-read"\s*,\s*([A-Za-z_][A-Za-z0-9_]*)', conf)
+    assert handlers == ["_strip_jinja_raw_markers"], f"unexpected source-read handlers: {handlers}"
+
+    # The pass that rendered every document is gone and stays gone.
+    assert "render_string" not in conf, "the global Jinja pass must not come back"
+    assert "__source_docs" in conf, "the handler must stay scoped to generated listings"
 
 
 # --- the cross-reader gate -------------------------------------------------
@@ -405,3 +420,92 @@ def test_the_reports_shape_still_reads_them(all_variant_data: None, tmp_path: Pa
     finally:
         shutil.rmtree(tree.parent.parent, ignore_errors=True)
         published.unlink(missing_ok=True)
+
+
+# --- the generated listings must not show their Jinja armour ----------------
+
+
+def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None, tmp_path: Path) -> None:
+    """spl-core wraps generated listings in `{% raw %}`; nothing else unwraps them.
+
+    The global Jinja pass used to consume those markers. It is gone, and no
+    released spl-core lets the flag be turned off, so without the scoped strip
+    in conf.py they reach the reader as two literal paragraphs on every listing
+    page of a reports build.
+
+    The fixture is produced by clanguru itself rather than hand-written, so this
+    tracks what spl-core actually emits instead of what it emitted once.
+    """
+    clanguru = shutil.which("clanguru") or str(Path(sys.executable).parent / "clanguru")
+    if not Path(clanguru).exists():
+        pytest.skip("clanguru not installed")
+
+    source = tmp_path / "sample.c"
+    source.write_text("int add(int a, int b) { return a + b; }\n", encoding="utf-8")
+
+    listing_dir = PROJECT_ROOT / "build" / "_fake_source_docs" / "components" / "x" / "__source_docs"
+    listing_dir.mkdir(parents=True, exist_ok=True)
+    listing = listing_dir / "sample_c.rst"
+    subprocess.run(
+        [clanguru, "docs", "--source-file", str(source), "--output-file", str(listing),
+         "--format", "rst", "--jinja-raw-tags"],
+        check=True, capture_output=True,
+    )
+    assert "{% raw %}" in listing.read_text(encoding="utf-8"), "fixture is not representative"
+
+    published = PROJECT_ROOT / "build" / "variant-data-reports.json"
+    published.write_text(
+        (PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    pattern = "build/_fake_source_docs/components/x/__source_docs/**"
+
+    try:
+        out = tmp_path / "html"
+        result = _build_with_spl_core_env(
+            "reports", out, tmp_path, {"target": "reports", "include_patterns": [pattern]}
+        )
+        assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
+
+        page = out / "build" / "_fake_source_docs" / "components" / "x" / "__source_docs" / "sample_c.html"
+        assert page.is_file(), "the listing was not built"
+        rendered = page.read_text(encoding="utf-8")
+        for marker in ("{% raw %}", "{% endraw %}"):
+            assert marker not in rendered, f"{marker} reached the reader"
+
+        # Syntax highlighting splits the code across spans, so assert on the
+        # text rather than the markup -- checking the raw HTML for a contiguous
+        # "int add" is how an earlier version of this test fooled itself.
+        text = re.sub(r"<[^>]+>", "", rendered)
+        assert "int" in text and "add" in text, "the strip removed more than the markers"
+    finally:
+        shutil.rmtree(listing_dir.parent.parent.parent, ignore_errors=True)
+        published.unlink(missing_ok=True)
+
+
+def test_the_strip_preserves_line_numbers(all_variant_data: None) -> None:
+    """Markers become blank lines, not nothing.
+
+    Removing them would shift every line after them, so a warning about a
+    generated page would point at the wrong line -- which is one of the reasons
+    the global Jinja pass had to go. Re-creating it in the replacement would be
+    missing the point.
+    """
+    spec = __import__("importlib.util", fromlist=["util"]).spec_from_file_location(
+        "spled_conf", PROJECT_ROOT / "conf.py"
+    )
+    module = __import__("importlib.util", fromlist=["util"]).module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    before = "a\n{% raw %}\n.. code-block:: c\n\n   int x;\n{% endraw %}\n"
+    source = [before]
+    module._strip_jinja_raw_markers(None, "components/x/__source_docs/y", source)
+
+    assert source[0].count("\n") == before.count("\n"), "line count changed"
+    assert "{% raw %}" not in source[0] and "{% endraw %}" not in source[0]
+    assert ".. code-block:: c" in source[0] and "int x;" in source[0]
+
+    # A hand-written document is never touched, whatever it contains.
+    untouched = ["{% raw %}\nkeep me\n"]
+    module._strip_jinja_raw_markers(None, "doc/components/index", untouched)
+    assert untouched[0] == "{% raw %}\nkeep me\n"
