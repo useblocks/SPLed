@@ -77,32 +77,6 @@ def variant_names(project_root: Path) -> list[str]:
     )
 
 
-def _declared_boolean_symbols(kconfig: Any) -> list[str]:
-    """Every boolean the feature model declares, however spl-core lets us ask.
-
-    spl-core grew a public `declared_boolean_symbols()` for exactly this, but
-    this project must keep working against the version pinned in
-    pyproject.toml -- which is what CI installs and therefore what "works"
-    means. Depending on an unreleased accessor would make the build pass only
-    on a machine with a local checkout, which is the same class of mistake as
-    a configuration only one reader can evaluate.
-
-    So: use the accessor when it is there, and otherwise read the kconfiglib
-    instance spl-core holds. Drop the fallback once pyproject.toml pins a
-    release that has the method.
-    """
-    if hasattr(kconfig, "declared_boolean_symbols"):
-        return kconfig.declared_boolean_symbols()
-
-    import kconfiglib
-
-    return sorted(
-        name
-        for name, symbol in kconfig._config.syms.items()  # noqa: SLF001 - see docstring
-        if name and symbol.orig_type == kconfiglib.BOOL
-    )
-
-
 def features(project_root: Path, variant: str) -> dict[str, Any]:
     """The variant's complete feature vector.
 
@@ -130,7 +104,7 @@ def features(project_root: Path, variant: str) -> dict[str, Any]:
 
     # `KConfig.config` only carries the symbols KConfig would write out. The
     # model itself knows every symbol, which is what makes the vector complete.
-    defaults = dict.fromkeys(_declared_boolean_symbols(kconfig), False)
+    defaults = dict.fromkeys(kconfig.declared_boolean_symbols(), False)
 
     # spl-core's own JSON writer, so the value conversion (tristates to bool,
     # hex, the ${VAR} substitution) is the build's and not a second opinion.
