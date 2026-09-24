@@ -235,4 +235,7 @@ def setup(app):
     def _select_variant_data(app, config):
         config.needs_variant_data_file = _variant_data_file
 
-    app.connect("config-inited", _select_variant_data, priority=20)
+    # sphinx-needs loads needs_from_toml at priority 10 and resolves the variant
+    # data at 11. Registered after the extension, this runs between the two, at
+    # 10: after the TOML has named the pointer, before the pointer is read.
+    app.connect("config-inited", _select_variant_data, priority=10)
