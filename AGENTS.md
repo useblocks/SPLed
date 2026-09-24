@@ -55,14 +55,21 @@ CMake side at a local checkout:
 
 ```bash
 .venv/bin/python -m pip install -e ../spl-core --no-deps   # point at the checkout
-./build.sh --install                                       # ...and back to the pinned release
+./build.sh --install                                       # ...and back to the pinned version
 ```
 
-The path is deliberately **not** committed to `pyproject.toml`: CI must keep
-resolving the released spl-core, so a local override never silently becomes the
-build everyone gets. Land the spl-core change upstream, release it, and bump the
-pin in `pyproject.toml` — the override is for the span of one change, not a
-working mode.
+A local path is never committed to `pyproject.toml`: every machine and CI must
+resolve the same spl-core, so a local override never silently becomes the
+build everyone gets. The override is for the span of one change, not a working
+mode.
+
+`pyproject.toml` currently pins a **commit of the useblocks fork** of spl-core
+(branch `feat/configurable-docs-pipeline`, based on spl-core 8.9.0). It carries
+the documentation changes this project relies on: `SPL_SOURCE_DOCS_JINJA_RAW_TAGS`,
+`SPL_VARIANT_DATA_FILE_DOCS` / `_REPORTS`, `SPL_SPHINX_BINARY_DIR` and
+`KConfig.declared_boolean_symbols()`. Pinning a commit keeps every build on the
+same code. Switch back to a PyPI release once upstream spl-core has released
+them.
 
 ### VS Code CMake Extension Configuration
 

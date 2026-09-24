@@ -4168,37 +4168,41 @@ name = "spl-core"
 version = "8.9.0"
 description = "Software Product Line Support for CMake"
 optional = false
-python-versions = "<3.14,>=3.10"
+python-versions = ">=3.10,<3.14"
 groups = ["main"]
-files = [
-    {file = "spl_core-8.9.0-py3-none-any.whl", hash = "sha256:f5484b6179a885c022a8169987fccf0653bbdb7f8b538fa02be5b1dace60c993"},
-    {file = "spl_core-8.9.0.tar.gz", hash = "sha256:fb17519393965971034dabacaf83befe11dadfa1454d25522ff43d199f713024"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 clanguru = ">=0,<1"
-cookiecutter = "2.7.1"
-gcovr = ">=8.6,<9.0"
-hammocking = ">=1.0,<2.0"
+cookiecutter = "==2.7.1"
+gcovr = "^8.6"
+hammocking = "^1.0"
 junitparser = "*"
-kconfiglib = ">=14.1,<15.0"
+kconfiglib = "^14.1"
 mlx-traceability = ">=10,<12"
 myst-parser = ">=0.16"
-py-app-dev = ">=2.23,<3.0"
+py-app-dev = "^2.23"
 pydata-sphinx-theme = ">=0.18,<0.20"
 pypeline-runner = ">=1,<=2"
 pypeline-semantic-release = ">=0.5,<1.0"
 sphinx = ">=8.1,<9.0"
-sphinx-book-theme = ">=1.1,<2.0"
-sphinx-copybutton = ">=0.5,<0.6"
+sphinx-book-theme = "^1.1"
+sphinx-copybutton = "^0.5"
 sphinx-design = ">=0.5,<0.7"
 sphinx-needs = ">=7,<9"
 sphinx-new-tab-link = ">=0.4,<0.9"
-sphinx-test-reports = ">=1.0,<2.0"
-sphinxcontrib-datatemplates = ">=0.11,<0.12"
+sphinx-test-reports = "^1.0"
+sphinxcontrib-datatemplates = "^0.11"
 sphinxcontrib-mermaid = ">=0.9,<2.2"
 sphinxcontrib-plantuml = ">=0.29,<0.32"
 typer = ">=0,<1"
+
+[package.source]
+type = "git"
+url = "https://github.com/useblocks/spl-core.git"
+reference = "010727d08b27ca73994772444d25d7bc6e028c31"
+resolved_reference = "010727d08b27ca73994772444d25d7bc6e028c31"
 
 [[package]]
 name = "text-unidecode"
@@ -4798,4 +4802,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "<3.14,>=3.12"
-content-hash = "97ceec9a57787ee16f068449446b9b756bdae6cc01885008fbd278f65f586ba3"
+content-hash = "c4fca35edababcd6d4b502ede808ffd05224e8d2fa83cda55228e9f69890d7f5"

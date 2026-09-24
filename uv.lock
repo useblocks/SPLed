@@ -2145,7 +2145,7 @@ wheels = [
 [[package]]
 name = "spl-core"
 version = "8.9.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/useblocks/spl-core.git?rev=010727d08b27ca73994772444d25d7bc6e028c31#010727d08b27ca73994772444d25d7bc6e028c31" }
 dependencies = [
     { name = "clanguru" },
     { name = "cookiecutter" },
@@ -2170,10 +2170,6 @@ dependencies = [
     { name = "sphinxcontrib-mermaid" },
     { name = "sphinxcontrib-plantuml" },
     { name = "typer" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/97/89/41c0ebdfaef5570d60c7db13987ce2b96f243666e980840b2bb535b55e5a/spl_core-8.9.0.tar.gz", hash = "sha256:fb17519393965971034dabacaf83befe11dadfa1454d25522ff43d199f713024", size = 124637, upload-time = "2026-09-22T09:51:10.778Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/09/89/994df2ff6653a2ad6efd9c9dfca0975f624bbc0cfdaff306c8509addd1a4/spl_core-8.9.0-py3-none-any.whl", hash = "sha256:f5484b6179a885c022a8169987fccf0653bbdb7f8b538fa02be5b1dace60c993", size = 140731, upload-time = "2026-09-22T09:51:09.268Z" },
 ]
 
 [[package]]
@@ -2202,7 +2198,7 @@ requires-dist = [
     { name = "pytest", specifier = ">=8,<9" },
     { name = "sphinx-codelinks", specifier = ">=1.2,<2" },
     { name = "sphinx-mounts", specifier = ">=0.2,<1" },
-    { name = "spl-core", specifier = ">=8.9,<9" },
+    { name = "spl-core", git = "https://github.com/useblocks/spl-core.git?rev=010727d08b27ca73994772444d25d7bc6e028c31" },
 ]
 
 [[package]]
