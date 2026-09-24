@@ -175,12 +175,10 @@ Check feature values in source code via generated `autoconf.h` header.
 Documents never use Jinja. The global `source-read` pass that rendered every
 document is gone, and bringing it back is a regression, not a shortcut.
 
-One narrowly scoped `source-read` handler does exist, and it is not that.
-spl-core passes `--jinja-raw-tags` to clanguru, so generated source listings
-under `__source_docs` wrap their code in `{% raw %}` markers that nothing else
-removes. `conf.py` blanks those two lines, for those docnames only: a line
-filter, not a template render. It goes away when `pyproject.toml` can pin an
-spl-core that lets the flag be turned off -- no released version does yet.
+The generated source listings need no exception either. spl-core can have
+clanguru wrap their code in Jinja `{% raw %}` markers for projects that do
+render through Jinja; `CMakeLists.txt` turns that off
+(`SPL_SOURCE_DOCS_JINJA_RAW_TAGS`), so no `source-read` handler exists at all.
 
 Everything variant-dependent is decided from **one file**: the variant data
 that `tools/variant_data.py` writes, exposed as `var.*`. The governing rule:
@@ -190,8 +188,9 @@ that `tools/variant_data.py` writes, exposed as `var.*`. The governing rule:
 A key that only `conf.py` knows is invisible to ubCode, `ubc` and a reviewer's
 editor, so their view of the project silently disagrees with the build —
 silently, because a condition a tool cannot evaluate gates content **off**
-rather than failing. That is why `conf.py` reads the file and adds nothing to
-it.
+rather than failing. That is why `conf.py` does not touch the file at all:
+sphinx-needs reads it, and which cell a build reads is a command-line override
+(`-D needs_variant_data_file=...`), exactly as for `ubc`.
 
 ### The three mechanisms
 
@@ -298,23 +297,24 @@ Nothing is generated, no loop is edited, and nothing under `build/` is touched.
 assistant.** The editor is configured to refuse it (`files.readonlyInclude`) and
 `build/variants/GENERATED` says so on disk.
 
-`generated/` is the configured variant's build directory, and today **nothing
-reads it**. The report toctrees still glob `/build/**`, and `conf.py` narrows
-the source set to the configured build so each glob resolves to one page.
+`generated/` is the configured variant's build directory: a symlink (a junction
+on Windows without Developer Mode) that `tools/variant_data.py` points at the
+build CMake configures. `CMakeLists.txt` hands it to spl-core as
+`SPL_SPHINX_BINARY_DIR`, so every page spl-core generates is named through it:
+`generated/components/<c>/reports/coverage`, whatever the variant, kit or build
+type. The report sections therefore name their pages directly, spl-core writes
+each coverage report next to its page, and `SplBuild` finds the report
+artifacts where the pages landed.
 
-That is a deferral, not the end state. A fixed path under `generated/` would be
-better, and the configuration for it is already in place -- the rst parser
-include and the `generated/...` entries in every variant rule. It cannot be
-switched on from this repository: spl-core writes the gcovr tree at
-`reports/html/<build-relative page path>/coverage/index.html` and looks its
-report artifacts up in the same place, so moving the page that links to it
-without moving the tree breaks every coverage link.
+The Sphinx build reads generated pages **only** through `generated`: `conf.py`
+prunes `build` from its walk, so each page has exactly one name.
+`test_generated_is_the_only_route_to_the_generated_pages` guards that. Because
+the link is re-pointed on every configure, spl-core stops a documentation build
+whose link leads to another build directory. Configure that build again first.
 
-When spl-core does write the tree relative to the page, the `build/` forwarding
-in `conf.py` and the `generated` entry in its `exclude_patterns` have to go in
-the *same* change, or Sphinx discovers every report page under both names.
-`test_generated_and_build_discovery_are_never_both_live` fails if only half of
-that is done.
+ubCode does not descend the link, so the IDE shows no generated page. They are
+output of the reports target, which stays Sphinx-only while its pages use the
+sphinx-test-reports directive.
 
 Regenerate without a compiler — KConfig is pure Python, and CMake's top-level
 `project()` call demands a C toolchain before it will configure at all:
@@ -325,11 +325,16 @@ python tools/variant_data.py --variant Sleep --kit test # ...and point at one ce
 python tools/variant_data.py --all --check             # CI: regenerate and diff
 ```
 
-Preview a variant by pointing the build at its cell:
+Preview a variant by pointing the build at its cell. It is a command-line
+override of the same key `ubc check -c` overrides, and the way spl-core selects
+the cell for the docs and reports targets; `conf.py` has no say in it:
 
 ```bash
-VARIANT_DATA_FILE=build/variants/Sleep/test/docs.json sphinx-build -b html . out
+sphinx-build -b html -D needs_variant_data_file=build/variants/Sleep/test/docs.json . out
 ```
+
+Without the override, a build reads the pointer `build/autoconf.json`, which
+exists once CMake or `tools/variant_data.py --variant ... --kit ...` has written it.
 
 ## Project-Specific Conventions
 

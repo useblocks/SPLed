@@ -212,26 +212,23 @@ def write_cell(project_root: Path, variant: str, kit: str, target: str, data: di
 def write_pointer(project_root: Path, data: dict[str, Any], build_dir: Path | None) -> None:
     """Point `build/autoconf.json` and `generated` at one cell.
 
-    `ubproject.toml` names both: the data file as `variant_data_file`, and the
-    build directory as the `dir` of the report mount. A mount `dir` is resolved
-    relative to the configuration file and cannot name variant data, so the
-    indirection has to be on the filesystem.
+    `ubproject.toml` names the data file as `variant_data_file`, so the pointer
+    is the variant the IDE shows.
 
-    The link is called `generated` and sits at the project root rather than
-    inside `build/`, and that name is load-bearing twice over. It is the docname
-    prefix of every generated page in BOTH tools: sphinx-mounts renames a mount's
-    documents to its `mount_at`, while ubCode keeps the path a file is found at,
-    so the only way one toctree entry can mean one page in both is for the path
-    and the prefix to be the same string. And ubCode's default `exclude` contains
-    "build", which would otherwise drop the whole mounted tree.
+    `generated` is the configured build directory, and CMakeLists.txt hands it
+    to spl-core as SPL_SPHINX_BINARY_DIR. Every page spl-core generates is then
+    named `generated/...` in the Sphinx build, whatever the variant, kit or build
+    type, and the report sections name those pages directly. Re-pointing the link
+    is safe: spl-core stops a documentation build whose link no longer leads to
+    its own build directory, rather than letting it read another build's pages.
 
-    KNOWN LIMITATION: a symlink gets this right for Sphinx and wrong for ubCode,
-    which does not descend symlinked directories. The generated report pages are
-    therefore invisible to the IDE. Materialising them -- copying the .rst files
-    into a real `generated/` tree after the reports target has produced them --
-    is the fix, and it has to happen after that target runs, not here at
-    configure time when they do not exist yet. Pointing `generated` at a real
-    directory makes ubCode index them, gated exactly as intended.
+    The link sits at the project root rather than inside `build/`, because
+    `build` is pruned from the Sphinx walk and excluded by ubCode: each
+    generated page has to be reachable under exactly one name.
+
+    ubCode does not descend symlinked directories, so the IDE does not show the
+    generated pages. They are build output of the reports target, which is
+    Sphinx-only anyway.
     """
     pointer = project_root / "build" / "autoconf.json"
     pointer.parent.mkdir(parents=True, exist_ok=True)
@@ -241,37 +238,59 @@ def write_pointer(project_root: Path, data: dict[str, Any], build_dir: Path | No
         return
 
     current = project_root / "generated"
-    if current.is_symlink() or current.is_file():
-        current.unlink()
-    elif current.is_dir():
-        shutil.rmtree(current)
+    _remove_link(current)
+    target = build_dir.resolve()
     try:
-        current.symlink_to(build_dir.resolve(), target_is_directory=True)
+        current.symlink_to(target, target_is_directory=True)
+        return
     except OSError:
-        # Windows without Developer Mode refuses a symlink.
-        #
-        # This used to copy the tree. That was wrong three times over: it ran at
-        # CONFIGURE time, when the reports the path exists for have not been
-        # generated yet, so it only ever copied object files, binaries and
-        # CMakeFiles; `dirs_exist_ok` meant a later configure never removed what
-        # an earlier one left, so the copy grew stale rather than wrong-and-
-        # obvious; and nothing reads `generated/` yet anyway, so the whole cost
-        # bought nothing.
-        #
-        # A marker instead. It keeps the path present and self-explanatory, and
-        # when the path does acquire a consumer this is where the decision --
-        # copy the documents, or require Developer Mode -- gets made with the
-        # facts of that day.
-        current.mkdir(parents=True, exist_ok=True)
-        (current / "NO_SYMLINK").write_text(
-            "This platform refused a symlink, so `generated` is a plain directory.\n"
-            f"It would have pointed at: {build_dir.resolve()}\n"
-            "\n"
-            "Nothing reads `generated` yet, so nothing is copied here. Enable\n"
-            "Developer Mode on Windows to get the symlink, or see\n"
-            "tools/variant_data.py if this path has since gained a consumer.\n",
-            encoding="utf-8",
-        )
+        pass
+
+    # Windows refuses a symlink without Developer Mode, but creates a junction
+    # without any privilege, and Sphinx walks a junction like a directory.
+    try:
+        _create_junction(target, current)
+        return
+    except OSError:
+        pass
+
+    # Neither could be created. A plain directory keeps the path present and
+    # says why it is empty; spl-core then stops the documentation builds with a
+    # message naming both paths, instead of building them without their reports.
+    current.mkdir(parents=True, exist_ok=True)
+    (current / "NO_SYMLINK").write_text(
+        "Neither a symlink nor a junction could be created here, so `generated`\n"
+        "is a plain directory.\n"
+        f"It should lead to: {target}\n"
+        "\n"
+        "The documentation builds read the generated report pages through this\n"
+        "path, and spl-core stops them until it leads to the build directory. On\n"
+        "Windows, keep the checkout on an NTFS volume, or enable Developer Mode.\n",
+        encoding="utf-8",
+    )
+
+
+def _remove_link(path: Path) -> None:
+    """Remove whatever `generated` was, without ever touching what it led to."""
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.is_junction():
+        path.rmdir()  # removes the junction itself, not the directory it leads to
+    elif path.is_dir():
+        shutil.rmtree(path)
+
+
+def _create_junction(target: Path, link: Path) -> None:
+    """Create a directory junction at `link` leading to `target`.
+
+    Raises OSError where junctions do not exist, which is everywhere but Windows.
+    """
+    try:
+        import _winapi  # CPython's Windows API module
+    except ImportError as error:
+        raise OSError("directory junctions exist on Windows only") from error
+
+    _winapi.CreateJunction(str(target), str(link))
 
 
 #: Dropped into every directory this script owns. `build/` itself gets one too,

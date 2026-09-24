@@ -90,29 +90,30 @@ if(NOT _spled_variant_data_result EQUAL 0)
     message(FATAL_ERROR "tools/variant_data.py failed:\n${_spled_variant_data_output}")
 endif()
 
-# Publish the configured variant's two cells under fixed names, so a Sphinx
-# build can find the one matching its build shape without being told the variant
-# or the kit. conf.py reads these; `build/autoconf.json` (the docs cell) stays
-# the pointer ubCode reads, so the IDE and the docs build see identical data and
-# the report fences resolve to a clean false in the IDE rather than being
-# undecidable.
+# What spl-core's documentation targets need to know about this project. All of
+# it has to be set before parts.cmake adds the components, which is where
+# spl-core computes the paths it writes for Sphinx.
 #
-# Fixed names rather than an environment variable because spl-core only passes
-# one in from 8.9 onwards, and this project builds against the version pinned in
-# pyproject.toml. Where that variable IS passed, conf.py prefers it.
-configure_file(
-    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/docs.json
-    ${CMAKE_SOURCE_DIR}/build/variant-data-docs.json COPYONLY)
-configure_file(
-    ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/reports.json
-    ${CMAKE_SOURCE_DIR}/build/variant-data-reports.json COPYONLY)
+# The variant data file for each build shape. spl-core hands it to sphinx-build
+# as `-D needs_variant_data_file=`, so a reports build evaluates its fences
+# against the reports cell. `build/autoconf.json`, the pointer ubCode and a bare
+# sphinx-build read, always holds the docs cell, so the IDE sees the report
+# fences as a clean false.
+set(SPL_VARIANT_DATA_FILE_DOCS ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/docs.json)
+set(SPL_VARIANT_DATA_FILE_REPORTS ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/reports.json)
 
-# Honoured by spl-core 8.9+; harmlessly unused before that, which is why the
-# fixed-name files above exist.
-set(SPL_VARIANT_DATA_FILE_DOCS
-    ${CMAKE_SOURCE_DIR}/build/variant-data-docs.json CACHE FILEPATH "" FORCE)
-set(SPL_VARIANT_DATA_FILE_REPORTS
-    ${CMAKE_SOURCE_DIR}/build/variant-data-reports.json CACHE FILEPATH "" FORCE)
+# Sphinx reaches this build directory through `generated`, the link
+# tools/variant_data.py has just pointed at it. The generated report pages are
+# therefore named `generated/...` whatever the variant, kit or build type, and
+# the report sections name them directly instead of globbing `/build/**`.
+# spl-core writes each coverage report next to its page under that name, and
+# stops a documentation build whose link has since been re-pointed at another
+# build directory.
+set(SPL_SPHINX_BINARY_DIR ${CMAKE_SOURCE_DIR}/generated)
+
+# No document is rendered through Jinja, so the source listings clanguru
+# generates need no `{% raw %}` armour.
+set(SPL_SOURCE_DOCS_JINJA_RAW_TAGS OFF)
 
 # The object_deps_report extension is currently Windows-only: its index.cmake
 # hardcodes the runner as "object_deps_report.exe", which does not exist on

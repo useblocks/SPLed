@@ -3,8 +3,6 @@
 import datetime
 import os
 
-from pathlib import Path
-
 from spl_core.report_generation.spl_sphinx import SplSphinx
 from spl_core.report_generation.spl_html_settings import html_theme, html_show_sourcelink, html_theme_options, html_sidebars, html_last_updated_fmt  # noqa: F401
 
@@ -24,24 +22,25 @@ templates_path = [
 
 exclude_patterns = [
     "README.md",
-    "build/modules",
-    "build/deps",
     ".venv",
     ".git",
     "**/test_results.rst",  # We renamed this file, but nobody deletes it.
-    # `generated` is a symlink to the configured variant's build directory, and
-    # Sphinx walks with followlinks=True -- so without this it descends the
-    # whole build tree a second time, under a second set of paths that the
-    # `build/...` exclusions above do not match. Excluding it prunes the walk
-    # (get_matching_files applies exclude_patterns to directories, not just
-    # files), which halves the scan on a small build directory and more on a
-    # real one.
+    # Build output is never read where it lies. The one build a Sphinx run
+    # documents is reached through `generated`, the link tools/variant_data.py
+    # points at the configured build directory, and spl-core names every page
+    # it generates through that link (SPL_SPHINX_BINARY_DIR in CMakeLists.txt).
+    # Pruning `build` keeps every other variant's output out of the walk and
+    # leaves exactly one route to each generated page, which is the invariant
+    # test_ubproject_config.py guards: with two, every page exists twice.
     #
-    # It also means Sphinx CANNOT discover anything through `generated`, which
-    # is the invariant test_ubproject_config.py guards: the report pages are
-    # discovered through spl-core's `build/` patterns instead, and exactly one
-    # of those two routes may ever be live or every page exists twice.
-    "generated",
+    # get_matching_files applies these to directories as well as files, so each
+    # entry prunes the walk rather than filtering its result.
+    "build",
+    # ...and, inside the configured build, the directories that hold no
+    # documents: CMake's own state and the HTML the builds write.
+    "generated/CMakeFiles",
+    "generated/**/CMakeFiles",
+    "generated/**/html",
 ]
 
 # The 150% source set: every hand-written document the product line has.
@@ -117,29 +116,22 @@ needs_global_options = SplSphinx.default_needs_global_options
 # the build. The rule is "everything a condition may name has to be IN the
 # file", and it only holds if this file adds nothing.
 #
-# Which cell of the matrix this build reads. Selecting a file is not the same as
-# synthesizing data: the file is complete and generated, and nothing here adds a
-# key to it.
+# Which cell of the matrix a build reads is not decided here either. It is the
+# sphinx-needs option `needs_variant_data_file`, and ubproject.toml sets it to
+# the pointer `build/autoconf.json`, which is what the IDE and a bare
+# `sphinx-build` read. A build that needs another cell overrides the option on
+# the command line:
 #
-# Three sources, in order. VARIANT_DATA_FILE if something passed one -- spl-core
-# does from 8.9, and the tests do. Otherwise the fixed-name cell that CMake
-# publishes for this build shape, which spl-core tells us via the directory its
-# per-target configuration file sits in. Otherwise nothing, and the pointer named
-# in ubproject.toml applies, which is what a bare `sphinx-build` and the IDE get.
+#     sphinx-build -D needs_variant_data_file=build/variants/Sleep/test/docs.json ...
 #
-# Without the middle step the reports build would quietly read the docs cell and
-# every report fence would evaluate false -- a reports target with no reports in
-# it, and no error anywhere.
-# spl-core names the build shape by the directory holding the per-target
-# configuration file it points us at. Derived once: the variant data file and
-# the source set both depend on it, and two derivations of one fact drift.
-_shape = "reports" if Path(os.environ.get("SPHINX_BUILD_CONFIGURATION_FILE", "")).parent.name == "reports" else "docs"
-
-_variant_data_file = os.environ.get("VARIANT_DATA_FILE")
-if not _variant_data_file:
-    _published = Path(__file__).parent / "build" / f"variant-data-{_shape}.json"
-    if _published.is_file():
-        _variant_data_file = str(_published)
+# spl-core does exactly that for the shape it is building
+# (SPL_VARIANT_DATA_FILE_DOCS and _REPORTS in CMakeLists.txt), and so do the
+# tests. sphinx-needs keeps a command-line override even though needs_from_toml
+# names the pointer, and it is the same key `ubc check -c` overrides, so both
+# readers select a variant the same way. Nothing in this file could do it as
+# robustly: sphinx-needs replaces conf.py's values with the TOML's and resolves
+# the variant data in the very next config-inited handler, so an assignment is
+# lost and a handler would have to slot in between the two.
 
 # build shape ###############################################################
 #
@@ -163,79 +155,12 @@ if _build_config.get("component_info"):
 else:
     root_doc = "index"
     exclude_patterns.append("doc/component_report.md")
-    # The generated pages of the CONFIGURED variant, named by spl-core for the
-    # build it is running. This is what makes the `/build/**` globs in the report
-    # sections resolve to one page each rather than one per variant on disk.
+    # The pages spl-core generated for the configured build, under the
+    # `generated/` names it gave them. Only those: the hand-written component
+    # trees are in the source set already, and admitting them a second time would
+    # parse every need in them twice.
     #
-    # A stable path would be better and `generated` exists for it, but spl-core
-    # writes the gcovr tree at `reports/html/<build-relative page path>/coverage`
-    # and looks its report artifacts up there too. Moving the page without moving
-    # those breaks the coverage link, so the stable path waits for the spl-core
-    # change. Only the hand-written component trees are dropped, because the
-    # variant rules already own those; keeping them here would parse every need
-    # in them a second time under a second docname.
-    #
-    # The report pages are admitted ONLY by the reports shape. spl-core writes
-    # unit_test_spec.rst, unit_test_results.rst and coverage.rst at configure
-    # time and lists them for both shapes, so a docs build would read all three
-    # per component and reference none of them -- the fences that would have
-    # linked them are false in a docs build. That is three orphan warnings per
-    # component, fifteen on Spa, and no reader is better off for it.
-    include_patterns.extend(
-        pattern
-        for pattern in _build_config.get("include_patterns", [])
-        if pattern.startswith("build/")
-        and (_shape == "reports" or not pattern.endswith("/reports/**"))
-    )
-
-
-# generated source listings ##################################################
-#
-# COMPATIBILITY SHIM, not a return of the Jinja pass.
-#
-# spl-core passes --jinja-raw-tags to clanguru, so every generated listing under
-# __source_docs wraps its code-block in `{% raw %}` / `{% endraw %}` lines. The
-# only thing that ever consumed those markers was the global Jinja `source-read`
-# hook this project deleted, so without this they render as two literal
-# paragraphs on every listing page in a reports build.
-#
-# This is a line filter, not a template render. Nothing is evaluated; no brace
-# anywhere else in the project is touched; hand-written documents are not seen
-# at all. The markers are replaced by EMPTY LINES rather than removed, so the
-# file keeps its line count and a warning about a generated page still points at
-# the right line -- the source-mapping breakage was one of the reasons the Jinja
-# pass had to go, and re-creating it here would be missing the point.
-#
-# REMOVE THIS once pyproject.toml pins an spl-core that lets the flag be turned
-# off (`SPL_SOURCE_DOCS_JINJA_RAW_TAGS`). No released version does today: 8.8.0
-# is the newest stable and 9.0.1rc4 the newest prerelease, and both hardcode it.
-# Until then this is load-bearing, not a TODO.
-_JINJA_RAW_MARKERS = frozenset({"{% raw %}", "{% endraw %}"})
-
-
-def _strip_jinja_raw_markers(app, docname, source):
-    if "__source_docs/" not in f"{docname}/":
-        return
-    lines = source[0].splitlines(keepends=True)
-    if not any(line.strip() in _JINJA_RAW_MARKERS for line in lines):
-        return
-    source[0] = "".join(
-        ("\n" if line.endswith("\n") else "") if line.strip() in _JINJA_RAW_MARKERS else line
-        for line in lines
-    )
-
-
-def setup(app):
-    """Register the two handlers this configuration needs."""
-    app.connect("source-read", _strip_jinja_raw_markers)
-
-    if not _variant_data_file:
-        return
-
-    def _select_variant_data(app, config):
-        config.needs_variant_data_file = _variant_data_file
-
-    # sphinx-needs loads needs_from_toml at priority 10 and resolves the variant
-    # data at 11. Registered after the extension, this runs between the two, at
-    # 10: after the TOML has named the pointer, before the pointer is read.
-    app.connect("config-inited", _select_variant_data, priority=10)
+    # Nothing here decides which of them a build reads. spl-core lists the report
+    # pages for the docs shape too, and the `generated/**` rule in ubproject.toml
+    # removes them there -- declared once, where ubCode reads it as well.
+    include_patterns.extend(pattern for pattern in _build_config.get("include_patterns", []) if pattern.startswith("generated/"))

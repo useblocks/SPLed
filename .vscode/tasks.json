@@ -55,11 +55,10 @@
             "label": "Build documentation for a variant",
             "detail": "Sphinx docs for one variant, without configuring or building the software",
             "type": "shell",
-            "command": "${command:python.interpreterPath} -m sphinx -b html . build/docs/${input:variant}",
+            "command": "${command:python.interpreterPath} -m sphinx -b html -D needs_variant_data_file=build/variants/${input:variant}/${input:buildKit}/${input:docsTarget}.json . build/docs/${input:variant}",
             "options": {
                 "env": {
-                    "VARIANT": "${input:variant}",
-                    "VARIANT_DATA_FILE": "build/variants/${input:variant}/${input:buildKit}/${input:docsTarget}.json"
+                    "VARIANT": "${input:variant}"
                 }
             },
             "problemMatcher": []
