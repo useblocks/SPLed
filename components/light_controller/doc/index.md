@@ -95,11 +95,10 @@ stateDiagram-v2
     [*] --> LIGHT_OFF: Initial State
     LIGHT_OFF --> LIGHT_ON : Power State != OFF
     LIGHT_ON --> LIGHT_OFF : Power State == OFF
-    LIGHT_ON --> BlinkON : Blink Counter >= Blink Period
-    BlinkON --> BlinkOFF : Blink State == TRUE
-    BlinkOFF --> BlinkON : Blink State == FALSE
-    BlinkON --> LIGHT_ON : Reset Blink Counter
-    BlinkOFF --> LIGHT_ON : Reset Blink Counter
+    state LIGHT_ON {
+        BlinkON --> BlinkOFF : Blink half-period elapsed
+        BlinkOFF --> BlinkON : Blink half-period elapsed
+    }
 ```
 ````
 
@@ -118,11 +117,10 @@ stateDiagram-v2
 
 ```{toctree}
 :maxdepth: 1
-:glob:
 
-/build/**/components/light_controller/reports/unit_test_spec
-/build/**/components/light_controller/reports/unit_test_results
-/build/**/components/light_controller/reports/coverage
+/generated/components/light_controller/reports/unit_test_spec
+/generated/components/light_controller/reports/unit_test_results
+/generated/components/light_controller/reports/coverage
 ```
 
 ````

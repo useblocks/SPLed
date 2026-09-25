@@ -203,6 +203,7 @@ def test_every_cell_carries_the_whole_contract(variant: str, kit: str, target: s
 
 
 def test_the_pointer_is_a_symlink_where_the_platform_allows_one(tmp_path: Path) -> None:
+    """A symlink is cheap and clear where the OS permits one."""
     build_dir = tmp_path / "build" / "V" / "test" / "Debug"
     build_dir.mkdir(parents=True)
     (build_dir / "payload.txt").write_text("x", encoding="utf-8")
@@ -214,30 +215,85 @@ def test_the_pointer_is_a_symlink_where_the_platform_allows_one(tmp_path: Path) 
     assert (generated / "payload.txt").is_file()
 
 
-def test_a_refused_symlink_copies_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The fallback must not duplicate the CMake binary directory.
+def test_a_refused_symlink_falls_back_to_a_junction(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows without Developer Mode refuses a symlink but allows a junction.
 
-    It used to `copytree` the whole thing at CONFIGURE time -- objects,
-    binaries, CMakeFiles -- before the reports it exists for had been generated,
-    and `dirs_exist_ok` meant a later configure never cleared an earlier one's
-    leftovers. Nothing reads `generated/` yet, so it bought nothing at all.
+    The junction is the fallback that keeps Sphinx able to walk `generated`
+    without copying the binary directory. Only Windows takes this path, which is
+    why it needs a test rather than the platform nobody develops on finding out.
+    """
+    build_dir = tmp_path / "build" / "V" / "test" / "Debug"
+    (build_dir / "CMakeFiles").mkdir(parents=True)
+    (build_dir / "CMakeFiles" / "huge.o").write_text("x" * 1000, encoding="utf-8")
 
-    Only Windows without Developer Mode takes this path, which is why it needs a
-    test rather than the platform nobody develops on finding out.
+    calls: list[tuple[Path, Path]] = []
+
+    def refuse(*args, **kwargs):
+        raise OSError("symlinks not permitted")
+
+    def fake_junction(target: Path, link: Path) -> None:
+        calls.append((target, link))
+        link.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(Path, "symlink_to", refuse)
+    monkeypatch.setattr(variant_data, "_create_junction", fake_junction)
+
+    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, build_dir)
+
+    generated = tmp_path / "generated"
+    assert calls == [(build_dir.resolve(), generated)], "the junction must lead to the resolved build directory"
+    assert generated.is_dir() and not generated.is_symlink()
+    assert not (generated / "NO_SYMLINK").exists(), "the junction is a real link, not an explanation"
+    assert not (generated / "CMakeFiles").exists(), "the fallback copied the binary directory"
+
+
+def test_neither_link_leaves_an_explained_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """When both link types fail, the path still exists and says why.
+
+    spl-core stops a documentation build whose `generated` does not lead to its
+    build directory, so the failure has to be a named one rather than a missing
+    path -- and copying the binary directory, as the old fallback did, would
+    leak build objects into the source tree without producing the reports.
     """
     build_dir = tmp_path / "build" / "V" / "test" / "Debug"
     (build_dir / "CMakeFiles").mkdir(parents=True)
     (build_dir / "CMakeFiles" / "huge.o").write_text("x" * 1000, encoding="utf-8")
 
     def refuse(*args, **kwargs):
-        raise OSError("symlinks not permitted")
+        raise OSError("no links here")
 
     monkeypatch.setattr(Path, "symlink_to", refuse)
+    monkeypatch.setattr(variant_data, "_create_junction", refuse)
 
     variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, build_dir)
 
     generated = tmp_path / "generated"
     assert generated.is_dir() and not generated.is_symlink()
-    assert (generated / "NO_SYMLINK").is_file(), "the fallback must explain itself"
-    assert not (generated / "CMakeFiles").exists(), "the fallback copied the binary directory"
     assert [p.name for p in generated.iterdir()] == ["NO_SYMLINK"]
+    assert str(build_dir.resolve()) in (generated / "NO_SYMLINK").read_text(encoding="utf-8")
+    assert not (generated / "CMakeFiles").exists(), "the fallback copied the binary directory"
+
+
+def test_repointing_generated_leaves_the_old_build_untouched(tmp_path: Path) -> None:
+    """Re-pointing the link must never touch the directory it used to lead to.
+
+    `_remove_link` removes the link itself, not its target, so switching from
+    one configured variant to another does not delete the previous build. A
+    `shutil.rmtree` on the resolved target would, silently, on every reconfigure.
+    """
+    first = tmp_path / "build" / "first"
+    second = tmp_path / "build" / "second"
+    for build_dir, name in ((first, "first.txt"), (second, "second.txt")):
+        build_dir.mkdir(parents=True, exist_ok=True)
+        (build_dir / name).write_text(name, encoding="utf-8")
+
+    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, first)
+    generated = tmp_path / "generated"
+    assert (generated / "first.txt").is_file()
+
+    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, second)
+    assert generated.resolve() == second.resolve()
+    assert (generated / "second.txt").is_file()
+
+    assert first.is_dir(), "the old build directory was removed"
+    assert (first / "first.txt").read_text(encoding="utf-8") == "first.txt"

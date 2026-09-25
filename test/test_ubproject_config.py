@@ -14,6 +14,9 @@ the other.
 """
 
 import json
+import os
+import re
+import runpy
 import subprocess
 import sys
 import tomllib
@@ -21,6 +24,7 @@ from importlib.resources import files
 from pathlib import Path
 
 import pytest
+from sphinx.util.matching import Matcher
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -308,61 +312,143 @@ def test_generated_output_is_gated_on_the_reports_target(rules: list[dict]) -> N
     assert variants.interpret(tree, _variant_data("Disco", "test", "docs")) is False
 
 
-def test_report_globs_resolve_through_the_configured_build_only() -> None:
-    """The report toctrees glob `/build/**`, and that is currently correct.
+#: The report pages spl-core writes per component, and the names a report
+#: toctree has to use for them.
+REPORT_PAGES = ("unit_test_spec", "unit_test_results", "coverage")
 
-    A fixed path under `generated/` would be better, and the concept note asks
-    for one. It cannot be adopted yet: spl-core writes the gcovr tree at
-    `reports/html/<build-relative page path>/coverage/index.html` and looks its
-    report artifacts up at the same place, so moving the page that links to it
-    without moving the tree breaks the coverage link. Deferred with the spl-core
-    change.
 
-    What keeps a glob honest meanwhile is that conf.py admits exactly the
-    configured variant's build directory, so each pattern resolves to one page.
+def _toctrees(text: str) -> list[tuple[list[str], list[str]]]:
+    """The (options, entries) of every `{toctree}` block in a MyST document."""
+    blocks: list[tuple[list[str], list[str]]] = []
+    in_block = False
+    options: list[str] = []
+    entries: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```{toctree}"):
+            in_block = True
+            options, entries = [], []
+            continue
+        if in_block and stripped == "```":
+            in_block = False
+            blocks.append((options, entries))
+            continue
+        if not in_block or not stripped:
+            continue
+        (options if stripped.startswith(":") else entries).append(stripped)
+    return blocks
+
+
+def _component_path(document: Path) -> str | None:
+    """`components/light_controller/doc/index.md` -> `components/light_controller`."""
+    relative = document.relative_to(PROJECT_ROOT)
+    if relative.name != "index.md" or relative.parent.name != "doc":
+        return None
+    if relative.parent.parent == Path("."):
+        return None
+    return relative.parent.parent.as_posix()
+
+
+def test_report_sections_name_the_generated_pages() -> None:
+    """A report toctree names its pages, and names them through `generated/`.
+
+    The pages spl-core generates are reached through one route: the `generated`
+    link, named `SPL_SPHINX_BINARY_DIR` in CMakeLists.txt. A toctree that still
+    globbed `/build/**` would need `:glob:` and would search every variant's
+    build on the machine; one that pointed at `generated/` without the
+    component's own path would collect another component's report. Both are
+    silently wrong -- an entry that resolves to the wrong page still builds.
     """
-    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
-    assert 'pattern.startswith("build/")' in conf, "conf.py must narrow the source set to the configured build"
-
-    globbed = [
-        path
-        for pattern in ("components/*/doc/index.md", "test/*/doc/index.md")
-        for path in PROJECT_ROOT.glob(pattern)
-        if "/build/**" in path.read_text(encoding="utf-8")
-    ]
-    for path in globbed:
-        body = path.read_text(encoding="utf-8")
-        assert ":glob:" in body, f"{path.relative_to(PROJECT_ROOT)} uses /build/** without :glob:"
-
-
-def test_generated_and_build_discovery_are_never_both_live(project_config: dict) -> None:
-    """Exactly one route to the generated report pages, or they exist twice.
-
-    Two routes are configured, on purpose, and only one is switched on:
-
-    * Sphinx reaches them through spl-core's `build/...` include patterns,
-      which conf.py forwards for the reports shape. Live today.
-    * `generated/`, the stable path, is named by the rst parser and by every
-      component's variant rule. Inert today -- conf.py excludes `generated`
-      from the Sphinx walk, and ubCode does not descend symlinks.
-
-    The forward-looking half stays because it is the shape we want once
-    spl-core writes the gcovr tree relative to the page. But when that lands,
-    dropping the `build/` forwarding has to happen in the SAME change, or
-    Sphinx discovers every report page under both names. A comment saying so
-    would be read once; this fails the build instead.
-    """
-    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
-
-    sphinx_walks_generated = '"generated",' not in conf
-    forwards_build_patterns = 'pattern.startswith("build/")' in conf
-
-    assert not (sphinx_walks_generated and forwards_build_patterns), (
-        "conf.py both lets Sphinx walk `generated/` and forwards spl-core's "
-        "`build/` patterns. Every generated report page is then discovered "
-        "twice, under two docnames. Drop the `build/` forwarding in the same "
-        "change that makes `generated/` real."
+    documents = sorted(
+        set(PROJECT_ROOT.glob("components/**/doc/**/*.md"))
+        | set(PROJECT_ROOT.glob("test/**/doc/**/*.md"))
+        | {PROJECT_ROOT / "index.md"}
     )
 
-    # And the forward-looking configuration is still there to be switched on.
+    report_documents = 0
+    for document in documents:
+        component = _component_path(document)
+        for options, entries in _toctrees(document.read_text(encoding="utf-8")):
+            for entry in entries:
+                assert "/build/" not in entry, (
+                    f"{document.relative_to(PROJECT_ROOT)}: toctree entry {entry!r} still points into build/"
+                )
+            if not any("/reports/" in entry for entry in entries):
+                continue
+            report_documents += 1
+            assert ":glob:" not in options, (
+                f"{document.relative_to(PROJECT_ROOT)}: report toctree is still a glob"
+            )
+            for entry in entries:
+                assert entry.startswith("/generated/"), (
+                    f"{document.relative_to(PROJECT_ROOT)}: report entry {entry!r} does not start with /generated/"
+                )
+            if component is not None:
+                expected = {f"/generated/{component}/reports/{page}" for page in REPORT_PAGES}
+                assert set(entries) == expected, (
+                    f"{document.relative_to(PROJECT_ROOT)}: expected {sorted(expected)}, got {sorted(entries)}"
+                )
+
+    assert report_documents == 8, f"expected 8 report toctrees, found {report_documents}"
+
+
+def _excluded(matcher: Matcher, path: str) -> bool:
+    """Whether Sphinx's walk would exclude `path`, directory pruning included.
+
+    `get_matching_files` tests each directory as it descends and stops there, so
+    a file under a pruned directory never reaches the file matcher. A plain
+    `Matcher(path)` call misses that, so this checks the path's ancestors too --
+    the effective predicate the build uses.
+    """
+    parts = Path(path).parts
+    for depth in range(1, len(parts) + 1):
+        if matcher("/".join(parts[:depth])):
+            return True
+    return False
+
+
+def test_generated_is_the_only_route_to_the_generated_pages(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project_config: dict) -> None:
+    """With two routes, every generated page exists under two docnames.
+
+    spl-core's include patterns name the build directory both ways in a SPLed
+    build: the raw `build/<V>/<kit>/<type>/...` path and the stable
+    `generated/...` name. conf.py must forward only the `generated/` one and
+    prune the whole `build` tree from the Sphinx walk, or each report page is
+    discovered twice -- once per name -- and every link and need in it is
+    duplicated. This executes conf.py against a controlled configuration rather
+    than grepping its text, because the property is the resulting source set and
+    the resulting matcher.
+    """
+    config = {
+        "include_patterns": [
+            "components/light_controller/doc/**",
+            "build/Disco/test/Debug/components/light_controller/reports/**",
+            "generated/components/light_controller/reports/**",
+        ],
+    }
+    config_file = tmp_path / "config.json"
+    config_file.write_text(json.dumps(config), encoding="utf-8")
+
+    monkeypatch.setenv("SPHINX_BUILD_CONFIGURATION_FILE", str(config_file))
+    monkeypatch.setenv("VARIANT", "Disco")
+
+    module = runpy.run_path(str(PROJECT_ROOT / "conf.py"))
+
+    include_patterns = module["include_patterns"]
+    assert "generated/components/light_controller/reports/**" in include_patterns
+    assert not [pattern for pattern in include_patterns if pattern.startswith("build/")]
+
+    matcher = Matcher(module["exclude_patterns"])
+    assert _excluded(matcher, "build/Disco/test/Debug/components/light_controller/reports/coverage.rst"), (
+        "the build tree must be pruned from the Sphinx walk"
+    )
+    assert not _excluded(matcher, "generated/components/light_controller/reports/coverage.rst")
+    assert not _excluded(matcher, "generated/reports/coverage.rst")
+    assert _excluded(matcher, "generated/CMakeFiles/x.rst")
+    assert _excluded(matcher, "generated/reports/html/index.rst")
+
+    cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+    assert re.search(r"set\(\s*SPL_SPHINX_BINARY_DIR\s+\$\{CMAKE_SOURCE_DIR\}/generated\s*\)", cmake), (
+        "CMakeLists.txt must name the generated link as SPL_SPHINX_BINARY_DIR"
+    )
     assert project_config["parse"]["parsers"]["rst"]["include"] == ["generated/**/*.rst"]

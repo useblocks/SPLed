@@ -89,6 +89,13 @@ For the full testing strategy, marker definitions, and the gate assignment matri
 ./build.sh --selftests --filter Disco --marker gate_develop_push
 ```
 
+## Variants and their documentation
+
+What a variant contains, and what its documentation shows, is decided by data, not by templates.
+[VARIANTS.md](VARIANTS.md) walks through it by use case: switching the variant ubCode shows,
+previewing any variant, comparing two variants, trying a change without touching the product, and
+writing documentation that depends on the variant.
+
 ## Developer Guide
 
 For more information about the architecture, workflows, and conventions, see [AGENTS.md](AGENTS.md). This guide covers:
