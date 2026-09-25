@@ -172,6 +172,9 @@ Check feature values in source code via generated `autoconf.h` header.
 
 ## Variant-Dependent Documentation
 
+[VARIANTS.md](VARIANTS.md) is the step-by-step guide to this, by use case, for people new to the
+project. This section is the design behind it.
+
 Documents never use Jinja. The global `source-read` pass that rendered every
 document is gone, and bringing it back is a regression, not a shortcut.
 
