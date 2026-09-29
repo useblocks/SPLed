@@ -384,10 +384,7 @@ a `doc/index` page, into `ubproject.variants.toml`:
 ```toml
 [[source.variant_sources]]
 if = "'components/auto_off' in var.build_config.components and (var.build_config.scope == 'variant' or var.build_config.component == 'components/auto_off')"
-files = [
-    "components/auto_off/doc/**",
-    "generated/components/auto_off/**",
-]
+files = ["components/auto_off/**"]
 ```
 
 - When the condition is false, the files are left out before anything is read: no page, no needs,

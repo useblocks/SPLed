@@ -189,6 +189,11 @@ def _load_selection(app, config):
     if root is not None and "root_doc" not in overrides:
         config.root_doc = root
     config.mounts = selection.get("source", {}).get("mounts", [])
+    # A per-component report's links to the rest of the product dangle by design;
+    # its selection says so in ubc's terms, and this is the same statement for
+    # sphinx-needs, for that report only.
+    if "needs.dead_link" in selection.get("lint", {}).get("ignore", []):
+        config.suppress_warnings = [*config.suppress_warnings, "needs.link_outgoing"]
 
 
 # configuration checks ######################################################

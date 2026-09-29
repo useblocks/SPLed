@@ -147,20 +147,22 @@ def test_build_output_is_not_indexed(project_config: dict) -> None:
     assert "build/**" in project_config["source"]["extend_exclude"]
 
 
-def _gated_patterns(rules: list[dict], data: dict) -> set[str]:
-    """The rule patterns whose condition is TRUE for this cell.
+def _removed_by_rules(rules: list[dict], data: dict, path: str) -> bool:
+    """Whether a document at `path` is removed for this cell.
 
-    Rules are subtractive: a pattern is admitted unless a rule naming it is
-    FALSE, so a pattern that appears in no TRUE rule is excluded.
+    Rules are subtractive: a path is removed when a rule whose condition is FALSE
+    has a pattern matching it. Patterns are matched the way both readers match
+    them (sphinx-mounts' own dialect): against paths in the project tree, and
+    against a mounted build's files, relative to the mounted directory.
     """
-    from sphinx_mounts import variants
+    from sphinx_mounts import dialect, variants
 
-    return {
-        pattern
+    return any(
+        dialect.matches(pattern, path)
         for rule in rules
+        if not variants.interpret(variants.validate(rule["if"]), data)
         for pattern in rule["files"]
-        if variants.interpret(variants.validate(rule["if"]), data)
-    }
+    )
 
 
 def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]) -> None:
@@ -175,26 +177,27 @@ def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]
     variant_cell = _variant_data("Disco", "test", "reports")
     component_cell = _component_variant_data("Disco", "test", "reports", "components/light_controller")
 
-    variant_admitted = _gated_patterns(rules, variant_cell)
-    component_admitted = _gated_patterns(rules, component_cell)
-
-    # The variant cell: the variant-wide documents and its components' pages.
-    assert "index.md" in variant_admitted
-    assert "doc/component_report.md" not in variant_admitted
-    assert "components/light_controller/doc/**" in variant_admitted
-    assert "generated/components/light_controller/**" in variant_admitted
-    assert "generated/reports/**" in variant_admitted
-    assert "components/auto_off/doc/**" not in variant_admitted, "Disco does not contain auto_off"
+    # The variant cell: the variant-wide documents and its components' pages,
+    # in the tree and in the mounted build (whose paths are relative to it).
+    for path in ("index.md", "doc/components/index.md", "components/light_controller/doc/index.md",
+                 "components/light_controller/reports/coverage.rst", "reports/coverage.rst"):
+        assert not _removed_by_rules(rules, variant_cell, path), f"the variant removes {path}"
+    for path in ("doc/component_report.md", "components/auto_off/doc/index.md"):
+        assert _removed_by_rules(rules, variant_cell, path), f"the variant keeps {path}"
 
     # The component cell: exactly the one component, and none of the
-    # variant-wide documents.
-    assert "doc/component_report.md" in component_admitted
-    assert "components/light_controller/doc/**" in component_admitted
-    assert "generated/components/light_controller/**" in component_admitted
-    assert "index.md" not in component_admitted
-    assert "doc/components/**" not in component_admitted
-    assert "generated/reports/**" not in component_admitted
-    assert "components/auto_off/doc/**" not in component_admitted
+    # variant-wide documents. The root index.md is not named by any rule -- a
+    # pattern without a slash would match every index.md -- and is an orphan
+    # page there, whose toctree entries are all excluded.
+    for path in ("doc/component_report.md", "components/light_controller/doc/index.md",
+                 "components/light_controller/reports/coverage.rst", "components/light_controller/__source_docs/index.rst"):
+        assert not _removed_by_rules(rules, component_cell, path), f"the component report removes {path}"
+    for path in ("doc/components/index.md", "doc/sw_requirements/index.md", "reports/coverage.rst",
+                 "components/main_control_knob/doc/index.md", "components/main_control_knob/reports/coverage.rst",
+                 "components/auto_off/doc/index.md"):
+        assert _removed_by_rules(rules, component_cell, path), f"the component report keeps {path}"
+    assert not _removed_by_rules(rules, component_cell, "index.md")
+    assert "orphan: true" in (PROJECT_ROOT / "index.md").read_text(encoding="utf-8").split("---")[1]
 
 
 def test_extend_include_is_not_used_because_it_would_be_inert(project_config: dict, spl_core_config: dict) -> None:
@@ -315,10 +318,14 @@ def test_every_component_document_is_gated_by_a_rule(rules: list[dict]) -> None:
     every need in it would enter their traceability data. The failure is
     additive and silent, which is why it needs a test rather than a review.
     """
-    gated = {pattern for rule in rules for pattern in rule["files"]}
+    from sphinx_mounts import dialect
+
+    patterns = [pattern for rule in rules for pattern in rule["files"]]
     for doc_dir in sorted(PROJECT_ROOT.glob("components/**/doc")) + sorted(PROJECT_ROOT.glob("test/*/doc")):
         rel = doc_dir.relative_to(PROJECT_ROOT).as_posix()
-        assert f"{rel}/**" in gated, f"{rel} is not gated by any [[source.variant_sources]] rule"
+        assert any(dialect.matches(pattern, f"{rel}/index.md") for pattern in patterns), (
+            f"{rel} is not gated by any generated rule"
+        )
 
 
 def test_no_rule_names_a_variant_by_name(rules: list[dict]) -> None:
@@ -349,32 +356,22 @@ def test_every_rule_condition_is_inside_the_grammar(rules: list[dict]) -> None:
     [
         # Disco: BLINKING, so no brightness; no auto-off; integration suite in
         # the test kit only.
-        ("Disco", "test", ["components/light_controller/doc/**", "test/spled_integration/doc/**"], ["components/auto_off/doc/**", "components/brightness_controller/doc/**"]),
-        ("Disco", "prod", ["components/light_controller/doc/**"], ["test/spled_integration/doc/**", "components/auto_off/doc/**"]),
+        ("Disco", "test", ["components/light_controller/doc/index.md", "test/spled_integration/doc/index.md"], ["components/auto_off/doc/index.md", "components/brightness_controller/doc/index.md"]),
+        ("Disco", "prod", ["components/light_controller/doc/index.md"], ["test/spled_integration/doc/index.md", "components/auto_off/doc/index.md"]),
         # Sleep: manual brightness and auto-off, no integration suite.
-        ("Sleep", "test", ["components/auto_off/doc/**", "components/brightness_controller/doc/**"], ["test/spled_integration/doc/**"]),
+        ("Sleep", "test", ["components/auto_off/doc/index.md", "components/brightness_controller/doc/index.md"], ["test/spled_integration/doc/index.md"]),
         # Spa: brightness but no auto-off.
-        ("Spa", "test", ["components/brightness_controller/doc/**"], ["components/auto_off/doc/**"]),
+        ("Spa", "test", ["components/brightness_controller/doc/index.md"], ["components/auto_off/doc/index.md"]),
         # Base/Dev: the example components, none of the product ones.
-        ("Base/Dev", "test", ["components/examples/hello_gmock/doc/**"], ["components/light_controller/doc/**", "components/auto_off/doc/**"]),
+        ("Base/Dev", "test", ["components/examples/hello_gmock/doc/index.md"], ["components/light_controller/doc/index.md", "components/auto_off/doc/index.md"]),
     ],
 )
 def test_rules_select_the_expected_documents(rules: list[dict], variant: str, kit: str, expect_present: list[str], expect_absent: list[str]) -> None:
-    from sphinx_mounts import variants
-
     data = _variant_data(variant, kit, "docs")
-    included = _gated_patterns(rules, data)
-    excluded: set[str] = set()
-    for rule in rules:
-        ok = variants.interpret(variants.validate(rule["if"]), data)
-        if not ok:
-            excluded.update(rule["files"])
-
-    for pattern in expect_present:
-        assert pattern in included, f"{variant}/{kit}: expected {pattern} to be included"
-        assert pattern not in excluded, f"{variant}/{kit}: {pattern} is both included and excluded"
-    for pattern in expect_absent:
-        assert pattern in excluded, f"{variant}/{kit}: expected {pattern} to be excluded"
+    for path in expect_present:
+        assert not _removed_by_rules(rules, data, path), f"{variant}/{kit}: expected {path} to be included"
+    for path in expect_absent:
+        assert _removed_by_rules(rules, data, path), f"{variant}/{kit}: expected {path} to be excluded"
 
 
 def test_the_mount_condition_names_the_builds_own_cell(tmp_path: Path) -> None:

@@ -219,13 +219,13 @@ component list:
 ```toml
 [[source.variant_sources]]
 if = "'components/auto_off' in var.build_config.components and (var.build_config.scope == 'variant' or var.build_config.component == 'components/auto_off')"
-files = [
-    "components/auto_off/doc/**",
-    "generated/components/auto_off/**",
-]
+files = ["components/auto_off/**"]
 ```
 
-Membership, never identity. The component list comes from that variant's
+The one pattern names the component's documentation in the tree and its
+generated pages in a mounted build alike: both readers match a rule's patterns
+against the project tree and against each mount's files, relative to the mounted
+directory. Membership, never identity. The component list comes from that variant's
 `parts.cmake`, so the product structure is stated once, in the file that already
 states it. **Never gate a document on the variant name** — that is a second
 encoding of the same fact, free to drift. Rules are *subtractive*: a FALSE rule

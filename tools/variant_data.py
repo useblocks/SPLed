@@ -312,14 +312,23 @@ def rules_toml(project_root: Path) -> str:
     A per-component report (`scope == "component"`) shows one component: its own
     documentation and generated pages, under doc/component_report.md, and none of
     the variant-wide documents.
+
+    Patterns follow gitignore rules, and both readers match them twice: against
+    the project tree, and against each mount's own files, relative to the mounted
+    directory. So `components/auto_off/**` names the component's documentation
+    in the tree and its generated pages in a mounted build alike, and
+    `reports/**` the variant's pages spl-core writes under `reports/`. A pattern
+    without a slash would match at every depth, which is why the root `index.md`
+    is not named: in a component's report it is an orphan page (its front matter
+    says so) whose every toctree entry is excluded.
     """
     doc_dir = project_root / "doc"
-    variant_wide = ["index.md"]
+    variant_wide: list[str] = []
     for entry in sorted(doc_dir.iterdir()) if doc_dir.is_dir() else []:
         if entry.name == Path(COMPONENT_ROOT_DOC).name + ".md":
             continue
         variant_wide.append(f"doc/{entry.name}/**" if entry.is_dir() else f"doc/{entry.name}")
-    variant_wide.append(f"{MOUNT_AT}/reports/**")
+    variant_wide.append("reports/**")
 
     def rule(condition: str, files: list[str], comment: str) -> str:
         listed = "".join(f'    "{pattern}",\n' for pattern in files)
@@ -339,7 +348,7 @@ def rules_toml(project_root: Path) -> str:
             f"'{component}' in var.build_config.components and "
             f"(var.build_config.scope == 'variant' or var.build_config.component == '{component}')"
         )
-        text += rule(condition, [f"{component}/doc/**", f"{MOUNT_AT}/{component}/**"], component)
+        text += rule(condition, [f"{component}/**"], component)
     hand_written = project_root / HAND_WRITTEN_RULES
     if hand_written.is_file():
         import tomllib
@@ -362,7 +371,10 @@ def selection_toml(
     """
     text = GENERATED_HEADER + f'\n[needs]\nvariant_data_file = "{variant_data_file.resolve().as_posix()}"\n'
     if root_doc:
-        text += f'\n[project]\nroot_doc = "{root_doc}"\n'
+        # A component's report shows one component, so its links to the rest of
+        # the product dangle by design. ubc's lint code says so; conf.py turns it
+        # into suppressing sphinx-needs' `needs.link_outgoing` for Sphinx.
+        text += f'\n[project]\nroot_doc = "{root_doc}"\n\n[lint]\nignore = ["needs.dead_link"]\n'
     if build_dir is None:
         text += "\n[source]\nmounts = []\n"
     else:

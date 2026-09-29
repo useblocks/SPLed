@@ -393,9 +393,8 @@ def test_rules_toml_covers_every_documented_component_exactly_once(tmp_path: Pat
     for component in documented:
         matching = [rule for rule in rules if f"'{component}'" in rule["if"]]
         assert len(matching) == 1, f"{component} is gated by {len(matching)} rules"
-        files = matching[0]["files"]
-        assert f"{component}/doc/**" in files
-        assert f"{variant_data.MOUNT_AT}/{component}/**" in files
+        # One pattern, matched in the tree and inside a mounted build alike.
+        assert matching[0]["files"] == [f"{component}/**"]
 
 
 def test_every_generated_rule_condition_is_inside_the_grammar(tmp_path: Path) -> None:

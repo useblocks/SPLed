@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Variant Report
 
 **Variant:** {variant}`build_config.variant`
