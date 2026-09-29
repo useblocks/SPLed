@@ -52,6 +52,13 @@ The main control knob component uses the RTE interface `RteGetMainKnobValue()` t
 The main control knob component uses the RTE interface `RteSetMainKnobValue()` to set the new value of the main control knob.
 ```
 
+## Traceability
+
+```{src-trace}
+:project: components
+:directory: main_control_knob
+```
+
 ````{if} var.build_config.target == "reports"
 
 ## Verification

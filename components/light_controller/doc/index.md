@@ -111,6 +111,13 @@ stateDiagram-v2
 ```
 ````
 
+## Traceability
+
+```{src-trace}
+:project: components
+:directory: light_controller
+```
+
 ````{if} var.build_config.target == "reports"
 
 ## Verification

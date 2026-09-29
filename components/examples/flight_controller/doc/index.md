@@ -91,3 +91,10 @@ flowchart TD
     off_course -- "False" --> FALSE
 
 ```
+
+## Traceability
+
+```{src-trace}
+:project: components
+:directory: examples/flight_controller
+```

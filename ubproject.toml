@@ -220,43 +220,43 @@ type = "integer"
 outdir = "output"
 set_remote_url = true
 
-[codelinks.projects.brightness_controller]
+[codelinks.projects.components]
 remote_url_pattern = "https://github.com/avengineers/SPLed/blob/{commit}/{path}#L{line}"
 
-[codelinks.projects.brightness_controller.source_discover]
-src_dir = "components/brightness_controller/src"
-include = ["**/*.c", "**/*.h"]
+[codelinks.projects.components.source_discover]
+src_dir = "components"
+include = ["**/src/**/*.c", "**/src/**/*.h"]
 comment_type = "cpp"
 
-[codelinks.projects.brightness_controller.analyse]
+[codelinks.projects.components.analyse]
 get_oneline_needs = true
 get_need_id_refs = false
 get_rst = false
 
-[codelinks.projects.brightness_controller.analyse.preprocessor]
+[codelinks.projects.components.analyse.preprocessor]
 compile_commands = "build/compile_commands.json"
 
-[codelinks.projects.brightness_controller.analyse.oneline_comment_style]
+[codelinks.projects.components.analyse.oneline_comment_style]
 start_sequence = "@need"
 end_sequence = "\n"
 field_split_char = ","
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "title"
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "id"
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "type"
 default = "impl"
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "implements"
 type = "list[str]"
 default = []
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "fulfills"
 type = "list[str]"
 default = []

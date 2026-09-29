@@ -6,15 +6,7 @@
 #include "power_signal_processing.h"
 #include "rte.h"
 
-/**
- * @rst
- *
- * .. impl:: Power signal processing
- *    :id: SWIMPL_PSP-001
- *    :implements: SWDD_PSP-001, SWDD_PSP-002, SWDD_PSP-003
- *    :fulfills: REQ_38
- * @endrst
- */
+// @need Power signal processing, SWIMPL_PSP-001, impl, [SWDD_PSP-001, SWDD_PSP-002, SWDD_PSP-003], [REQ_38]
 void powerSignalProcessing(void)
 {
     // Check if "P" key was pressed

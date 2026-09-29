@@ -66,7 +66,8 @@ The Brightness Controller is use the RTE interface `RteSetBrightnessAdjustmentCo
 ## Traceability
 
 ```{src-trace}
-:project: brightness_controller
+:project: components
+:directory: brightness_controller
 ```
 
 ````{if} var.build_config.target == "reports"

@@ -19,14 +19,8 @@ typedef enum
     COLOR_VAL_PURPLE
 } LightColor;
 
+// @need Light state, SWIMPL_LC-001, impl, [SWDD_LC-100], [REQ_42]
 /**
- * @rst
- * .. impl:: Light state
- *    :id: SWIMPL_LC-001
- *    :implements: SWDD_LC-100
- *    :fulfills: REQ_42
- * @endrst
- *
  * @enum LightState
  * @brief Represents the states of the light.
  */
@@ -73,13 +67,7 @@ static const uint8_t light_colors_count = (uint8_t)((uint32_t)sizeof(light_color
 static brightness_t getBrightnessValue(void)
 {
 #ifdef CONFIG_BRIGHTNESS_ADJUSTMENT_ENABLED
-    /**
-     * @rst
-     * .. impl:: Variable brightness
-     *    :id: SWIMPL_LC-005
-     *    :implements: SWDD_LC-204
-     * @endrst
-     */
+    // @need Variable brightness, SWIMPL_LC-005, impl, [SWDD_LC-204], []
     return RteGetBrightnessValue();
 #else
     return 128;
@@ -118,14 +106,7 @@ static RGBColor getRGBColorWithBrightness(LightColor colorEnum, brightness_t bri
     return color;
 }
 
-/**
- * @rst
- * .. impl:: Turn light off
- *    :id: SWIMPL_LC-002
- *    :implements: SWDD_LC-102
- *    :fulfills: REQ_43
- * @endrst
- */
+// @need Turn light off, SWIMPL_LC-002, impl, [SWDD_LC-102], [REQ_43]
 static void turnLightOff(void)
 {
 #ifdef CONFIG_BLINKING
@@ -134,14 +115,7 @@ static void turnLightOff(void)
     RteSetLightValue(OFF_COLOR);
 }
 
-/**
- * @rst
- * .. impl:: Turn light on
- *    :id: SWIMPL_LC-003
- *    :implements: SWDD_LC-102
- *    :fulfills: REQ_43
- * @endrst
- */
+// @need Turn light on, SWIMPL_LC-003, impl, [SWDD_LC-102], [REQ_43]
 static void turnLightOn(void)
 {
     // Used to iterate through the light colors
@@ -173,15 +147,7 @@ static void turnLightOn(void)
 }
 
 #ifdef CONFIG_BLINKING
-/**
- * @rst
- *
- * .. impl:: Calculate blink period
- *    :id: SWIMPL_LC-004
- *    :implements: SWDD_LC-101
- *    :fulfills: REQ_44
- * @endrst
- */
+// @need Calculate blink period, SWIMPL_LC-004, impl, [SWDD_LC-101], [REQ_44]
 SPLE_TESTABLE_STATIC percentage_t calculateBlinkPeriod(percentage_t mainKnobValue)
 {
     // Calculate blink period based on main knob value
@@ -194,14 +160,8 @@ SPLE_TESTABLE_STATIC percentage_t calculateBlinkPeriod(percentage_t mainKnobValu
 }
 #endif
 
+// @need Light Controller's main function, SWIMPL_LC-006, impl, [SWDD_LC-100], [REQ_44]
 /**
- * @rst
- * .. impl:: Light Controller's main function
- *    :id: SWIMPL_LC-006
- *    :implements: SWDD_LC-100
- *    :fulfills: REQ_44
- * @endrst
- *
  * @brief Controls the light state.
  *
  * Uses a state machine to determine the light state based on several inputs,

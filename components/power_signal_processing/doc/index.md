@@ -109,6 +109,13 @@ graph TD
 ```
 ````
 
+## Traceability
+
+```{src-trace}
+:project: components
+:directory: power_signal_processing
+```
+
 ````{if} var.build_config.target == "reports"
 
 ## Verification

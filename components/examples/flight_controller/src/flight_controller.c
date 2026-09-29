@@ -5,13 +5,7 @@
 // See this youtube video for more information:
 // https://www.youtube.com/watch?v=k0_PF8MtEEo
 
-/**
- * @rst
- * .. impl:: Abort decision logic
- *    :id: SWIMPL_FC-001
- *    :implements: SWDD_FC-100, SWDD_FC-101, SWDD_FC-102
- * @endrst
- */
+// @need Abort decision logic, SWIMPL_FC-001, impl, [SWDD_FC-100, SWDD_FC-101, SWDD_FC-102], []
 SPLE_TESTABLE_STATIC bool_t CheckAbort(bool_t abort_commanded, bool_t valid_abort_command, bool_t off_course)
 {
     bool_t result;
@@ -26,13 +20,7 @@ SPLE_TESTABLE_STATIC bool_t CheckAbort(bool_t abort_commanded, bool_t valid_abor
     return result;
 }
 
-/**
- * @rst
- * .. impl:: Flight Controller's main runnable
- *    :id: SWIMPL_FC-002
- *    :implements: SWDD_FC-103, SWDD_FC-200, SWDD_FC-201, SWDD_FC-202, SWDD_FC-203, SWDD_FC-204
- * @endrst
- */
+// @need Flight Controller's main runnable, SWIMPL_FC-002, impl, [SWDD_FC-103, SWDD_FC-200, SWDD_FC-201, SWDD_FC-202, SWDD_FC-203, SWDD_FC-204], []
 void flightController(void)
 {
     /* Get all relevant signals */
