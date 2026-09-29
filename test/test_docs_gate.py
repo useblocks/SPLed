@@ -127,15 +127,42 @@ def _normalized(value):
     return sorted(value) if isinstance(value, list) else value
 
 
+def _component_reports() -> list[tuple[str, str]]:
+    """(variant, component) for every component report spl-core builds: the test kit's."""
+    sys.path.insert(0, str(PROJECT_ROOT / "tools"))
+    import variant_data  # noqa: PLC0415
+
+    return [(variant, component) for variant in VARIANTS for component in variant_data.reported_components(PROJECT_ROOT, variant, "test")]
+
+
 @pytest.mark.parametrize("kit", KITS)
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_both_readers_build_the_same_documentation_strictly(variant: str, kit: str, tmp_path: Path) -> None:
+    _check_one_run(variant, kit, "docs.toml", tmp_path)
+
+
+@pytest.mark.parametrize(("variant", "component"), _component_reports())
+def test_both_readers_build_the_same_component_report_strictly(variant: str, component: str, tmp_path: Path) -> None:
+    """spl-core's per-component report, in the docs shape, which upstream tests nowhere."""
+    _check_one_run(variant, "test", f"{component}/docs.toml", tmp_path, label=f"{variant}/{component}")
+
+
+#: The cell selected last. codelinks reads the selected build's compile database,
+#: so a run of another cell selects that cell first.
+_SELECTED: dict[str, tuple[str, str, Path]] = {}
+
+
+def _check_one_run(variant: str, kit: str, selection_name: str, tmp_path: Path, label: str | None = None) -> None:
     ubc = _find_ubc()
     _require("ubc", ubc is not None)
     _require("CMake and Ninja", bool(shutil.which("cmake") and shutil.which("ninja")))
 
-    build_dir = _select_build(variant, kit)
-    selection = build_dir / "selection" / "docs.toml"
+    current = _SELECTED.get("cell")
+    if current is None or current[:2] != (variant, kit):
+        _SELECTED["cell"] = (variant, kit, _select_build(variant, kit))
+    build_dir = _SELECTED["cell"][2]
+    selection = build_dir / "selection" / selection_name
+    label = label or f"{variant}/{kit}"
 
     started = time.perf_counter()
     sphinx = subprocess.run(
@@ -151,7 +178,7 @@ def test_both_readers_build_the_same_documentation_strictly(variant: str, kit: s
         # A clone, as on CI, does not have the problem, so it is tolerated here only.
         warnings = [line for line in warnings if "[codelinks.git_ref]" not in line]
     tolerated_only = (PROJECT_ROOT / ".git").is_file() and not warnings
-    assert (sphinx.returncode == 0 or tolerated_only) and not warnings, f"{variant}/{kit}: Sphinx is not clean in strict mode:\n" + "\n".join(warnings or [sphinx.stderr[-3000:]])
+    assert (sphinx.returncode == 0 or tolerated_only) and not warnings, f"{label}: Sphinx is not clean in strict mode:\n" + "\n".join(warnings or [sphinx.stderr[-3000:]])
 
     override = selection.read_text(encoding="utf-8")
     checked = subprocess.run([ubc, "check", "--no-cache", "--output-format", "json", "-c", override], cwd=PROJECT_ROOT, capture_output=True, text=True)
@@ -160,20 +187,20 @@ def test_both_readers_build_the_same_documentation_strictly(variant: str, kit: s
         if diagnostic["severity"] != "info":
             counts[diagnostic["code"]] = counts.get(diagnostic["code"], 0) + 1
     unexpected = {code: count for code, count in counts.items() if EXCEPTED_UBC_WARNINGS.get(code) != count}
-    assert not unexpected, f"{variant}/{kit}: ubc reports findings docs_exceptions.toml does not name: {unexpected}"
+    assert not unexpected, f"{label}: ubc reports findings docs_exceptions.toml does not name: {unexpected}"
 
     started = time.perf_counter()
     built = subprocess.run([ubc, "build", "html", "--no-cache", "--deny", "none", "-o", str(tmp_path / "ubc"), "-c", override], cwd=PROJECT_ROOT, capture_output=True, text=True)
     ubc_seconds = time.perf_counter() - started
-    assert built.returncode == 0, f"{variant}/{kit}: ubc build html failed:\n{built.stdout[-3000:]}\n{built.stderr[-3000:]}"
+    assert built.returncode == 0, f"{label}: ubc build html failed:\n{built.stdout[-3000:]}\n{built.stderr[-3000:]}"
 
     sphinx_needs = _needs(tmp_path / "sphinx" / "needs.json")
     ubc_needs = _needs(tmp_path / "ubc" / "needs.json")
-    TIMINGS.append((variant, kit, sphinx_seconds, ubc_seconds, len(sphinx_needs)))
+    TIMINGS.append((variant, label.split("/", 1)[1] if label != f"{variant}/{kit}" else kit, sphinx_seconds, ubc_seconds, len(sphinx_needs)))
 
     only_sphinx = sorted(set(sphinx_needs) - set(ubc_needs) - EXCEPTED_NEEDS)
     only_ubc = sorted(set(ubc_needs) - set(sphinx_needs) - EXCEPTED_NEEDS)
-    assert not only_sphinx and not only_ubc, f"{variant}/{kit}: needs in one reader only: Sphinx {only_sphinx}, ubc {only_ubc}"
+    assert not only_sphinx and not only_ubc, f"{label}: needs in one reader only: Sphinx {only_sphinx}, ubc {only_ubc}"
 
     fields = _compared_fields()
     differences = [
@@ -182,4 +209,4 @@ def test_both_readers_build_the_same_documentation_strictly(variant: str, kit: s
         for field in fields
         if _normalized(sphinx_needs[need_id].get(field)) != _normalized(ubc_needs[need_id].get(field))
     ]
-    assert not differences, f"{variant}/{kit}: the readers disagree about {len(differences)} values:\n" + "\n".join(differences[:40])
+    assert not differences, f"{label}: the readers disagree about {len(differences)} values:\n" + "\n".join(differences[:40])
