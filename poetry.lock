@@ -4201,8 +4201,8 @@ typer = ">=0,<1"
 [package.source]
 type = "git"
 url = "https://github.com/useblocks/spl-core.git"
-reference = "010727d08b27ca73994772444d25d7bc6e028c31"
-resolved_reference = "010727d08b27ca73994772444d25d7bc6e028c31"
+reference = "1181c0a636ac4e85ffab02d52ede21dc8cc7da45"
+resolved_reference = "1181c0a636ac4e85ffab02d52ede21dc8cc7da45"
 
 [[package]]
 name = "text-unidecode"
@@ -4802,4 +4802,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "<3.14,>=3.12"
-content-hash = "c4fca35edababcd6d4b502ede808ffd05224e8d2fa83cda55228e9f69890d7f5"
+content-hash = "59c523049113a748592982df85c52f241c1995f92f97b6605e5ee6892b273442"
