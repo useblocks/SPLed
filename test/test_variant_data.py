@@ -13,7 +13,9 @@ from a variant's build -- no error, no warning, just less.
 """
 
 import json
+import os
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -193,107 +195,240 @@ def test_every_cell_carries_the_whole_contract(variant: str, kit: str, target: s
     assert data["build_config"]["kit"] == kit
     assert data["build_config"]["target"] == target
     assert data["build_config"]["components"]
+    assert data["build_config"]["scope"] == "variant"
+    assert data["build_config"]["component"] == ""
     assert data["features"]
 
     # It has to survive the round trip to the file both tools read.
     assert json.loads(json.dumps(data)) == data
 
 
-# --- the current-variant pointer -------------------------------------------
+@pytest.mark.parametrize("variant", ["Base/Dev", "Disco", "IDEA/Sloemada", "Sleep", "Spa"])
+@pytest.mark.parametrize("kit", variant_data.KITS)
+@pytest.mark.parametrize("target", variant_data.TARGETS)
+def test_every_component_cell_carries_the_whole_contract(variant: str, kit: str, target: str) -> None:
+    """A component's report gets the same complete contract, one scope deeper.
+
+    The component list stays the variant's, so a block conditioned on another
+    component's presence reads the same in a component's report as in the
+    variant's documentation; only `scope` and `component` differ.
+    """
+    documented = variant_data.reported_components(PROJECT_ROOT, variant, kit)
+    assert documented, f"{variant}/{kit} has no documented component to report on"
+
+    for component in documented:
+        data = variant_data.variant_data(PROJECT_ROOT, variant, kit, target, component)
+
+        assert set(data) == {"features", "build_config"}
+        assert data["build_config"]["variant"] == variant
+        assert data["build_config"]["kit"] == kit
+        assert data["build_config"]["target"] == target
+        assert data["build_config"]["scope"] == "component"
+        assert data["build_config"]["component"] == component
+        assert data["build_config"]["components"] == variant_data.components(PROJECT_ROOT, variant, kit)
+        assert data["features"]
+        assert json.loads(json.dumps(data)) == data
 
 
-def test_the_pointer_is_a_symlink_where_the_platform_allows_one(tmp_path: Path) -> None:
-    """A symlink is cheap and clear where the OS permits one."""
-    build_dir = tmp_path / "build" / "V" / "test" / "Debug"
+# --- the rendered selection ------------------------------------------------
+
+
+def _tmp_project(tmp_path: Path) -> Path:
+    """A small project root with a parts.cmake and two documented components."""
+    root = tmp_path / "project"
+    parts = root / "variants" / "Test"
+    parts.mkdir(parents=True)
+    (parts / "parts.cmake").write_text(
+        "spl_add_component(components/a)\nspl_add_component(test/suite)\n",
+        encoding="utf-8",
+    )
+    for component in ("components/a", "test/suite"):
+        doc = root / component / "doc"
+        doc.mkdir(parents=True)
+        (doc / "index.md").write_text(f"# {component}\n", encoding="utf-8")
+    return root
+
+
+def test_selection_toml_without_a_build_dir_mounts_nothing(tmp_path: Path) -> None:
+    """Selecting a cell on its own shows its documents and no generated page."""
+    cell = variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports")
+    selection = tomllib.loads(variant_data.selection_toml(cell, "Disco", "test", None))
+
+    assert selection["needs"]["variant_data_file"] == cell.resolve().as_posix()
+    assert selection["source"]["mounts"] == []
+    assert "project" not in selection
+
+
+def test_selection_toml_with_a_build_dir_mounts_it(tmp_path: Path) -> None:
+    """A CMake build mounts its own directory at the stable `generated` name."""
+    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
     build_dir.mkdir(parents=True)
-    (build_dir / "payload.txt").write_text("x", encoding="utf-8")
+    cell = variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports")
 
-    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, build_dir)
+    selection = tomllib.loads(variant_data.selection_toml(cell, "Disco", "test", build_dir))
+    mount = selection["source"]["mounts"][0]
 
-    generated = tmp_path / "generated"
-    assert generated.is_symlink()
-    assert (generated / "payload.txt").is_file()
+    assert mount["dir"] == build_dir.resolve().as_posix()
+    assert mount["mount_at"] == variant_data.MOUNT_AT
+    assert mount["include"] == list(variant_data.MOUNTED_PAGES)
+    assert mount["gitignore"] is False
+    assert "Disco" in mount["if"] and "test" in mount["if"] and "reports" in mount["if"]
 
 
-def test_a_refused_symlink_falls_back_to_a_junction(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Windows without Developer Mode refuses a symlink but allows a junction.
+def test_selection_toml_can_name_a_component_root_doc(tmp_path: Path) -> None:
+    """A per-component report renders under its own root document."""
+    cell = variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports", "components/light_controller")
+    selection = tomllib.loads(
+        variant_data.selection_toml(cell, "Disco", "test", None, variant_data.COMPONENT_ROOT_DOC)
+    )
+    assert selection["project"]["root_doc"] == variant_data.COMPONENT_ROOT_DOC
 
-    The junction is the fallback that keeps Sphinx able to walk `generated`
-    without copying the binary directory. Only Windows takes this path, which is
-    why it needs a test rather than the platform nobody develops on finding out.
+
+def test_write_selection_writes_the_project_selection_and_every_run(tmp_path: Path) -> None:
+    """A selected build gets one selection file per spl-core documentation run.
+
+    build/selection.toml is what the IDE and a bare run read; every shape and
+    every component of the build gets its own file, so two builds' reports can
+    be built side by side and each names the cell of its own shape.
     """
-    build_dir = tmp_path / "build" / "V" / "test" / "Debug"
-    (build_dir / "CMakeFiles").mkdir(parents=True)
-    (build_dir / "CMakeFiles" / "huge.o").write_text("x" * 1000, encoding="utf-8")
+    root = _tmp_project(tmp_path)
+    build_dir = root / "build" / "Test" / "test" / "Debug"
+    build_dir.mkdir(parents=True)
 
-    calls: list[tuple[Path, Path]] = []
+    variant_data.write_selection(root, "Test", "test", "reports", build_dir)
 
-    def refuse(*args, **kwargs):
-        raise OSError("symlinks not permitted")
+    selection = tomllib.loads((root / variant_data.SELECTION_FILE).read_text(encoding="utf-8"))
+    assert selection["needs"]["variant_data_file"] == variant_data.cell_path(
+        root, "Test", "test", "reports"
+    ).resolve().as_posix()
 
-    def fake_junction(target: Path, link: Path) -> None:
-        calls.append((target, link))
-        link.mkdir(parents=True, exist_ok=True)
+    for shape in variant_data.TARGETS:
+        run = build_dir / "selection" / f"{shape}.toml"
+        assert run.is_file(), f"the variant-wide {shape} run has no selection"
+        assert tomllib.loads(run.read_text(encoding="utf-8"))["needs"]["variant_data_file"] == (
+            variant_data.cell_path(root, "Test", "test", shape).resolve().as_posix()
+        )
 
-    monkeypatch.setattr(Path, "symlink_to", refuse)
-    monkeypatch.setattr(variant_data, "_create_junction", fake_junction)
+    for component in variant_data.reported_components(root, "Test", "test"):
+        for shape in variant_data.TARGETS:
+            run = build_dir / "selection" / component / f"{shape}.toml"
+            assert run.is_file(), f"{component}'s {shape} run has no selection"
+            parsed = tomllib.loads(run.read_text(encoding="utf-8"))
+            assert parsed["needs"]["variant_data_file"] == (
+                variant_data.cell_path(root, "Test", "test", shape, component).resolve().as_posix()
+            )
+            assert parsed["project"]["root_doc"] == variant_data.COMPONENT_ROOT_DOC
 
-    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, build_dir)
 
-    generated = tmp_path / "generated"
-    assert calls == [(build_dir.resolve(), generated)], "the junction must lead to the resolved build directory"
-    assert generated.is_dir() and not generated.is_symlink()
-    assert not (generated / "NO_SYMLINK").exists(), "the junction is a real link, not an explanation"
-    assert not (generated / "CMakeFiles").exists(), "the fallback copied the binary directory"
+def test_selecting_removes_an_old_generated_symlink_without_touching_its_target(tmp_path: Path) -> None:
+    """The old link is removed; the build it led to is somebody's and stays."""
+    root = _tmp_project(tmp_path)
+    target = tmp_path / "old_build"
+    target.mkdir()
+    (target / "keep.txt").write_text("keep", encoding="utf-8")
+    generated = root / "generated"
+    generated.symlink_to(target, target_is_directory=True)
+
+    variant_data.write_selection(root, "Test", "prod", "docs", None)
+
+    assert not generated.exists(), "the stale link must be removed"
+    assert (target / "keep.txt").read_text(encoding="utf-8") == "keep", "the target must survive"
 
 
-def test_neither_link_leaves_an_explained_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """When both link types fail, the path still exists and says why.
+def test_selecting_removes_the_old_autoconf_pointer(tmp_path: Path) -> None:
+    """`build/autoconf.json` was the pointer; nothing reads it any more."""
+    root = _tmp_project(tmp_path)
+    pointer = root / "build" / "autoconf.json"
+    pointer.parent.mkdir(parents=True)
+    pointer.write_text("{}", encoding="utf-8")
 
-    spl-core stops a documentation build whose `generated` does not lead to its
-    build directory, so the failure has to be a named one rather than a missing
-    path -- and copying the binary directory, as the old fallback did, would
-    leak build objects into the source tree without producing the reports.
+    variant_data.write_selection(root, "Test", "prod", "docs", None)
+
+    assert not pointer.exists()
+
+
+def test_selecting_removes_a_no_symlink_placeholder(tmp_path: Path) -> None:
+    """A directory holding NO_SYMLINK is the old placeholder, and goes."""
+    root = _tmp_project(tmp_path)
+    generated = root / "generated"
+    generated.mkdir()
+    (generated / "NO_SYMLINK").write_text("no link here\n", encoding="utf-8")
+
+    variant_data.write_selection(root, "Test", "prod", "docs", None)
+
+    assert not generated.exists()
+
+
+def test_selecting_leaves_a_plain_generated_directory_alone(tmp_path: Path) -> None:
+    """A real directory somebody put there is not ours to remove."""
+    root = _tmp_project(tmp_path)
+    generated = root / "generated"
+    generated.mkdir()
+    (generated / "somebody.txt").write_text("mine", encoding="utf-8")
+
+    variant_data.write_selection(root, "Test", "prod", "docs", None)
+
+    assert (generated / "somebody.txt").read_text(encoding="utf-8") == "mine"
+
+
+# --- the generated rules ---------------------------------------------------
+
+
+def _parsed_rules(root: Path) -> list[dict]:
+    return tomllib.loads(variant_data.rules_toml(root))["source"]["variant_sources"]
+
+
+def test_rules_toml_covers_every_documented_component_exactly_once(tmp_path: Path) -> None:
+    """A hand-written component with no rule is 150% in every variant.
+
+    The failure is additive and silent -- its documents appear in variants that
+    do not contain the component -- so each documented component has exactly one
+    rule naming it.
     """
-    build_dir = tmp_path / "build" / "V" / "test" / "Debug"
-    (build_dir / "CMakeFiles").mkdir(parents=True)
-    (build_dir / "CMakeFiles" / "huge.o").write_text("x" * 1000, encoding="utf-8")
+    root = _tmp_project(tmp_path)
+    rules = _parsed_rules(root)
+    documented = variant_data.documented_components(root)
+    assert documented == ["components/a", "test/suite"]
 
-    def refuse(*args, **kwargs):
-        raise OSError("no links here")
-
-    monkeypatch.setattr(Path, "symlink_to", refuse)
-    monkeypatch.setattr(variant_data, "_create_junction", refuse)
-
-    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, build_dir)
-
-    generated = tmp_path / "generated"
-    assert generated.is_dir() and not generated.is_symlink()
-    assert [p.name for p in generated.iterdir()] == ["NO_SYMLINK"]
-    assert str(build_dir.resolve()) in (generated / "NO_SYMLINK").read_text(encoding="utf-8")
-    assert not (generated / "CMakeFiles").exists(), "the fallback copied the binary directory"
+    for component in documented:
+        matching = [rule for rule in rules if f"'{component}'" in rule["if"]]
+        assert len(matching) == 1, f"{component} is gated by {len(matching)} rules"
+        files = matching[0]["files"]
+        assert f"{component}/doc/**" in files
+        assert f"{variant_data.MOUNT_AT}/{component}/**" in files
 
 
-def test_repointing_generated_leaves_the_old_build_untouched(tmp_path: Path) -> None:
-    """Re-pointing the link must never touch the directory it used to lead to.
+def test_every_generated_rule_condition_is_inside_the_grammar(tmp_path: Path) -> None:
+    """A condition outside the grammar is refused rather than evaluated."""
+    from sphinx_mounts import variants
 
-    `_remove_link` removes the link itself, not its target, so switching from
-    one configured variant to another does not delete the previous build. A
-    `shutil.rmtree` on the resolved target would, silently, on every reconfigure.
-    """
-    first = tmp_path / "build" / "first"
-    second = tmp_path / "build" / "second"
-    for build_dir, name in ((first, "first.txt"), (second, "second.txt")):
-        build_dir.mkdir(parents=True, exist_ok=True)
-        (build_dir / name).write_text(name, encoding="utf-8")
+    for rule in _parsed_rules(_tmp_project(tmp_path)):
+        variants.validate(rule["if"])
 
-    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, first)
-    generated = tmp_path / "generated"
-    assert (generated / "first.txt").is_file()
 
-    variant_data.write_pointer(tmp_path, {"features": {}, "build_config": {}}, second)
-    assert generated.resolve() == second.resolve()
-    assert (generated / "second.txt").is_file()
+def test_hand_written_rules_are_appended(tmp_path: Path) -> None:
+    """Numbers a component's membership cannot decide come from a hand file."""
+    root = _tmp_project(tmp_path)
+    (root / "doc").mkdir()
+    (root / variant_data.HAND_WRITTEN_RULES).write_text(
+        '[[source.variant_sources]]\nif = "var.build_config.scope == \'variant\'"\nfiles = ["extra/**"]\n',
+        encoding="utf-8",
+    )
 
-    assert first.is_dir(), "the old build directory was removed"
-    assert (first / "first.txt").read_text(encoding="utf-8") == "first.txt"
+    rules = _parsed_rules(root)
+    assert rules[-1]["if"] == "var.build_config.scope == 'variant'"
+    assert rules[-1]["files"] == ["extra/**"]
+
+
+def test_write_text_if_changed_does_not_rewrite_identical_content(tmp_path: Path) -> None:
+    """A reader's cache stays valid when the content has not changed."""
+    path = tmp_path / "file.txt"
+    assert variant_data.write_text_if_changed(path, "same") is True
+
+    os.utime(path, (1_000_000, 1_000_000))
+    before = path.stat().st_mtime_ns
+    assert variant_data.write_text_if_changed(path, "same") is False
+    assert path.stat().st_mtime_ns == before, "identical content was rewritten"
+
+    assert variant_data.write_text_if_changed(path, "different") is True
+    assert path.read_text(encoding="utf-8") == "different"

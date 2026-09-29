@@ -14,7 +14,6 @@ the other.
 """
 
 import json
-import os
 import re
 import runpy
 import subprocess
@@ -27,6 +26,9 @@ import pytest
 from sphinx.util.matching import Matcher
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "tools"))
+
+import variant_data  # noqa: E402
 
 pytestmark = [
     pytest.mark.unittests,
@@ -54,15 +56,34 @@ def spl_core_config() -> dict:
 # --- the file has to stand on its own --------------------------------------
 
 
-def test_does_not_extend_anything(project_config: dict) -> None:
-    """No `extend`, because only one of the two readers implements it.
+def test_ubproject_extends_the_generated_rules(project_config: dict) -> None:
+    """The committed configuration extends exactly the generated rules file.
 
-    The path it used to name also had the Python minor version baked into it
-    and pointed at an interpreter that does not exist, so the base
-    configuration silently failed to resolve for ubCode while conf.py resolved
-    it a second time through importlib.
+    ubproject.toml has to keep its `[needs]` table complete for sphinx-needs,
+    which does not follow `extend`, but the document rules are generated and
+    live in a file of their own. This is the one `extend` left, and it names
+    only the file tools/variant_data.py writes.
     """
-    assert "extend" not in project_config
+    assert project_config["extend"] == "ubproject.variants.toml"
+
+
+def test_the_generated_rules_extend_the_selection() -> None:
+    """ubproject.toml -> ubproject.variants.toml -> build/selection.toml."""
+    rules = tomllib.loads((PROJECT_ROOT / "ubproject.variants.toml").read_text(encoding="utf-8"))
+    assert rules["extend"] == "build/selection.toml"
+
+
+def test_conf_py_names_both_generated_files_for_sphinx() -> None:
+    """sphinx-needs and sphinx-mounts read one TOML file each, no `extend`.
+
+    conf.py hands each the file it needs: the complete needs model and the
+    generated rules. The selection it reads at config-inited defaults to
+    build/selection.toml, and `-D spl_selection=<file>` names a build's own.
+    """
+    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
+    assert 'needs_from_toml = "ubproject.toml"' in conf
+    assert 'sources_from_toml = "ubproject.variants.toml"' in conf
+    assert 'app.add_config_value("spl_selection", "build/selection.toml", "env", types=(str,))' in conf
 
 
 def test_sphinx_reads_this_exact_file() -> None:
@@ -126,22 +147,54 @@ def test_build_output_is_not_indexed(project_config: dict) -> None:
     assert "build/**" in project_config["source"]["extend_exclude"]
 
 
-def test_the_per_component_report_root_is_hidden_from_ubcode(project_config: dict) -> None:
-    """conf.py excludes it from every variant build, so ubCode must too.
+def _gated_patterns(rules: list[dict], data: dict) -> set[str]:
+    """The rule patterns whose condition is TRUE for this cell.
 
-    doc/component_report.md is the root document of spl-core's PER-COMPONENT
-    report -- a build shape ubCode never performs. conf.py drops it from the
-    variant-wide source set, so Sphinx never sees it; ubCode indexed it anyway
-    and reported it as an orphan. Four orphans in one reader and five in the
-    other is the two of them disagreeing about the document set, which is the
-    one thing this configuration exists to prevent.
-
-    `[parse.parsers.*]` has no `exclude`, but `extend_exclude` is honoured in
-    parser mode -- unlike `extend_include` -- so that is where it belongs.
+    Rules are subtractive: a pattern is admitted unless a rule naming it is
+    FALSE, so a pattern that appears in no TRUE rule is excluded.
     """
-    conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
-    assert 'exclude_patterns.append("doc/component_report.md")' in conf
-    assert "doc/component_report.md" in project_config["source"]["extend_exclude"]
+    from sphinx_mounts import variants
+
+    return {
+        pattern
+        for rule in rules
+        for pattern in rule["files"]
+        if variants.interpret(variants.validate(rule["if"]), data)
+    }
+
+
+def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]) -> None:
+    """A variant shows the variant-wide documents and the components it has.
+
+    A component's report shows one component -- its documentation and generated
+    pages, under doc/component_report.md -- and none of the variant-wide
+    documents. The two facts are two rules over `var.build_config.scope`,
+    evaluated here with sphinx-mounts' own interpreter against the real
+    generated cells.
+    """
+    variant_cell = _variant_data("Disco", "test", "reports")
+    component_cell = _component_variant_data("Disco", "test", "reports", "components/light_controller")
+
+    variant_admitted = _gated_patterns(rules, variant_cell)
+    component_admitted = _gated_patterns(rules, component_cell)
+
+    # The variant cell: the variant-wide documents and its components' pages.
+    assert "index.md" in variant_admitted
+    assert "doc/component_report.md" not in variant_admitted
+    assert "components/light_controller/doc/**" in variant_admitted
+    assert "generated/components/light_controller/**" in variant_admitted
+    assert "generated/reports/**" in variant_admitted
+    assert "components/auto_off/doc/**" not in variant_admitted, "Disco does not contain auto_off"
+
+    # The component cell: exactly the one component, and none of the
+    # variant-wide documents.
+    assert "doc/component_report.md" in component_admitted
+    assert "components/light_controller/doc/**" in component_admitted
+    assert "generated/components/light_controller/**" in component_admitted
+    assert "index.md" not in component_admitted
+    assert "doc/components/**" not in component_admitted
+    assert "generated/reports/**" not in component_admitted
+    assert "components/auto_off/doc/**" not in component_admitted
 
 
 def test_extend_include_is_not_used_because_it_would_be_inert(project_config: dict, spl_core_config: dict) -> None:
@@ -156,7 +209,9 @@ def test_extend_include_is_not_used_because_it_would_be_inert(project_config: di
     """
     assert spl_core_config["source"]["extend_include"] == ["build/**/__source_docs/**"]
     assert "extend_include" not in project_config["source"]
-    assert project_config["parse"]["parsers"]["rst"]["include"] == ["generated/**/*.rst"]
+    # The generated listings are named by the rst parser instead, relative to the
+    # mounted directory (sphinx-mounts matches them inside the mount).
+    assert project_config["parse"]["parsers"]["rst"]["include"] == list(variant_data.MOUNTED_PAGES)
 
 
 def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
@@ -181,13 +236,30 @@ def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
     for tree in ("index.md", "doc/**", "components/**/doc/**", "test/**/doc/**"):
         assert f'"{tree}"' in conf, f"conf.py does not include {tree}, which the md parser reads"
 
+    # The rst parser reads the mounted build, which Sphinx names `generated/`.
+    assert project_config["parse"]["parsers"]["rst"]["include"] == list(variant_data.MOUNTED_PAGES)
+    for pattern in project_config["parse"]["parsers"]["rst"]["include"]:
+        assert f'"generated/{pattern}"' in conf, (
+            f"conf.py does not include generated/{pattern}, which the rst parser reads"
+        )
+
 
 # --- what the variant machinery needs --------------------------------------
 
 
-def test_variant_data_file_is_the_current_pointer(project_config: dict) -> None:
-    """What ubCode reads, and what a bare sphinx-build falls back to."""
-    assert project_config["needs"]["variant_data_file"] == "build/autoconf.json"
+def test_variant_data_is_named_by_the_selection_not_the_committed_config(project_config: dict) -> None:
+    """The committed configuration names no cell; a rendered selection does."""
+    assert "variant_data_file" not in project_config.get("needs", {})
+
+    rendered = variant_data.selection_toml(
+        PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json",
+        "Disco",
+        "test",
+        None,
+    )
+    selection = tomllib.loads(rendered)
+    assert selection["needs"]["variant_data_file"].endswith("build/variants/Disco/test/reports.json")
+    assert selection["source"]["mounts"] == []
 
 
 def test_needs_json_is_written(project_config: dict) -> None:
@@ -203,8 +275,10 @@ def test_needs_json_is_written(project_config: dict) -> None:
 
 
 @pytest.fixture(scope="module")
-def rules(project_config: dict) -> list[dict]:
-    return project_config["source"]["variant_sources"]
+def rules(generated_variant_data: None) -> list[dict]:
+    """The document rules, as tools/variant_data.py wrote them."""
+    text = (PROJECT_ROOT / "ubproject.variants.toml").read_text(encoding="utf-8")
+    return tomllib.loads(text)["source"]["variant_sources"]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -225,6 +299,12 @@ def generated_variant_data() -> None:
 
 def _variant_data(variant: str, kit: str, target: str) -> dict:
     with (PROJECT_ROOT / "build" / "variants" / variant / kit / f"{target}.json").open(encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _component_variant_data(variant: str, kit: str, target: str, component: str) -> dict:
+    path = PROJECT_ROOT / "build" / "variants" / variant / kit / component / f"{target}.json"
+    with path.open(encoding="utf-8") as handle:
         return json.load(handle)
 
 
@@ -283,11 +363,12 @@ def test_rules_select_the_expected_documents(rules: list[dict], variant: str, ki
     from sphinx_mounts import variants
 
     data = _variant_data(variant, kit, "docs")
-    included: set[str] = set()
+    included = _gated_patterns(rules, data)
     excluded: set[str] = set()
     for rule in rules:
         ok = variants.interpret(variants.validate(rule["if"]), data)
-        (included if ok else excluded).update(rule["files"])
+        if not ok:
+            excluded.update(rule["files"])
 
     for pattern in expect_present:
         assert pattern in included, f"{variant}/{kit}: expected {pattern} to be included"
@@ -296,20 +377,33 @@ def test_rules_select_the_expected_documents(rules: list[dict], variant: str, ki
         assert pattern in excluded, f"{variant}/{kit}: expected {pattern} to be excluded"
 
 
-def test_generated_output_is_gated_on_the_reports_target(rules: list[dict]) -> None:
-    """A docs build must not read report pages it will not show.
+def test_the_mount_condition_names_the_builds_own_cell(tmp_path: Path) -> None:
+    """The mount's condition does name a variant -- the build's own.
 
-    Rules are subtractive -- a FALSE rule removes the files it names, a TRUE
-    one does nothing -- so this rule and the per-component ones compose as AND.
+    A reader pointed at another variant's data then reads none of this build's
+    pages, instead of showing them as that variant's. `selection_toml` renders
+    the condition; this evaluates it against the real cells.
     """
     from sphinx_mounts import variants
 
-    shape_rule = next(r for r in rules if "target" in r["if"])
-    assert shape_rule["files"] == ["generated/**"]
+    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
+    build_dir.mkdir(parents=True)
 
-    tree = variants.validate(shape_rule["if"])
+    rendered = variant_data.selection_toml(
+        PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json",
+        "Disco",
+        "test",
+        build_dir,
+    )
+    mount = tomllib.loads(rendered)["source"]["mounts"][0]
+    assert mount["mount_at"] == variant_data.MOUNT_AT
+    assert mount["include"] == list(variant_data.MOUNTED_PAGES)
+    assert mount["gitignore"] is False
+
+    tree = variants.validate(mount["if"])
     assert variants.interpret(tree, _variant_data("Disco", "test", "reports")) is True
     assert variants.interpret(tree, _variant_data("Disco", "test", "docs")) is False
+    assert variants.interpret(tree, _variant_data("Sleep", "test", "reports")) is False
 
 
 #: The report pages spl-core writes per component, and the names a report
@@ -385,11 +479,14 @@ def test_report_sections_name_the_generated_pages() -> None:
                 )
             if component is not None:
                 expected = {f"/generated/{component}/reports/{page}" for page in REPORT_PAGES}
+                expected.add(f"/generated/{component}/__source_docs/index")
                 assert set(entries) == expected, (
                     f"{document.relative_to(PROJECT_ROOT)}: expected {sorted(expected)}, got {sorted(entries)}"
                 )
 
-    assert report_documents == 8, f"expected 8 report toctrees, found {report_documents}"
+    # Nine component documents (the two examples included) plus index.md's
+    # coverage toctree.
+    assert report_documents == 10, f"expected 10 report toctrees, found {report_documents}"
 
 
 def _excluded(matcher: Matcher, path: str) -> bool:
@@ -407,7 +504,7 @@ def _excluded(matcher: Matcher, path: str) -> bool:
     return False
 
 
-def test_generated_is_the_only_route_to_the_generated_pages(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, project_config: dict) -> None:
+def test_generated_is_the_only_route_to_the_generated_pages(monkeypatch: pytest.MonkeyPatch) -> None:
     """With two routes, every generated page exists under two docnames.
 
     spl-core's include patterns name the build directory both ways in a SPLed
@@ -415,27 +512,16 @@ def test_generated_is_the_only_route_to_the_generated_pages(tmp_path: Path, monk
     `generated/...` name. conf.py must forward only the `generated/` one and
     prune the whole `build` tree from the Sphinx walk, or each report page is
     discovered twice -- once per name -- and every link and need in it is
-    duplicated. This executes conf.py against a controlled configuration rather
-    than grepping its text, because the property is the resulting source set and
-    the resulting matcher.
+    duplicated. This executes conf.py rather than grepping its text, because the
+    property is the resulting source set and the resulting matcher.
     """
-    config = {
-        "include_patterns": [
-            "components/light_controller/doc/**",
-            "build/Disco/test/Debug/components/light_controller/reports/**",
-            "generated/components/light_controller/reports/**",
-        ],
-    }
-    config_file = tmp_path / "config.json"
-    config_file.write_text(json.dumps(config), encoding="utf-8")
-
-    monkeypatch.setenv("SPHINX_BUILD_CONFIGURATION_FILE", str(config_file))
     monkeypatch.setenv("VARIANT", "Disco")
 
     module = runpy.run_path(str(PROJECT_ROOT / "conf.py"))
 
     include_patterns = module["include_patterns"]
-    assert "generated/components/light_controller/reports/**" in include_patterns
+    for pattern in variant_data.MOUNTED_PAGES:
+        assert f"generated/{pattern}" in include_patterns
     assert not [pattern for pattern in include_patterns if pattern.startswith("build/")]
 
     matcher = Matcher(module["exclude_patterns"])
@@ -449,6 +535,38 @@ def test_generated_is_the_only_route_to_the_generated_pages(tmp_path: Path, monk
 
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     assert re.search(r"set\(\s*SPL_SPHINX_BINARY_DIR\s+\$\{CMAKE_SOURCE_DIR\}/generated\s*\)", cmake), (
-        "CMakeLists.txt must name the generated link as SPL_SPHINX_BINARY_DIR"
+        "CMakeLists.txt must mount the build at the stable generated/ name"
     )
-    assert project_config["parse"]["parsers"]["rst"]["include"] == ["generated/**/*.rst"]
+    assert re.search(
+        r"set\(\s*SPL_SPHINX_OPTIONS\s+-D\s+spl_selection=\$\{CMAKE_BINARY_DIR\}/selection/@SHAPE@\.toml\s*\)",
+        cmake,
+    ), "CMakeLists.txt must point the variant-wide runs at this build's selection"
+    assert re.search(
+        r"set\(\s*SPL_SPHINX_COMPONENT_OPTIONS\s+-D\s+spl_selection=\$\{CMAKE_BINARY_DIR\}/selection/@COMPONENT_PATH@/@SHAPE@\.toml\s*\)",
+        cmake,
+    ), "CMakeLists.txt must point the per-component runs at this build's selection"
+
+
+# --- the same checks, as conf.py runs them ------------------------------------
+
+
+def test_the_checks_conf_py_runs_find_nothing() -> None:
+    """conf.py runs tools/config_checks.py whenever Sphinx reads its configuration.
+
+    The tests above are the detailed form of those checks; this one runs exactly
+    what a Sphinx build runs, with the include patterns conf.py really ends up
+    with, so a build under -W and this suite cannot disagree about whether the
+    configuration is intact.
+    """
+    import config_checks  # noqa: PLC0415 - tools/ is on sys.path, see above
+
+    module = runpy.run_path(str(PROJECT_ROOT / "conf.py"))
+    assert config_checks.run_all(PROJECT_ROOT, list(module["include_patterns"])) == []
+
+
+def test_the_checks_notice_a_hand_written_rule(project_config: dict) -> None:
+    """A rule in ubproject.toml would replace every generated one: `extend` replaces arrays."""
+    import config_checks  # noqa: PLC0415
+
+    tampered = {**project_config, "source": {**project_config["source"], "variant_sources": [{"if": "True", "files": ["x"]}]}}
+    assert any("declares rules" in finding for finding in config_checks.generated_half(tampered))

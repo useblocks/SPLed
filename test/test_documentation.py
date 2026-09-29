@@ -13,16 +13,19 @@ What it proves, per variant:
 - Sphinx builds the variant's documents without error;
 - the documents present are exactly the ones the variant's component list says,
   which is the property the whole variant-gating design exists to provide.
+
+And, with `ubc`, that a second reader which never runs conf.py decides the same
+document set.
 """
 
 import ast
-import contextlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -59,6 +62,15 @@ COMPONENT_DOCS = {
     "components/examples/flight_controller": "components/examples/flight_controller/doc/index.html",
 }
 
+#: The toctree globs of doc/components/index.md. ubCode reports a glob that
+#: matched only documents a variant excludes, so these are what the parity
+#: comparison has to evaluate.
+COMPONENT_TOCTREE_GLOBS = (
+    "components/*/doc/index",
+    "components/examples/*/doc/index",
+    "test/*/doc/index",
+)
+
 
 @pytest.fixture(scope="module")
 def all_variant_data() -> None:
@@ -71,12 +83,49 @@ def all_variant_data() -> None:
     )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def selected_cell(all_variant_data: None) -> Iterator[None]:
+    """Select one cell for the readers that cannot take one on the command line.
+
+    `ubc` loads the project through ubproject.toml -> ubproject.variants.toml ->
+    build/selection.toml, and refuses to load it when that file is missing. The
+    developer's own build/selection.toml -- which points at the build they
+    configured -- is put back byte for byte, because this test must not repoint
+    their IDE at a test selection.
+    """
+    selection = PROJECT_ROOT / "build" / "selection.toml"
+    original = selection.read_bytes() if selection.is_file() else None
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_ROOT / "tools" / "variant_data.py"),
+            "--all",
+            "--current",
+            "--variant",
+            "Disco",
+            "--kit",
+            "test",
+        ],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+    )
+    try:
+        yield
+    finally:
+        if original is None:
+            selection.unlink(missing_ok=True)
+        else:
+            selection.write_bytes(original)
+
+
 def _select_cell(variant: str, kit: str, target: str) -> list[str]:
     """The sphinx-build option that selects one cell of the matrix.
 
     A command-line override of `needs_variant_data_file`, which sphinx-needs keeps
-    even though needs_from_toml names the pointer. It is what spl-core passes for
-    the shape it builds, and the key `ubc check -c` overrides as well.
+    even though conf.py reads a selection. It is what spl-core passes for the
+    shape it builds, and the key `ubc check -c` overrides as well.
     """
     return ["-D", f"needs_variant_data_file={PROJECT_ROOT / 'build' / 'variants' / variant / kit / f'{target}.json'}"]
 
@@ -290,59 +339,85 @@ def test_ubc_finds_no_configuration_problem(all_variant_data: None) -> None:
     assert not problems, "; ".join(f"{d['code']}: {d['message']}" for d in problems)
 
 
+def _glob_matches(pattern: str, document: str) -> bool:
+    """A path glob, where `*` does not cross `/` (Sphinx's and ubCode's rule)."""
+    regex = re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*")
+    return re.fullmatch(regex, document) is not None
+
+
 @needs_ubc
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_ubc_excludes_exactly_what_sphinx_excludes(all_variant_data: None, variant: str) -> None:
     """The property the whole design exists to provide, proven across readers.
 
-    ubCode never runs conf.py. If it removes exactly the component documents
-    that the variant's component list omits -- the same set the Sphinx build
-    omits, asserted above -- then both readers are deciding from the same data
-    and agreeing. That is the claim; this is the test of it.
+    ubCode never runs conf.py. The component list is what gates the documents,
+    and doc/components/index.md globs its toctree. ubCode 0.35 reports a glob
+    that matched ONLY documents the variant excludes, with one example rather
+    than its members -- so the exact property is checked per glob: a glob is
+    reported exactly when every component it matches is missing from the
+    variant, and the example it names belongs to one of them.
     """
     diagnostics = _ubc_check(variant, "test", "docs")
 
-    excluded_by_ubc = set()
+    reported_globs: set[str] = set()
     for diagnostic in diagnostics:
         if diagnostic["code"] != "toctree.variant_excluded":
             continue
-        match = re.search(r"toctree entry '([^']+)'", diagnostic["message"])
-        assert match, diagnostic["message"]
-        excluded_by_ubc.add(match.group(1))
+        message = diagnostic["message"]
+        glob = re.search(r"glob pattern '([^']+)'", message)
+        if glob:
+            reported_globs.add(glob.group(1))
+            example = re.search(r"example '([^']+)'", message)
+            assert example, message
+            component = example.group(1).split("/doc/", 1)[0]
+            assert component in COMPONENT_DOCS, message
+            continue
+        entry = re.search(r"toctree entry '([^']+)'", message)
+        assert entry, message
+        component = entry.group(1).split("/doc/", 1)[0]
+        assert component in COMPONENT_DOCS, message
 
     components = set(variant_data.components(PROJECT_ROOT, variant, "test"))
-    expected = {
-        f"{component}/doc/index" for component in COMPONENT_DOCS if component not in components
+    covered = {
+        component
+        for glob in COMPONENT_TOCTREE_GLOBS
+        for component in COMPONENT_DOCS
+        if _glob_matches(glob, f"{component}/doc/index")
     }
-
-    assert excluded_by_ubc == expected, (
-        f"{variant}: ubCode and the component list disagree.\n"
-        f"  ubCode excluded : {sorted(excluded_by_ubc)}\n"
-        f"  expected        : {sorted(expected)}"
+    assert covered == set(COMPONENT_DOCS), (
+        "the toctree globs must name every documented component, or the parity "
+        f"check silently skips {sorted(set(COMPONENT_DOCS) - covered)}"
     )
+
+    for glob in COMPONENT_TOCTREE_GLOBS:
+        matched = {component for component in COMPONENT_DOCS if _glob_matches(glob, f"{component}/doc/index")}
+        assert matched, f"the toctree glob {glob!r} matched no known component"
+        all_excluded = all(component not in components for component in matched)
+        assert (glob in reported_globs) == all_excluded, (
+            f"{variant}: ubCode {'reported' if glob in reported_globs else 'did not report'} "
+            f"{glob!r}, but it matches " + ", ".join(sorted(matched))
+        )
+
+
+def test_the_component_toctree_globs_are_the_ones_checked() -> None:
+    """The globs the parity test evaluates are the ones the page actually has."""
+    page = (PROJECT_ROOT / "doc" / "components" / "index.md").read_text(encoding="utf-8")
+    for glob in COMPONENT_TOCTREE_GLOBS:
+        assert f"/{glob}" in page, f"doc/components/index.md no longer toctrees {glob}"
 
 
 # --- the build shape must select its own cell -------------------------------
 
 
-def _build_with_spl_core_env(shape: str, out_dir: Path, tmp_path: Path, config: dict | None = None) -> subprocess.CompletedProcess:
-    """Build the way spl-core starts Sphinx, environment and options.
+def _build_with_cell(shape: str, out_dir: Path) -> subprocess.CompletedProcess:
+    """Build the way spl-core starts Sphinx: one cell per build shape.
 
-    spl-core names the per-target config.json in SPHINX_BUILD_CONFIGURATION_FILE
-    and selects the variant data cell for the shape with
-    `-D needs_variant_data_file=`, which CMakeLists.txt configures through
-    SPL_VARIANT_DATA_FILE_DOCS and _REPORTS. The cell is what the
-    `{if} var.build_config.target` fences evaluate against.
+    conf.py reads the `-D needs_variant_data_file` override ahead of any
+    selection, and the cell is what the `{if} var.build_config.target` fences
+    evaluate against.
     """
-    config_dir = tmp_path / "cfg" / shape
-    config_dir.mkdir(parents=True, exist_ok=True)
-    (config_dir / "config.json").write_text(json.dumps(config or {}), encoding="utf-8")
-
-    env = {
-        **os.environ,
-        "SPHINX_BUILD_CONFIGURATION_FILE": str(config_dir / "config.json"),
-        "VARIANT": "Disco",
-    }
+    env = {**os.environ, "VARIANT": "Disco"}
+    env.pop("SPHINX_BUILD_CONFIGURATION_FILE", None)
     return subprocess.run(
         [sys.executable, "-m", "sphinx", "-b", "html", *_select_cell("Disco", "test", shape), str(PROJECT_ROOT), str(out_dir)],
         cwd=PROJECT_ROOT,
@@ -359,21 +434,22 @@ def _cmake_set(cmake: str, variable: str) -> str:
     return match.group(1).strip()
 
 
-def test_cmake_passes_spl_core_the_cell_for_each_shape() -> None:
-    """The helper mirrors a contract that lives in CMakeLists.txt.
+def test_cmake_points_each_documentation_run_at_its_selection() -> None:
+    """spl-core hands every run its own build's selection file.
 
-    If the helper and the CMake configuration disagree, the tests would prove
-    the behaviour of an environment spl-core never builds in. This reads the
+    `-D spl_selection=<build>/selection/<shape>.toml` is what makes a run read
+    the cell of its shape (and, for a component, its own component's cell)
+    without depending on which build was configured last. This reads the
     `set(...)` calls rather than searching for the variable name, so a stray
     mention in a comment cannot satisfy it.
     """
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    expected = {
-        "SPL_VARIANT_DATA_FILE_DOCS": "${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/docs.json",
-        "SPL_VARIANT_DATA_FILE_REPORTS": "${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/reports.json",
-    }
-    for variable, value in expected.items():
-        assert _cmake_set(cmake, variable) == value, f"CMakeLists.txt must pass {variable}={value}"
+    assert _cmake_set(cmake, "SPL_SPHINX_OPTIONS") == (
+        "-D spl_selection=${CMAKE_BINARY_DIR}/selection/@SHAPE@.toml"
+    )
+    assert _cmake_set(cmake, "SPL_SPHINX_COMPONENT_OPTIONS") == (
+        "-D spl_selection=${CMAKE_BINARY_DIR}/selection/@COMPONENT_PATH@/@SHAPE@.toml"
+    )
 
 
 def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_path: Path) -> None:
@@ -390,7 +466,7 @@ def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_pa
     """
     for shape, expect_verification in (("reports", True), ("docs", False)):
         out = tmp_path / f"{shape}_html"
-        result = _build_with_spl_core_env(shape, out, tmp_path)
+        result = _build_with_cell(shape, out)
         assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
         page = (out / "components" / "light_controller" / "doc" / "index.html").read_text(encoding="utf-8")
         assert ("Verification" in page) is expect_verification, (
@@ -398,114 +474,101 @@ def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_pa
         )
 
 
-# --- the generated report pages --------------------------------------------
+# --- the generated report pages, through the mount -------------------------
 
 
 #: The three pages spl-core writes per component at CONFIGURE time, and lists
 #: among its include patterns for BOTH build shapes.
 SPL_CORE_REPORT_PAGES = ("unit_test_spec", "unit_test_results", "coverage")
 
-#: A fake build directory the `generated` link is pointed at for the duration of
-#: a test. It is gitignored and pruned from the Sphinx walk, so the only route
-#: to it is `generated` -- which is exactly the route under test.
-FAKE_GENERATED_BUILD = PROJECT_ROOT / "build" / "_test_generated_build"
 
-
-def _link(link: Path, target: Path) -> None:
-    """Create `generated` the way tools/variant_data.py does: a symlink, or a junction where Windows refuses one."""
-    try:
-        link.symlink_to(target, target_is_directory=True)
-    except OSError:
-        variant_data._create_junction(target, link)
-
-
-@contextlib.contextmanager
-def _generated_points_at(fake_build: Path):
-    """Point `generated` at a fake build, then point it back where it was.
-
-    Several tests need `generated` to lead somewhere the real build is not, so
-    they can assert on pages the real build does not contain. The link is
-    restored on the way out whatever happens, because leaving a developer's
-    pointer re-pointed at a removed test directory would break their next build
-    in a way they did not cause. It never calls variant_data.write_pointer:
-    that would overwrite build/autoconf.json, which belongs to the developer.
-    """
-    generated = PROJECT_ROOT / "generated"
-    if generated.is_symlink() or generated.is_junction():
-        # A junction's target can come back in the \\?\ form, which a new
-        # junction cannot be created from.
-        original: tuple[str, str | None] = ("link", os.readlink(generated).removeprefix("\\\\?\\"))
-    elif generated.is_dir():
-        # A plain directory only ever holds the explanation variant_data.py
-        # writes when neither a symlink nor a junction could be created.
-        marker = generated / "NO_SYMLINK"
-        original = ("directory", marker.read_text(encoding="utf-8") if marker.is_file() else None)
-    else:
-        original = ("absent", None)
-
-    variant_data._remove_link(generated)
-    shutil.rmtree(fake_build, ignore_errors=True)
-    fake_build.mkdir(parents=True, exist_ok=True)
-    _link(generated, fake_build)
-
-    try:
-        yield generated
-    finally:
-        variant_data._remove_link(generated)
-        if original[0] == "link":
-            _link(generated, Path(original[1]))
-        elif original[0] == "directory":
-            generated.mkdir(parents=True, exist_ok=True)
-            if original[1] is not None:
-                (generated / "NO_SYMLINK").write_text(original[1], encoding="utf-8")
-        shutil.rmtree(fake_build, ignore_errors=True)
-
-
-def _fake_spl_core_report_tree(component: str) -> str:
-    """Write what spl-core's configure step writes, and the pattern naming it.
+def _fake_spl_core_report_tree(build_dir: Path, component: str) -> None:
+    """Write what spl-core's configure step writes into a build directory.
 
     `component` is a path such as `components/light_controller`, so the pages
-    land where spl-core writes them and the returned include pattern is the
-    `generated/...` name it now passes for both build shapes.
+    land where spl-core writes them. The component's `__source_docs/index` and
+    the variant-wide `reports/coverage` are included because the pages link
+    them, and a report toctree that cannot resolve is the failure these tests
+    are watching for.
     """
-    root = FAKE_GENERATED_BUILD / component / "reports"
-    root.mkdir(parents=True, exist_ok=True)
+    reports = build_dir / component / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
     for page in SPL_CORE_REPORT_PAGES:
-        (root / f"{page}.rst").write_text(
+        (reports / f"{page}.rst").write_text(
             f"{page}\n{'=' * len(page)}\n\nGenerated by spl-core at configure time.\n",
             encoding="utf-8",
         )
-    return f"generated/{component}/reports/**"
+
+    listings = build_dir / component / "__source_docs"
+    listings.mkdir(parents=True, exist_ok=True)
+    (listings / "index.rst").write_text(
+        "Source Files\n============\n\nNo listing in this fixture.\n",
+        encoding="utf-8",
+    )
+
+    variant_reports = build_dir / "reports"
+    variant_reports.mkdir(parents=True, exist_ok=True)
+    (variant_reports / "coverage.rst").write_text(
+        "Coverage\n========\n\nVariant-wide coverage.\n",
+        encoding="utf-8",
+    )
+
+
+def _selection_file(tmp_path: Path, build_dir: Path, shape: str) -> Path:
+    """A selection naming a fake build, as `tools/variant_data.py` would write it."""
+    selection = tmp_path / f"selection-{shape}.toml"
+    selection.write_text(
+        variant_data.selection_toml(
+            variant_data.cell_path(PROJECT_ROOT, "Disco", "test", shape),
+            "Disco",
+            "test",
+            build_dir,
+        ),
+        encoding="utf-8",
+    )
+    return selection
+
+
+def _build_with_selection(selection: Path, out_dir: Path) -> subprocess.CompletedProcess:
+    """Build with `-D spl_selection=<file>`, the way a build's own run does."""
+    env = {**os.environ, "VARIANT": "Disco"}
+    env.pop("SPHINX_BUILD_CONFIGURATION_FILE", None)
+    return subprocess.run(
+        [sys.executable, "-m", "sphinx", "-b", "html", "-D", f"spl_selection={selection}", str(PROJECT_ROOT), str(out_dir)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_the_docs_shape_does_not_read_the_generated_report_pages(all_variant_data: None, tmp_path: Path) -> None:
-    """spl-core lists the report pages for both shapes; the variant rule keeps
-    them out of a docs build.
+    """spl-core writes the report pages for both shapes; a docs build must not read them.
 
     They exist from configure time, and in a docs build the fences that would
     link them are false -- so reading them yields three documents per component
-    that no toctree references. The `if = 'var.build_config.target == "reports"'`
-    rule over `generated/**` in ubproject.toml is what removes them now, declared
-    once where ubCode reads it too, instead of a Sphinx-only filter.
-
-    This needs no compiler: the only thing a CMake build contributes here is the
-    config.json, and that is three lines of JSON.
+    that no toctree references. The mount's condition, which names the build's
+    own target, is what keeps them out now: the selection is the same file a
+    reports build reads, and the condition gates the mount off. Declared once,
+    where ubCode reads it too, instead of a Sphinx-only filter.
     """
-    with _generated_points_at(FAKE_GENERATED_BUILD):
-        pattern = _fake_spl_core_report_tree("components/light_controller")
-        out = tmp_path / "docs_html"
-        result = _build_with_spl_core_env("docs", out, tmp_path, {"target": "docs", "include_patterns": [pattern]})
-        assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
+    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
+    _fake_spl_core_report_tree(build_dir, "components/light_controller")
+    selection = _selection_file(tmp_path, build_dir, "docs")
 
-        # Sphinx writes warnings to stderr, so scanning stdout alone made an
-        # earlier version of this test pass with the fix reverted.
-        log = result.stdout + result.stderr
-        offenders = [line for line in log.splitlines() if "generated/" in line and "WARNING" in line]
-        assert not offenders, "the docs shape read the generated report pages:\n" + "\n".join(offenders)
+    out = tmp_path / "docs_html"
+    result = _build_with_selection(selection, out)
+    assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
 
-        for page in SPL_CORE_REPORT_PAGES:
-            built = out / "generated" / "components" / "light_controller" / "reports" / f"{page}.html"
-            assert not built.is_file(), f"the docs shape built {page}"
+    # Sphinx writes warnings to stderr, so scanning stdout alone made an
+    # earlier version of this test pass with the fix reverted.
+    log = result.stdout + result.stderr
+    offenders = [line for line in log.splitlines() if "generated/" in line and "WARNING" in line]
+    assert not offenders, "the docs shape read the generated report pages:\n" + "\n".join(offenders)
+
+    for page in SPL_CORE_REPORT_PAGES:
+        built = out / "generated" / "components" / "light_controller" / "reports" / f"{page}.html"
+        assert not built.is_file(), f"the docs shape built {page}"
 
 
 def test_the_reports_shape_still_reads_them(all_variant_data: None, tmp_path: Path) -> None:
@@ -514,27 +577,29 @@ def test_the_reports_shape_still_reads_them(all_variant_data: None, tmp_path: Pa
     The fixed `/generated/...` toctree names have to resolve, or Sphinx reports
     a nonexisting document and the page links nothing at all.
     """
-    with _generated_points_at(FAKE_GENERATED_BUILD):
-        pattern = _fake_spl_core_report_tree("components/light_controller")
-        out = tmp_path / "reports_html"
-        result = _build_with_spl_core_env("reports", out, tmp_path, {"target": "reports", "include_patterns": [pattern]})
-        assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
+    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
+    _fake_spl_core_report_tree(build_dir, "components/light_controller")
+    selection = _selection_file(tmp_path, build_dir, "reports")
 
-        log = result.stdout + result.stderr
-        unresolved = [
-            line
-            for line in log.splitlines()
-            if "nonexisting document" in line and "generated/components/light_controller/reports" in line
-        ]
-        assert not unresolved, "the report toctree did not resolve:\n" + "\n".join(unresolved)
+    out = tmp_path / "reports_html"
+    result = _build_with_selection(selection, out)
+    assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
 
-        for page in SPL_CORE_REPORT_PAGES:
-            assert (out / "generated" / "components" / "light_controller" / "reports" / f"{page}.html").is_file()
+    log = result.stdout + result.stderr
+    unresolved = [
+        line
+        for line in log.splitlines()
+        if "nonexisting document" in line and "generated/components/light_controller/reports" in line
+    ]
+    assert not unresolved, "the report toctree did not resolve:\n" + "\n".join(unresolved)
 
-        document = (out / "components" / "light_controller" / "doc" / "index.html").read_text(encoding="utf-8")
-        for page in SPL_CORE_REPORT_PAGES:
-            href = f"generated/components/light_controller/reports/{page}.html"
-            assert href in document, f"the light_controller page does not link {page}"
+    for page in SPL_CORE_REPORT_PAGES:
+        assert (out / "generated" / "components" / "light_controller" / "reports" / f"{page}.html").is_file()
+
+    document = (out / "components" / "light_controller" / "doc" / "index.html").read_text(encoding="utf-8")
+    for page in SPL_CORE_REPORT_PAGES:
+        href = f"generated/components/light_controller/reports/{page}.html"
+        assert href in document, f"the light_controller page does not link {page}"
 
 
 # --- the generated listings must not show their Jinja armour ----------------
@@ -546,8 +611,8 @@ def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None
     The global Jinja pass used to consume those markers. It is gone, so the flag
     is what keeps them out: CMakeLists.txt sets SPL_SOURCE_DOCS_JINJA_RAW_TAGS
     OFF, and spl-core then invokes clanguru without `--jinja-raw-tags`. This
-    generates the fixture the same way and builds it, so it tracks what the
-    build actually emits rather than a hand-written idea of it.
+    generates the fixture the same way and builds it through the mount, so it
+    tracks what the build actually emits rather than a hand-written idea of it.
     """
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     assert _cmake_set(cmake, "SPL_SOURCE_DOCS_JINJA_RAW_TAGS") == "OFF", (
@@ -561,37 +626,37 @@ def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None
     source = tmp_path / "sample.c"
     source.write_text("int add(int a, int b) { return a + b; }\n", encoding="utf-8")
 
-    with _generated_points_at(FAKE_GENERATED_BUILD):
-        component = "components/light_controller"
-        listing_dir = FAKE_GENERATED_BUILD / component / "__source_docs"
-        listing_dir.mkdir(parents=True, exist_ok=True)
-        listing = listing_dir / "sample_c.rst"
-        subprocess.run(
-            [clanguru, "docs", "--source-file", str(source), "--output-file", str(listing), "--format", "rst"],
-            check=True,
-            capture_output=True,
-        )
-        assert "{% raw %}" not in listing.read_text(encoding="utf-8"), (
-            "this is not what spl-core generates with the raw-tag flag off"
-        )
-        (listing_dir / "index.rst").write_text(
-            "Source Files\n============\n\n.. toctree::\n   :maxdepth: 1\n\n   sample_c\n",
-            encoding="utf-8",
-        )
+    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
+    component = "components/light_controller"
+    _fake_spl_core_report_tree(build_dir, component)
+    listing_dir = build_dir / component / "__source_docs"
+    listing = listing_dir / "sample_c.rst"
+    subprocess.run(
+        [clanguru, "docs", "--source-file", str(source), "--output-file", str(listing), "--format", "rst"],
+        check=True,
+        capture_output=True,
+    )
+    assert "{% raw %}" not in listing.read_text(encoding="utf-8"), (
+        "this is not what spl-core generates with the raw-tag flag off"
+    )
+    (listing_dir / "index.rst").write_text(
+        "Source Files\n============\n\n.. toctree::\n   :maxdepth: 1\n\n   sample_c\n",
+        encoding="utf-8",
+    )
 
-        pattern = f"generated/{component}/__source_docs/**"
-        out = tmp_path / "html"
-        result = _build_with_spl_core_env("reports", out, tmp_path, {"target": "reports", "include_patterns": [pattern]})
-        assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
+    selection = _selection_file(tmp_path, build_dir, "reports")
+    out = tmp_path / "html"
+    result = _build_with_selection(selection, out)
+    assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
 
-        page = out / "generated" / component / "__source_docs" / "sample_c.html"
-        assert page.is_file(), "the listing was not built"
-        rendered = page.read_text(encoding="utf-8")
-        for marker in ("{% raw %}", "{% endraw %}"):
-            assert marker not in rendered, f"{marker} reached the reader"
+    page = out / "generated" / component / "__source_docs" / "sample_c.html"
+    assert page.is_file(), "the listing was not built"
+    rendered = page.read_text(encoding="utf-8")
+    for marker in ("{% raw %}", "{% endraw %}"):
+        assert marker not in rendered, f"{marker} reached the reader"
 
-        # Syntax highlighting splits the code across spans, so assert on the
-        # text rather than the markup -- checking the raw HTML for a contiguous
-        # "int add" is how an earlier version of this test fooled itself.
-        text = re.sub(r"<[^>]+>", "", rendered)
-        assert "int" in text and "add" in text, "the listing did not contain the code"
+    # Syntax highlighting splits the code across spans, so assert on the text
+    # rather than the markup -- checking the raw HTML for a contiguous "int add"
+    # is how an earlier version of this test fooled itself.
+    text = re.sub(r"<[^>]+>", "", rendered)
+    assert "int" in text and "add" in text, "the listing did not contain the code"
