@@ -209,6 +209,13 @@ nullable = true
 [needs.fields.level.schema]
 type = "integer"
 
+# clanguru documents declarations from system headers in the test listings, and
+# their tabs trip ubc. Ignored for the generated listings only, until clanguru
+# documents just the declarations of the file itself. The key is spelled with
+# hyphens: ubc silently ignores `per_file_ignores`.
+[lint.per-file-ignores]
+"generated/**/__source_docs/**" = ["source.tab_in_line"]
+
 [codelinks]
 outdir = "output"
 set_remote_url = true
