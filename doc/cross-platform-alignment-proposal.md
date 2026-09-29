@@ -123,7 +123,7 @@ toolchain layer; drop SPLed's `docker-compose` indirection unless multi-service 
 
 Shared skeleton (identical in both repos except the `Dockerfile` toolchain layer and extensions):
 
-```jsonc
+```json
 {
     "name": "<project>",
     "build": { "dockerfile": "Dockerfile" },

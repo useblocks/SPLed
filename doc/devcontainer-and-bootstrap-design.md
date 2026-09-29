@@ -207,7 +207,7 @@ the symptom (poks downloads timing out) points nowhere near `devcontainer.json`.
 `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` for build-time egress (apt/pipx/uv). Rather than baking proxy
 config into a portable image, pass them as build args on demand:
 
-```jsonc
+```json
 // devcontainer.json build.args — only for a cold build behind the proxy:
 "HTTP_PROXY":  "${localEnv:HTTP_PROXY}",
 "HTTPS_PROXY": "${localEnv:HTTPS_PROXY}",
