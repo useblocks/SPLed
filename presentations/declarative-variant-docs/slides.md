@@ -1491,7 +1491,7 @@ stateDiagram-v2
 
 <div class="success">
 
-10 rules and 22 `{if}` fences replace 58 Jinja constructs. The components page becomes a static 150 % toctree.
+10 rules and 25 `{if}` fences in 9 documents replace 58 Jinja constructs. The components page becomes a static 150 % toctree.
 
 </div>
 
