@@ -128,6 +128,7 @@ stateDiagram-v2
 /generated/components/light_controller/reports/unit_test_spec
 /generated/components/light_controller/reports/unit_test_results
 /generated/components/light_controller/reports/coverage
+/generated/components/light_controller/__source_docs/index
 ```
 
 ````

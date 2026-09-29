@@ -10,6 +10,7 @@
 /generated/test/spled_integration/reports/unit_test_spec
 /generated/test/spled_integration/reports/unit_test_results
 /generated/test/spled_integration/reports/coverage
+/generated/test/spled_integration/__source_docs/index
 ```
 
 ````

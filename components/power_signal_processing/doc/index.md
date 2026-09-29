@@ -126,6 +126,7 @@ graph TD
 /generated/components/power_signal_processing/reports/unit_test_spec
 /generated/components/power_signal_processing/reports/unit_test_results
 /generated/components/power_signal_processing/reports/coverage
+/generated/components/power_signal_processing/__source_docs/index
 ```
 
 ````

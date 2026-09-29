@@ -80,6 +80,7 @@ stateDiagram-v2
 /generated/components/power_button/reports/unit_test_spec
 /generated/components/power_button/reports/unit_test_results
 /generated/components/power_button/reports/coverage
+/generated/components/power_button/__source_docs/index
 ```
 
 ````

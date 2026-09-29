@@ -95,3 +95,18 @@ My component sets the data by calling an interface that requires a pointer to be
 Verify that the set interface is called with the expected value through the pointer.
 
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+
+/generated/components/examples/hello_gmock/reports/unit_test_spec
+/generated/components/examples/hello_gmock/reports/unit_test_results
+/generated/components/examples/hello_gmock/reports/coverage
+/generated/components/examples/hello_gmock/__source_docs/index
+```
+
+````

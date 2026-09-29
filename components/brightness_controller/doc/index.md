@@ -80,6 +80,7 @@ The Brightness Controller is use the RTE interface `RteSetBrightnessAdjustmentCo
 /generated/components/brightness_controller/reports/unit_test_spec
 /generated/components/brightness_controller/reports/unit_test_results
 /generated/components/brightness_controller/reports/coverage
+/generated/components/brightness_controller/__source_docs/index
 ```
 
 ````

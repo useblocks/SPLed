@@ -69,6 +69,7 @@ The main control knob component uses the RTE interface `RteSetMainKnobValue()` t
 /generated/components/main_control_knob/reports/unit_test_spec
 /generated/components/main_control_knob/reports/unit_test_results
 /generated/components/main_control_knob/reports/coverage
+/generated/components/main_control_knob/__source_docs/index
 ```
 
 ````

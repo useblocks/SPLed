@@ -98,3 +98,18 @@ flowchart TD
 :project: components
 :directory: examples/flight_controller
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+
+/generated/components/examples/flight_controller/reports/unit_test_spec
+/generated/components/examples/flight_controller/reports/unit_test_results
+/generated/components/examples/flight_controller/reports/coverage
+/generated/components/examples/flight_controller/__source_docs/index
+```
+
+````
