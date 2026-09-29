@@ -174,6 +174,41 @@ nullable = true
 [needs.fields.image.schema]
 type = "string"
 
+[needs.fields.configuration]
+description = "Configuration, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.configuration.schema]
+type = "string"
+
+[needs.fields.origin]
+description = "Origin, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.origin.schema]
+type = "string"
+
+[needs.fields.priority]
+description = "Priority, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.priority.schema]
+type = "string"
+
+[needs.fields.reqif_uuid]
+description = "ReqIF identifier, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.reqif_uuid.schema]
+type = "string"
+
+[needs.fields.level]
+description = "Hierarchy level, from the CSV import"
+nullable = true
+
+[needs.fields.level.schema]
+type = "integer"
+
 [codelinks]
 outdir = "output"
 set_remote_url = true
