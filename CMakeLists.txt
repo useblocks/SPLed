@@ -49,11 +49,12 @@ include("${SPL_CORE_DIR}/spl.cmake")
 # Variant data: one generation step, everything downstream declarative.
 #
 # tools/variant_data.py writes build/variants/<Variant>/<kit>/<target>.json for
-# every variant, plus build/autoconf.json as the "current" pointer and a
-# `generated` symlink to this build directory. It is invoked here so that
-# configuring in the IDE keeps the pointer in step with whatever CMake Tools
-# selected -- the same role cmake.copyCompileCommands plays for the compilation
-# database.
+# the variant (and one per component report), the document rules
+# ubproject.variants.toml, and the selection of this build: build/selection.toml
+# for the IDE and a bare run, and <build>/selection/... for every documentation
+# run spl-core starts here. Configuring a build is selecting it, so configuring in
+# the IDE keeps the selection in step with whatever CMake Tools selected. A test
+# kit build shows its reports, a prod kit build its design documentation.
 #
 # It is deliberately a standalone script and not CMake code. KConfig is pure
 # Python, while the top-level project() call above demands a C toolchain before
@@ -74,11 +75,16 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${_SPLED_VARIANT_DATA_SCRIPT}
     ${CMAKE_SOURCE_DIR}/variants/${VARIANT}/parts.cmake
 )
+if(BUILD_KIT STREQUAL test)
+    set(_spled_selected_target reports)
+else()
+    set(_spled_selected_target docs)
+endif()
 execute_process(
     COMMAND "${_VENV_PYTHON}" ${_SPLED_VARIANT_DATA_SCRIPT}
         --variant ${VARIANT}
         --kit ${BUILD_KIT}
-        --target docs
+        --target ${_spled_selected_target}
         --current
         --build-dir ${CMAKE_BINARY_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -94,21 +100,20 @@ endif()
 # it has to be set before parts.cmake adds the components, which is where
 # spl-core computes the paths it writes for Sphinx.
 #
-# The variant data file for each build shape. spl-core hands it to sphinx-build
-# as `-D needs_variant_data_file=`, so a reports build evaluates its fences
-# against the reports cell. `build/autoconf.json`, the pointer ubCode and a bare
-# sphinx-build read, always holds the docs cell, so the IDE sees the report
-# fences as a clean false.
-set(SPL_VARIANT_DATA_FILE_DOCS ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/docs.json)
-set(SPL_VARIANT_DATA_FILE_REPORTS ${CMAKE_SOURCE_DIR}/build/variants/${VARIANT}/${BUILD_KIT}/reports.json)
+# Every documentation run spl-core starts names its own selection file, which
+# tools/variant_data.py has just written for this build: the variant data file of
+# its shape (and component), and the mount of this build directory. conf.py reads
+# it, and ubc takes the same file with `-c "$(cat <file>)"`. No run depends on
+# which build was configured last, so the reports of two builds can be built side
+# by side.
+set(SPL_SPHINX_OPTIONS -D spl_selection=${CMAKE_BINARY_DIR}/selection/@SHAPE@.toml)
+set(SPL_SPHINX_COMPONENT_OPTIONS -D spl_selection=${CMAKE_BINARY_DIR}/selection/@COMPONENT_PATH@/@SHAPE@.toml)
 
-# Sphinx reaches this build directory through `generated`, the link
-# tools/variant_data.py has just pointed at it. The generated report pages are
-# therefore named `generated/...` whatever the variant, kit or build type, and
-# the report sections name them directly instead of globbing `/build/**`.
-# spl-core writes each coverage report next to its page under that name, and
-# stops a documentation build whose link has since been re-pointed at another
-# build directory.
+# The selection mounts this build directory at `generated`, so every page
+# spl-core generates is named `generated/...` whatever the variant, kit or build
+# type, and the report sections name them directly instead of globbing
+# `/build/**`. spl-core writes each coverage report next to its page under that
+# name. `generated` does not exist on disk: it is a mount, not a link.
 set(SPL_SPHINX_BINARY_DIR ${CMAKE_SOURCE_DIR}/generated)
 
 # No document is rendered through Jinja, so the source listings clanguru

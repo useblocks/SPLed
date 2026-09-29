@@ -1,19 +1,13 @@
 # Software Component Report
 
-**Variant:** {variant}`build_config.variant`
+**Variant:** {variant}`build_config.variant` · **Component:** {variant}`build_config.component`
 
 This is the root document of the per-component report that spl-core builds for
-a single component. The build configuration restricts the source set to that
-one component, so the glob below resolves to exactly its design document, which
-in turn groups that component's verification pages -- and names the component,
-which is why this page does not.
-
-The component name is deliberately not read from `build_config.component_info`.
-That key is written per BUILD, by spl-core, for one component; the variant data
-every other reader has cannot contain it, because the generator does not know
-which component a per-component report is for. A role naming it resolves inside
-that one build and nowhere else, which is the divergence between readers this
-project's configuration exists to prevent.
+a single component. Its variant data has `build_config.scope = "component"`, and
+the rules in ubproject.variants.toml leave that component's documents only, so
+the glob below resolves to exactly its design document, which in turn groups the
+component's verification pages. ubCode builds the same report from the same
+files (build/selection.toml, or the build's `selection/<component>/reports.toml`).
 
 ```{toctree}
 :maxdepth: 2

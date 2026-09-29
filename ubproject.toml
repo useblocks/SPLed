@@ -1,5 +1,12 @@
 "$schema" = "https://ubcode.useblocks.com/ubproject.schema.json"
 
+# The generated half of the configuration: the document rules, one per
+# documented component, and through them the selected build (build/selection.toml).
+# tools/variant_data.py writes both whenever a variant is selected, so nothing in
+# this file has to change when a component is added. ubCode and ubc follow the
+# `extend`; conf.py hands the same files to Sphinx, whose extensions do not.
+extend = "ubproject.variants.toml"
+
 # ---------------------------------------------------------------------------
 # The one configuration file. Both readers of this project's documentation read
 # it: ubCode and ubc directly, and the Sphinx build through `needs_from_toml`
@@ -15,7 +22,8 @@
 #
 # spl-core's base needs configuration is therefore vendored below rather than
 # referenced. test_ubproject_config.py fails if it drifts from what the
-# installed spl-core ships, so vendoring cannot rot quietly.
+# installed spl-core ships, so vendoring cannot rot quietly. The one `extend`
+# left names files this project generates itself, which every reader is handed.
 # ---------------------------------------------------------------------------
 
 [server]
@@ -41,18 +49,16 @@ include = [
 ]
 
 # Every .rst in this project is generated: the clanguru source listings and the
-# report pages spl-core writes into the configured build directory. The build
-# tree itself is excluded below (`build/**`): indexing every variant and kit
-# ever built is the problem that exclusion solves.
+# report pages spl-core writes into the selected build directory, which the
+# selection mounts at `generated` (build/selection.toml). The build tree itself
+# is excluded below (`build/**`): indexing every variant and kit ever built is
+# the problem that exclusion solves.
 #
-# The include names `generated`, the link to the configured build through which
-# the Sphinx build reads those pages (SPL_SPHINX_BINARY_DIR in CMakeLists.txt).
-# For ubCode it is inert, because ubCode does not descend symlinked directories
-# ("directories are skipped and symlinked directories are not descended"), so
-# the IDE shows no generated page. They are output of the reports target, which
-# stays Sphinx-only while its pages use the sphinx-test-reports directive.
+# The patterns are written relative to the mounted directory, because that is
+# what ubCode matches a parser include against inside a mount, not the mounted
+# name. conf.py names the same pages as `generated/...` in `include_patterns`.
 [parse.parsers.rst]
-include = ["generated/**/*.rst"]
+include = ["components/**/*.rst", "test/**/*.rst", "reports/*.rst"]
 
 [source]
 exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".svn", ".venv", ".vscode", "_build", "dist", "node_modules", "site-packages"]
@@ -61,23 +67,14 @@ respect_gitignore = false
 # output. Without the exclude, ubCode indexes every variant and every kit ever
 # built, so need IDs appear many times over and the IDE disagrees with any one
 # build about what the project contains. conf.py prunes `build` from the Sphinx
-# walk for the same reason, and reads the configured build through `generated`.
+# walk for the same reason; the selected build comes in through its mount.
 # `extend_include` is deliberately absent: it is ignored in parser mode, so the
 # generated listings are named by [parse.parsers.rst] instead.
 extend_exclude = [
     "build/**",
-    # The root document of spl-core's PER-COMPONENT report, a build shape
-    # ubCode never performs. conf.py excludes it from every variant-wide
-    # build, so Sphinx never sees it either; without this line ubCode indexed
-    # it and reported it as an orphan -- the two readers disagreeing about the
-    # document set, which is the one thing this configuration exists to
-    # prevent. `[parse.parsers.*]` has no `exclude`, and extend_exclude IS
-    # honoured in parser mode (unlike extend_include), so this is the knob.
-    "doc/component_report.md",
 ]
 
 [needs]
-variant_data_file = "build/autoconf.json"
 
 src_trace_config_from_toml = "ubproject.toml"
 
@@ -257,119 +254,11 @@ default = []
 # ---------------------------------------------------------------------------
 # Variant-dependent documentation.
 #
-# Two mechanisms, one data source. Both read the file named by
-# `[needs] variant_data_file` above, which tools/variant_data.py writes, so
-# ubCode, ubc and the Sphinx build decide every condition identically.
-#
-# `[[source.variant_sources]]` gates whole documents that live IN this tree,
-# including the generated output, which the `generated` link brings into it.
-# `[[source.mounts]]`, for trees outside it, is not needed. Blocks inside a
-# document are gated by the {if} directive of Sphinx-Needs, which reads the
-# same `var.*`.
-#
-# A condition may only name what the variant data file declares. Naming
-# anything else makes it unevaluable, and an unevaluable condition EXCLUDES
-# what it gates -- so a typo silently shrinks the document set rather than
-# failing loudly.
+# Nothing here. Which documents a variant has is decided by the rules in
+# ubproject.variants.toml, which tools/variant_data.py derives from where each
+# component's documentation lives, gated on the variant's component list from
+# parts.cmake. Which build a reader shows is build/selection.toml: the variant
+# data file it evaluates, and the build directory it mounts at `generated`.
+# Blocks inside a document are gated by the {if} directive of Sphinx-Needs,
+# which reads the same `var.*`.
 # ---------------------------------------------------------------------------
-
-# Rules are subtractive: a rule whose condition is FALSE removes the files it
-# names, and a TRUE rule does nothing. Two rules naming the same file therefore
-# compose as AND, which is what gates the generated report pages on both the
-# build shape and the component being part of the variant.
-
-# Generated output belongs to the `reports` build shape only.
-#
-# `generated` is the configured variant's build directory, maintained by
-# tools/variant_data.py. spl-core lists the report pages for the `docs` build
-# as well, and conf.py passes them on for both shapes, so this rule is the one
-# place that keeps them out of a `docs` build. Without it, every report page
-# would be read and then left out of every toctree -- one orphan warning each.
-[[source.variant_sources]]
-if = 'var.build_config.target == "reports"'
-files = ["generated/**"]
-
-# Component documentation, hand-written and generated alike.
-#
-# Gated on membership of the variant's component list, which the generator
-# reads out of that variant's parts.cmake. That is the point: the product
-# structure is stated once, in the file that already states it. Gating on the
-# owning KConfig feature instead would be a second encoding of the same fact,
-# free to drift -- and gating the integration suite on `variant == "Disco"`, as
-# this did before, was exactly that drift made concrete: it claimed the suite
-# for Disco's prod kit too, where parts.cmake does not add it.
-#
-# doc/components/index.md carries the full 150% toctree. An entry naming a
-# document a rule excluded is reported as INFO by both tools, by design.
-
-[[source.variant_sources]]
-if = "'components/light_controller' in var.build_config.components"
-files = [
-    "components/light_controller/doc/**",
-    "generated/components/light_controller/reports/**",
-    "generated/components/light_controller/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'components/main_control_knob' in var.build_config.components"
-files = [
-    "components/main_control_knob/doc/**",
-    "generated/components/main_control_knob/reports/**",
-    "generated/components/main_control_knob/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'components/power_button' in var.build_config.components"
-files = [
-    "components/power_button/doc/**",
-    "generated/components/power_button/reports/**",
-    "generated/components/power_button/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'components/power_signal_processing' in var.build_config.components"
-files = [
-    "components/power_signal_processing/doc/**",
-    "generated/components/power_signal_processing/reports/**",
-    "generated/components/power_signal_processing/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'components/brightness_controller' in var.build_config.components"
-files = [
-    "components/brightness_controller/doc/**",
-    "generated/components/brightness_controller/reports/**",
-    "generated/components/brightness_controller/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'components/auto_off' in var.build_config.components"
-files = [
-    "components/auto_off/doc/**",
-    "generated/components/auto_off/reports/**",
-    "generated/components/auto_off/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'test/spled_integration' in var.build_config.components"
-files = [
-    "test/spled_integration/doc/**",
-    "generated/test/spled_integration/reports/**",
-    "generated/test/spled_integration/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'components/examples/hello_gmock' in var.build_config.components"
-files = [
-    "components/examples/hello_gmock/doc/**",
-    "generated/components/examples/hello_gmock/reports/**",
-    "generated/components/examples/hello_gmock/__source_docs/**",
-]
-
-[[source.variant_sources]]
-if = "'components/examples/flight_controller' in var.build_config.components"
-files = [
-    "components/examples/flight_controller/doc/**",
-    "generated/components/examples/flight_controller/reports/**",
-    "generated/components/examples/flight_controller/__source_docs/**",
-]

@@ -20,7 +20,8 @@
     // the edit is the only guard rail that also applies to an assistant.
     "files.readonlyInclude": {
         "build/**": true,
-        "generated/**": true
+        "generated/**": true,
+        "ubproject.variants.toml": true
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${variant:variant}/${buildKit}/${buildType}",
     "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",
