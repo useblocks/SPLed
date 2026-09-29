@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # SPLed DevContainer, DevPod & Bare-Linux Bootstrap — Design
 
 **Status:** implemented and validated (see § Validation).

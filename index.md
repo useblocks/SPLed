@@ -10,6 +10,7 @@ doc/customer_requirements/index
 doc/software_architecture/index
 doc/sw_requirements/index
 doc/components/index
+doc/results/index
 ```
 
 ````{if} var.build_config.target == "reports"

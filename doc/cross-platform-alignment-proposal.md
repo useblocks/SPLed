@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Cross-Platform Alignment Proposal: `hammocking` & `SPLed`
 
 **Goal:** Develop and build both projects consistently under **Windows**, **Linux**, and inside a
