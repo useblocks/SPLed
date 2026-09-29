@@ -473,7 +473,7 @@ section:
 ````text
 ```{src-trace}
 :project: components
-:directory: brightness_controller/src
+:directory: brightness_controller
 ```
 ````
 
