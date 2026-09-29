@@ -115,6 +115,13 @@ outgoing = "verifies"
 incoming = "is tested by"
 outgoing = "tests"
 
+# The CSV requirements carry their image in their content (doc/sw_requirements).
+# ubc refuses an asset in imported content unless its source is listed here;
+# Sphinx needs no such permission and ignores the key.
+[[needs.import_sources]]
+json_path = "doc/ubconnect/csv/needs.json"
+allow_assets = true
+
 [needs.fields.integrity]
 # spl-core declares this through the deprecated `extra_options` list. That form
 # implies an empty-string default, which is what every existing need carries, so
