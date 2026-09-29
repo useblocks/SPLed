@@ -145,3 +145,34 @@ endif()
 
 # Include variant specific parts/components definitions
 include(${PROJECT_SOURCE_DIR}/variants/${VARIANT}/parts.cmake)
+
+# codelinks reads the selected build's compile database from a fixed path,
+# build/compile_commands.json, to take each variant's #ifdef branches.
+# tools/compile_commands.py copies it there without `-save-temps`, which libclang
+# rejects, and only for the selected build. CMake writes the database at the end
+# of configuring, so this runs with every build; after a configure alone, build
+# just this target.
+add_custom_target(spled_codelinks_compile_commands ALL
+    COMMAND "${_VENV_PYTHON}" ${CMAKE_SOURCE_DIR}/tools/compile_commands.py --build-dir ${CMAKE_BINARY_DIR}
+    COMMENT "Handing codelinks the compile database of this build"
+    VERBATIM
+)
+
+# Every documentation run reads the database, so it waits for the copy. spl-core
+# creates those targets at the end of configuring, in a deferred call of its own,
+# so this one is deferred as well and runs after it.
+function(_spled_documentation_runs_need_the_database)
+    foreach(_target IN ITEMS docs reports)
+        if(TARGET ${_target})
+            add_dependencies(${_target} spled_codelinks_compile_commands)
+        endif()
+    endforeach()
+    foreach(_component IN LISTS COMPONENT_NAMES)
+        foreach(_suffix IN ITEMS _docs _report)
+            if(TARGET ${_component}${_suffix})
+                add_dependencies(${_component}${_suffix} spled_codelinks_compile_commands)
+            endif()
+        endforeach()
+    endforeach()
+endfunction()
+cmake_language(DEFER CALL _spled_documentation_runs_need_the_database)
