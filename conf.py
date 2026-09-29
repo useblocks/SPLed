@@ -191,6 +191,31 @@ def _load_selection(app, config):
     config.mounts = selection.get("source", {}).get("mounts", [])
 
 
+# configuration checks ######################################################
+#
+# The checks test_ubproject_config.py runs, run again whenever Sphinx reads this
+# configuration (tools/config_checks.py): the vendored needs model against
+# spl-core's, the two readers' document sets against each other, and the
+# generated rules against the shared grammar. A finding is a warning, so a drift
+# fails the build under -W instead of waiting for someone to run the tests.
+
+
+def _check_configuration(app, config):
+    import sys
+
+    from sphinx.util import logging as sphinx_logging
+
+    tools = str(Path(app.confdir) / "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    import config_checks
+
+    logger = sphinx_logging.getLogger(__name__)
+    for finding in config_checks.run_all(Path(app.confdir), list(config.include_patterns)):
+        logger.warning(f"configuration check: {finding}", type="spled", subtype="config")
+
+
 def setup(app):
     app.add_config_value("spl_selection", "build/selection.toml", "env", types=(str,))
     app.connect("config-inited", _load_selection, priority=5)
+    app.connect("config-inited", _check_configuration, priority=900)
