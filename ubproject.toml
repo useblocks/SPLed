@@ -167,13 +167,6 @@ style = "node"
 
 # --- end vendored -----------------------------------------------------------
 
-[needs.fields.image]
-description = "Image associated with the need"
-nullable = true
-
-[needs.fields.image.schema]
-type = "string"
-
 [needs.fields.configuration]
 description = "Configuration, from the ubConnect ReqIF export"
 nullable = true
