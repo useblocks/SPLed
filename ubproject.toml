@@ -164,6 +164,130 @@ style = "node"
 
 # --- end vendored -----------------------------------------------------------
 
+# Test results. spl-core converts each component's JUnit XML into needs.json
+# after the test run (SPL_TEST_RESULTS_AS_NEEDS in CMakeLists.txt), with the
+# types, IDs and fields sphinx-test-reports' test-report directive used to
+# create, so both readers import them. Declared here because no extension
+# registers them any more.
+[[needs.types]]
+directive = "testfile"
+title = "Test-File"
+prefix = "TF_"
+color = "#ffffff"
+style = "node"
+
+[[needs.types]]
+directive = "testsuite"
+title = "Test-Suite"
+prefix = "TS_"
+color = "#cccccc"
+style = "folder"
+
+[[needs.types]]
+directive = "testcase"
+title = "Test-Case"
+prefix = "TC_"
+color = "#999999"
+style = "rectangle"
+
+[needs.fields.suites]
+description = "Test result: suites"
+nullable = true
+
+[needs.fields.suites.schema]
+type = "integer"
+
+[needs.fields.cases]
+description = "Test result: cases"
+nullable = true
+
+[needs.fields.cases.schema]
+type = "integer"
+
+[needs.fields.passed]
+description = "Test result: passed"
+nullable = true
+
+[needs.fields.passed.schema]
+type = "integer"
+
+[needs.fields.skipped]
+description = "Test result: skipped"
+nullable = true
+
+[needs.fields.skipped.schema]
+type = "integer"
+
+[needs.fields.failed]
+description = "Test result: failed"
+nullable = true
+
+[needs.fields.failed.schema]
+type = "integer"
+
+[needs.fields.errors]
+description = "Test result: errors"
+nullable = true
+
+[needs.fields.errors.schema]
+type = "integer"
+
+[needs.fields.file]
+description = "Test result: file"
+nullable = true
+
+[needs.fields.file.schema]
+type = "string"
+
+[needs.fields.suite]
+description = "Test result: suite"
+nullable = true
+
+[needs.fields.suite.schema]
+type = "string"
+
+[needs.fields.case]
+description = "Test result: case"
+nullable = true
+
+[needs.fields.case.schema]
+type = "string"
+
+[needs.fields.case_name]
+description = "Test result: case_name"
+nullable = true
+
+[needs.fields.case_name.schema]
+type = "string"
+
+[needs.fields.case_parameter]
+description = "Test result: case_parameter"
+nullable = true
+
+[needs.fields.case_parameter.schema]
+type = "string"
+
+[needs.fields.classname]
+description = "Test result: classname"
+nullable = true
+
+[needs.fields.classname.schema]
+type = "string"
+
+[needs.fields.result]
+description = "Test result: result"
+nullable = true
+
+[needs.fields.result.schema]
+type = "string"
+
+[needs.fields.time]
+description = "Test result: time"
+nullable = true
+
+[needs.fields.time.schema]
+type = "string"
+
 [needs.fields.configuration]
 description = "Configuration, from the ubConnect ReqIF export"
 nullable = true

@@ -120,6 +120,11 @@ set(SPL_SPHINX_BINARY_DIR ${CMAKE_SOURCE_DIR}/generated)
 # generates need no `{% raw %}` armour.
 set(SPL_SOURCE_DOCS_JINJA_RAW_TAGS OFF)
 
+# Test results as needs.json that every reader imports, instead of
+# sphinx-test-reports' test-report directive, which only Sphinx knows. The
+# results page also carries the `results` links of the test specifications.
+set(SPL_TEST_RESULTS_AS_NEEDS ON)
+
 # The object_deps_report extension is currently Windows-only: its index.cmake
 # hardcodes the runner as "object_deps_report.exe", which does not exist on
 # Linux/macOS (the console script is "object_deps_report"). Guard the include to

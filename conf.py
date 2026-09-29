@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Configuration"""
 import datetime
+import logging
 import os
 import tomllib
 from pathlib import Path
@@ -80,15 +81,21 @@ html_title = f"{project} {_html_title_variant} {release}".strip() if _html_title
 
 html_logo = "doc/_figures/SPLED_logo.png"
 
-# Get default SPL extensions and their configurations
-extensions = [*SplSphinx.default_extensions, "sphinx_codelinks", "sphinx_mounts"]
+# Get default SPL extensions and their configurations. The test results are
+# needs.json that spl-core writes after each test run and both readers import
+# (SPL_TEST_RESULTS_AS_NEEDS in CMakeLists.txt), so sphinx-test-reports' directive,
+# which only Sphinx knows, is not loaded.
+extensions = [
+    *(extension for extension in SplSphinx.default_extensions if extension != "sphinxcontrib.test_reports"),
+    "sphinx_codelinks",
+    "sphinx_mounts",
+]
 extension_configs = SplSphinx.default_extension_configs
 
 # sphinx-codelinks: extract one-line need definitions from source code comments
 src_trace_config_from_toml = "ubproject.toml"
 
 # Apply extension-specific configurations
-tr_report_template = extension_configs["tr_report_template"]
 myst_enable_extensions = extension_configs["myst_enable_extensions"]
 source_suffix = extension_configs["source_suffix"]
 
@@ -105,11 +112,31 @@ needs_from_toml = "ubproject.toml"
 # the same file through `extend`.
 sources_from_toml = "ubproject.variants.toml"
 
-# Registers project Python that the configuration references by name. This is
-# the last thing in the needs model that ubCode cannot see, because it cannot
-# run project functions; it goes away with sple_tr_link.
-needs_functions = SplSphinx.default_needs_functions
-needs_global_options = SplSphinx.default_needs_global_options
+# The `results` links of the test specifications are data, written by spl-core's
+# converter as needextend blocks on each results page, so no needs function and
+# no computed default is registered: every need and every link is something
+# ubCode reads as well.
+
+# One warning is dropped, and only that one. ubproject.toml has to declare the
+# test results' `file` field, because ubc drops an undeclared field of an
+# imported need without a word. sphinx-codelinks registers a field of the same
+# name, and sphinx-needs compares field names only, so it warns
+# "Duplicate need field 'file'" although both declarations agree. Sphinx can only
+# suppress a whole warning type (`needs.config`), which would hide every other
+# problem in the needs configuration; this filter matches the one message.
+# Remove it once sphinx-needs accepts a matching declaration.
+class _DropTheDuplicateFileFieldWarning(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if getattr(record, "type", "") != "needs" or getattr(record, "subtype", "") != "config":
+            return True
+        try:
+            return "Duplicate need field 'file'" not in record.getMessage()
+        except Exception:
+            return True
+
+
+for _handler in logging.getLogger("sphinx").handlers:
+    _handler.filters.insert(0, _DropTheDuplicateFileFieldWarning())
 
 # variant selection #########################################################
 #
