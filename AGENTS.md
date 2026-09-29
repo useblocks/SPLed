@@ -189,9 +189,9 @@ that `tools/variant_data.py` writes, exposed as `var.*`. The governing rule:
 > **Everything a condition may name has to be IN the variant data file.**
 
 A key that only `conf.py` knows is invisible to ubCode, `ubc` and a reviewer's
-editor, so their view of the project silently disagrees with the build —
-silently, because a condition a tool cannot evaluate gates content **off**
-rather than failing. That is why `conf.py` does not touch the file at all:
+editor, so their view of the project disagrees with the build. A condition a
+tool cannot evaluate gates its content **off**: the reader warns and carries on
+without it. That is why `conf.py` does not touch the file at all:
 sphinx-needs reads it, and which cell a build reads is a command-line override
 (`-D needs_variant_data_file=...`), exactly as for `ubc`.
 
@@ -249,8 +249,8 @@ project shows lives in the tree or under `generated/`.
 The `{if}` directive takes a real Python expression, so a bare
 `var.features.BLINKING` is enough. A `variant_sources` condition uses a
 restricted grammar that needs `== True`. And a condition that cannot be
-evaluated **excludes** what it gates, so a typo silently shrinks the document
-set rather than failing loudly — which is what `test_ubproject_config.py` is
+evaluated **excludes** what it gates: Sphinx warns (sphinx-needs for an `{if}`
+block, sphinx-mounts for a rule) and builds on without that content — which is what `test_ubproject_config.py` is
 for.
 
 ### Checking with the other reader
