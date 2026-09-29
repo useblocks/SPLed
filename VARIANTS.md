@@ -27,7 +27,8 @@ document is a template, and nothing in `conf.py` or CMake decides what a page co
 | include a document only when its component is in the variant | [12](#12-include-a-document-only-when-its-component-is-in-the-variant) |
 | put one document in different places per variant | [13](#13-place-one-document-differently-per-variant) |
 | add a component, a feature or a variant | [14](#14-add-a-component), [15](#15-add-or-change-a-feature), [16](#16-add-a-variant) |
-| check my work, or find out why something is missing | [17](#17-run-the-checks), [18](#18-when-something-looks-wrong) |
+| link code to the design, per variant | [17](#17-trace-code-to-the-design-per-variant) |
+| check my work, or find out why something is missing | [18](#18-run-the-checks), [19](#19-when-something-looks-wrong) |
 
 New to SPLed? Go through use cases 1 to 8 once, in order.
 
@@ -341,7 +342,7 @@ A `reports` build adds test results and coverage. Gate the section on the target
 `````
 
 The component pages end with a block like this one. The `generated/…` names are the same in every
-variant ([18](#18-when-something-looks-wrong) explains the `generated` link).
+variant ([19](#19-when-something-looks-wrong) explains the `generated` link).
 
 ### 12. Include a document only when its component is in the variant
 
@@ -406,7 +407,9 @@ without a warning.
 ### 14. Add a component
 
 1. Add `spl_add_component(components/<name>)` to the `parts.cmake` of every variant that has it.
-2. Write its documentation in `components/<name>/doc/index.md`.
+2. Write its documentation in `components/<name>/doc/index.md`. If its sources implement design
+   needs, give that page a `## Traceability` section with a `src-trace` block
+   ([17](#17-trace-code-to-the-design-per-variant)).
 3. Add one rule to `ubproject.toml`, next to the others: copy the `auto_off` rule from
    [12](#12-include-a-document-only-when-its-component-is-in-the-variant) and change its paths.
 4. Add one line to the toctree in `doc/components/index.md`: `/components/<name>/doc/index`.
@@ -454,9 +457,45 @@ CMake sees the same symbol as `NIGHT_MODE="True"` for conditional components; se
 No rule and no document has to change. The rules gate on components, so the new variant gets its
 documents from its `parts.cmake`.
 
+### 17. Trace code to the design, per variant
+
+An implementation need lives in the source file, as a one-line comment right above the code it
+describes:
+
+```c
+// @need Periodic Brightness Adjustment, SWIMPL_BC-001c, impl, [SWDD_BC-100, SWDD_BC-102], [REQ_46, REQ_48]
+```
+
+The fields are the title, the ID, the type, the design needs it implements and the requirements it
+fulfills. Each component's page shows its needs with one `src-trace` block, in a `## Traceability`
+section:
+
+````text
+```{src-trace}
+:project: components
+:directory: brightness_controller/src
+```
+````
+
+Both readers read the same comments, so the needs are part of the `docs` build, and ubCode shows
+them without building anything. Each need links to its line on GitHub. Test specifications stay in
+`@rst` blocks in the test sources.
+
+**The preprocessor decides per variant.** A need inside an `#ifdef` branch exists only in the
+variants that compile that branch. A link that holds only in some variants therefore belongs to a
+need inside that branch. `SWDD_BC-203` exists only with automatic brightness adjustment, so the
+runnable's automatic branch carries `SWIMPL_BC-004c` for it, and the runnable's own need
+`SWIMPL_BC-003c` does not link it.
+
+codelinks takes the branches from `build/compile_commands.json`, which VS Code writes when it
+configures a CMake build (`cmake.copyCompileCommands`). Without that file, codelinks treats every
+`#ifdef` as false, and Sphinx warns. A `test` kit database does not help yet: libclang rejects its
+`-save-temps` option, so codelinks skips the file and its needs disappear. Configure a `prod` kit
+build for the editor until codelinks drops that option.
+
 ## Check
 
-### 17. Run the checks
+### 18. Run the checks
 
 ```bash
 python -m pytest -m docs                                                   # the documentation gate
@@ -473,7 +512,7 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
 - No compiler is needed. The tests regenerate `build/variants/`, and restore the `generated` link
   when they have pointed it elsewhere.
 
-### 18. When something looks wrong
+### 19. When something looks wrong
 
 | What you see | What to do |
 | --- | --- |
@@ -482,6 +521,8 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
 | A change to a file under `build/` is gone | `build/` is generated and rewritten on every run. Change `KConfig`, a `config.txt` or a `parts.cmake` instead, or try the change on a copy ([7](#7-try-a-change-without-touching-the-product)). |
 | `python tools/variant_data.py --all --check` fails | The variant data is older than its sources. Run `python tools/variant_data.py --all`. |
 | A documentation build stops with `SPL_SPHINX_BINARY_DIR … leads to …, but this build writes to …` | `generated` is a link (a junction on Windows) to the build directory configured last. It gives every generated page the same name in every variant. Since another build was configured, it leads elsewhere: configure this build again, then build its documentation. |
+| A link from a need in the code is dead in one variant | The need sits outside the `#ifdef` that decides the link. Give the link to a need inside the branch that implements it ([17](#17-trace-code-to-the-design-per-variant)). |
+| Sphinx warns `compile_commands … is not a readable file` | codelinks has no compile database and treats every `#ifdef` as false. Configure the variant's `prod` kit in VS Code, which writes `build/compile_commands.json` ([17](#17-trace-code-to-the-design-per-variant)). |
 | ubCode shows no test results or coverage | That is expected. Those pages exist only after a CMake build of the `reports` target, and ubCode does not follow the `generated` link. |
 
 ## Rules of thumb
@@ -492,6 +533,8 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
   gate on the variant name.
 - No Jinja in documents, no conditions in toctree entries, and no variant selection in `conf.py`.
   Select a variant with `-D` for Sphinx and `-c` for ubc.
+- A link that holds only in some variants belongs to a need inside the `#ifdef` branch that
+  implements it.
 - Do not edit `build/` or `generated/`.
 - After changing a variant's sources, regenerate and run `python -m pytest -m docs`.
 
