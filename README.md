@@ -92,6 +92,8 @@ For the full testing strategy, marker definitions, and the gate assignment matri
 ## Variants and their documentation
 
 What a variant contains, and what its documentation shows, is decided by data, not by templates.
+Selecting a variant generates everything the readers need, so nothing is maintained per component:
+adding one is adding it to a variant's `parts.cmake` and writing its documentation.
 [VARIANTS.md](VARIANTS.md) walks through it by use case: switching the variant ubCode shows,
 previewing any variant, comparing two variants, trying a change without touching the product, and
 writing documentation that depends on the variant.

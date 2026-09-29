@@ -66,7 +66,8 @@ mode.
 `pyproject.toml` currently pins a **commit of the useblocks fork** of spl-core
 (branch `feat/configurable-docs-pipeline`, based on spl-core 8.9.0). It carries
 the documentation changes this project relies on: `SPL_SOURCE_DOCS_JINJA_RAW_TAGS`,
-`SPL_VARIANT_DATA_FILE_DOCS` / `_REPORTS`, `SPL_SPHINX_BINARY_DIR` and
+`SPL_SPHINX_BINARY_DIR`, `SPL_SPHINX_OPTIONS` / `SPL_SPHINX_COMPONENT_OPTIONS`,
+`SPL_TEST_RESULTS_AS_NEEDS` with its JUnit converter, and
 `KConfig.declared_boolean_symbols()`. Pinning a commit keeps every build on the
 same code. Switch back to a PyPI release once upstream spl-core has released
 them.
@@ -124,7 +125,7 @@ CI runs on **GitHub Actions** (`.github/workflows/ci.yml`) for every push/PR to 
 Jobs:
 
 - `determine-gate` — computes the `gate_*` quality-gate marker once (by event/branch) and shares it with all four jobs via `needs`.
-- `documentation` (`ubuntu-24.04`) — the compiler-free gate: a Python and the locked dependencies, then `pytest -m "docs and <gate>"`. It generates the variant data for **every** variant and builds each one's documents, where the build jobs only cover the variants they build. No poks, no scoop, no cross-compiler, so it is also the fastest signal in the workflow.
+- `documentation` (`ubuntu-24.04`) — the documentation gate: a Python and the locked dependencies, then `pytest -m "docs and <gate>"`. It configures **every** variant and kit (the runner's gcc, g++, cmake and ninja; no poks, no scoop, no compiling), so codelinks takes each variant's `#ifdef` branches, and builds each one's documents in both readers in strict mode, comparing their needs. It is also the fastest signal in the workflow.
 - `test-on-windows` (`windows-2025`) — `build.ps1 -install` then `-selftests -marker <gate>`.
 - `test-on-linux` (`ubuntu-24.04`) — bare-runner path: `bootstrap_ubuntu.sh` + `bootstrap_python.sh`, then `build.sh --install` and `--selftests --marker <gate>`.
 - `test-devcontainer` (`ubuntu-24.04`) — builds `.devcontainer/` via `devcontainers/ci` (which runs `onCreateCommand`, i.e. `build.sh --install`) and runs `build.sh --selftests --marker <gate>` inside the container.
@@ -183,41 +184,59 @@ clanguru wrap their code in Jinja `{% raw %}` markers for projects that do
 render through Jinja; `CMakeLists.txt` turns that off
 (`SPL_SOURCE_DOCS_JINJA_RAW_TAGS`), so no `source-read` handler exists at all.
 
-Everything variant-dependent is decided from **one file**: the variant data
-that `tools/variant_data.py` writes, exposed as `var.*`. The governing rule:
+### What decides what a reader shows
+
+A selection step runs before any reader: CMake configure, or
+`tools/variant_data.py` on its own. It writes every file that decides what
+ubCode, `ubc` and the Sphinx build show, and each reader takes them from there.
+Nothing is decided on the command line or in `conf.py`, and nothing per
+component is maintained by hand.
+
+| File | Holds | Read by |
+| --- | --- | --- |
+| `build/variants/<V>/<kit>/<target>.json` | the variant data, `var.*`; one cell per variant, kit and build shape | both, through the selection |
+| `build/variants/<V>/<kit>/<component>/<target>.json` | the same, for one component's report (`scope = "component"`) | both, through that report's selection |
+| `ubproject.variants.toml` (project root, git-ignored) | one document rule per documented component, derived from where its documentation lives | ubCode through `extend` in ubproject.toml; sphinx-mounts through `sources_from_toml` |
+| `build/selection.toml` | the selected build: its cell's variant data file and the mount of its build directory at `generated` | ubCode through the rules file's `extend`; Sphinx through conf.py |
+| `<build>/selection/[<component>/]<shape>.toml` | the same, for each documentation run spl-core starts in that build | Sphinx with `-D spl_selection=<file>`, ubc with `-c "$(cat <file>)"` |
+
+The governing rule is unchanged:
 
 > **Everything a condition may name has to be IN the variant data file.**
 
 A key that only `conf.py` knows is invisible to ubCode, `ubc` and a reviewer's
 editor, so their view of the project disagrees with the build. A condition a
 tool cannot evaluate gates its content **off**: the reader warns and carries on
-without it. That is why `conf.py` does not touch the file at all:
-sphinx-needs reads it, and which cell a build reads is a command-line override
-(`-D needs_variant_data_file=...`), exactly as for `ubc`.
+without it. That is why `conf.py` computes nothing: it hands the selection's
+keys to the two Sphinx extensions that cannot follow `extend`, and that is all.
 
-### The three mechanisms
+### The mechanisms
 
-**Whole documents: `[[source.variant_sources]]` in `ubproject.toml`.** One rule
-per component, gated on membership of the variant's component list:
+**Whole documents: the generated rules.** `tools/variant_data.py` writes one rule
+per component that has a `doc/index` page, gated on membership of the variant's
+component list:
 
 ```toml
 [[source.variant_sources]]
-if = "'components/auto_off' in var.build_config.components"
+if = "'components/auto_off' in var.build_config.components and (var.build_config.scope == 'variant' or var.build_config.component == 'components/auto_off')"
 files = [
     "components/auto_off/doc/**",
-    "generated/components/auto_off/reports/**",
-    "generated/components/auto_off/__source_docs/**",
+    "generated/components/auto_off/**",
 ]
 ```
 
 Membership, never identity. The component list comes from that variant's
 `parts.cmake`, so the product structure is stated once, in the file that already
-states it. **Never gate on the variant name** — that is a second encoding of the
-same fact, free to drift.
+states it. **Never gate a document on the variant name** — that is a second
+encoding of the same fact, free to drift. Rules are *subtractive*: a FALSE rule
+removes the files it names, a TRUE rule does nothing. Two more rules decide the
+shape of the report: the variant-wide documents (`index.md`, `doc/`) exist only
+in a variant's report, `doc/component_report.md` only in a component's.
 
-Rules are *subtractive*: a FALSE rule removes the files it names, a TRUE rule
-does nothing. Two rules naming the same file therefore compose as AND, which is
-how generated output is gated on both the build shape and the component.
+The rules are the same for every variant, and they live in a file of their own
+at the project root because sphinx-mounts reads rule patterns relative to the
+file that declares them and refuses absolute or `..` ones. Do not edit the file:
+change the generator.
 
 **Blocks inside a document: the `{if}` directive of Sphinx-Needs.** Four-backtick
 fence, condition as the argument:
@@ -231,8 +250,38 @@ fence, condition as the argument:
 Content behind a false condition is never parsed, so its needs never enter the
 traceability data.
 
-**External trees: `[[source.mounts]]`.** Currently unused. Everything this
-project shows lives in the tree or under `generated/`.
+**The generated pages: a mount of the selected build.** The selection mounts the
+build directory at `generated`, where spl-core names every page it generates
+(`SPL_SPHINX_BINARY_DIR` in CMakeLists.txt):
+
+```toml
+[[source.mounts]]
+dir = "<absolute path>/build/Disco/test/Debug"
+mount_at = "generated"
+include = ["components/**/*.rst", "test/**/*.rst", "reports/*.rst"]
+gitignore = false
+if = 'var.build_config.target == "reports" and var.build_config.variant == "Disco" and var.build_config.kit == "test"'
+```
+
+The mount's condition does name a variant: the build's own. A reader pointed at
+another variant's data then reads none of this build's pages, instead of showing
+them as that variant's. No link, no junction, no copy: each build keeps its
+pages in its own directory, so two builds' reports can be built side by side,
+and `ubc diff -c "$(cat build/Spa/test/Debug/selection/reports.toml)"` compares
+the selected build with another.
+
+**Implementation needs in the code: one-line comments.** `// @need <title>, <id>,
+impl, [<implements>], [<fulfills>]` above the code, shown on the component's page
+by `src-trace` (`:project: components`, `:directory: <component>`). codelinks
+takes the `#ifdef` branches from `build/compile_commands.json`, which
+`tools/compile_commands.py` copies from the selected build without the
+`-save-temps` libclang rejects.
+
+**Test results: needs.json.** spl-core converts each component's JUnit XML into
+`unit_test_results.needs.json` after the test run (`SPL_TEST_RESULTS_AS_NEEDS`)
+and writes the page that imports it, with the test specifications' `results`
+links as `needextend` blocks. Both readers import them; sphinx-test-reports and
+the `sple_tr_link` needs function are gone.
 
 ### What the data holds
 
@@ -243,23 +292,25 @@ project shows lives in the tree or under `generated/`.
 | `var.build_config.kit` | `prod` or `test` |
 | `var.build_config.target` | `docs` or `reports` |
 | `var.build_config.components` | the variant's component list, from `parts.cmake` |
+| `var.build_config.scope` | `variant`, or `component` for a per-component report |
+| `var.build_config.component` | that component's path, empty for a variant |
 
 ### Two differences between the engines
 
 The `{if}` directive takes a real Python expression, so a bare
-`var.features.BLINKING` is enough. A `variant_sources` condition uses a
-restricted grammar that needs `== True`. And a condition that cannot be
-evaluated **excludes** what it gates: Sphinx warns (sphinx-needs for an `{if}`
-block, sphinx-mounts for a rule) and builds on without that content — which is what `test_ubproject_config.py` is
-for.
+`var.features.BLINKING` is enough. A rule condition uses a restricted grammar
+that needs `== True`. And a condition that cannot be evaluated **excludes** what
+it gates: Sphinx warns (sphinx-needs for an `{if}` block, sphinx-mounts for a
+rule) and builds on without that content — which is what
+`test_ubproject_config.py` is for.
 
 ### Checking with the other reader
 
-The Sphinx build is only half the story: the point of keeping everything in the
-variant data file is that a reader which never runs `conf.py` decides the same
-things. `ubc` is that reader, and `pytest -m docs -k ubc` proves it — per
-variant, it asserts that ubCode removes **exactly** the component documents the
-variant's component list omits.
+The Sphinx build is only half the story: the point of generating everything into
+files is that a reader which never runs `conf.py` decides the same things. `ubc`
+is that reader, and `pytest -m docs -k ubc` proves it — per variant, it asserts
+that ubCode removes **exactly** the component documents the variant's component
+list omits.
 
 `ubc` ships inside the ubCode VS Code extension and is on neither PyPI nor npm,
 so there is no install step this repository can own. The tests find it on
@@ -271,73 +322,62 @@ export UBC="$HOME/.vscode/extensions/useblocks.ubcode-0.35.0-darwin-arm64/server
 pytest -m docs -k ubc
 ```
 
-To look at one variant by hand, override the data file rather than switching
-the project:
+To look at another cell without switching the project, override the data file,
+or hand a build's own selection file over whole:
 
 ```bash
 ubc check -c "needs.variant_data_file = 'build/variants/Sleep/test/docs.json'"
+ubc check -c "$(cat build/Spa/test/Debug/selection/reports.toml)"
+sphinx-build -b html -D needs_variant_data_file=build/variants/Sleep/test/docs.json . out
+sphinx-build -b html -D spl_selection=build/Spa/test/Debug/selection/reports.toml . out
 ```
 
-Two things to know about `ubproject.toml` when editing it. Configuring parsers
+Three things to know about `ubproject.toml` when editing it. Configuring parsers
 puts ubCode in **parser mode**, where the document set comes from each
 `[parse.parsers.*].include` and `[source] extend_include` is *ignored* — so the
 parser includes have to stay in step with `include_patterns` in `conf.py`, or
-the two readers are looking at different files. And `[[source.variant_sources]]`
-rules are implemented as exclusions, which is why a rule that cannot be
-evaluated removes what it gates.
+the two readers are looking at different files. The rst include is written
+relative to the mounted build directory, because that is what ubCode matches it
+against. And `extend` merges tables key by key but replaces arrays, so the
+committed file declares no rules and no mounts: they would replace the generated
+ones.
+
+**Known gap.** ubCode does not mount a directory inside the project root, and
+every CMake build lives under `build/`: until ubCode can, the IDE and `ubc` show
+no generated page (test results, test specifications, listings). Sphinx reads
+them. Everything else — the documents, the rules, the implementation needs —
+agrees need for need.
 
 ### Adding a component
 
 1. Add it to the variant's `parts.cmake`.
-2. Add one `[[source.variant_sources]]` rule in `ubproject.toml`.
-3. Add one line to the 150% toctree in `doc/components/index.md`.
+2. Write its documentation in `<component>/doc/index.md`, with a `## Traceability`
+   section (`src-trace`) and a `## Verification` section inside
+   `{if} var.build_config.target == "reports"`, as the other components do.
 
-Nothing is generated, no loop is edited, and nothing under `build/` is touched.
+The next selection writes its rule, and the glob toctree in
+`doc/components/index.md` lists it. Nothing else is edited, and nothing under
+`build/` is touched.
 
 ### Generated output
 
-`build/` and `generated/` are output. **Nobody edits them — not a person, not an
-assistant.** The editor is configured to refuse it (`files.readonlyInclude`) and
-`build/variants/GENERATED` says so on disk.
-
-`generated/` is the configured variant's build directory: a symlink (a junction
-on Windows without Developer Mode) that `tools/variant_data.py` points at the
-build CMake configures. `CMakeLists.txt` hands it to spl-core as
-`SPL_SPHINX_BINARY_DIR`, so every page spl-core generates is named through it:
-`generated/components/<c>/reports/coverage`, whatever the variant, kit or build
-type. The report sections therefore name their pages directly, spl-core writes
-each coverage report next to its page, and `SplBuild` finds the report
-artifacts where the pages landed.
-
-The Sphinx build reads generated pages **only** through `generated`: `conf.py`
-prunes `build` from its walk, so each page has exactly one name.
-`test_generated_is_the_only_route_to_the_generated_pages` guards that. Because
-the link is re-pointed on every configure, spl-core stops a documentation build
-whose link leads to another build directory. Configure that build again first.
-
-ubCode does not descend the link, so the IDE shows no generated page. They are
-output of the reports target, which stays Sphinx-only while its pages use the
-sphinx-test-reports directive.
+`build/`, `generated/` and `ubproject.variants.toml` are output. **Nobody edits
+them — not a person, not an assistant.** The editor is configured to refuse it
+(`files.readonlyInclude`), and `build/variants/GENERATED` and the files' own
+headers say so.
 
 Regenerate without a compiler — KConfig is pure Python, and CMake's top-level
 `project()` call demands a C toolchain before it will configure at all:
 
 ```bash
-python tools/variant_data.py --all                     # the whole matrix
-python tools/variant_data.py --variant Sleep --kit test # ...and point at one cell
-python tools/variant_data.py --all --check             # CI: regenerate and diff
+python tools/variant_data.py --all                                   # the matrix and the rules
+python tools/variant_data.py --all --current --variant Sleep --kit test  # ...and select a cell
+python tools/variant_data.py --all --check                           # CI: regenerate and diff
 ```
 
-Preview a variant by pointing the build at its cell. It is a command-line
-override of the same key `ubc check -c` overrides, and the way spl-core selects
-the cell for the docs and reports targets; `conf.py` has no say in it:
-
-```bash
-sphinx-build -b html -D needs_variant_data_file=build/variants/Sleep/test/docs.json . out
-```
-
-Without the override, a build reads the pointer `build/autoconf.json`, which
-exists once CMake or `tools/variant_data.py --variant ... --kit ...` has written it.
+Selecting a cell this way writes `build/selection.toml` without a mount, so the
+readers show the cell's documents and no generated page. Configuring a CMake
+build selects that build, mount included.
 
 ## Project-Specific Conventions
 

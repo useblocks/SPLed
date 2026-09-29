@@ -8,7 +8,10 @@ One set of documents describes every variant, and **data decides what one varian
 document is a template, and nothing in `conf.py` or CMake decides what a page contains:
 
 - a **variant data file** per variant says which features are on and which components are in;
-- **conditions** in `ubproject.toml` and in the documents read that file;
+- **conditions** read that file: in the documents, and in **rules** that `tools/variant_data.py`
+  generates from where each component's documentation lives, so no rule is written by hand;
+- a **selection** file says which variant data file, and which build's generated pages, the editor
+  and a plain build show;
 - **Sphinx** and **ubCode**, with its command-line tool `ubc`, read the same files, so the editor
   shows what the build produces.
 
@@ -41,19 +44,24 @@ flowchart LR
         C["variants/Sleep/config.txt<br/>the features of a variant"]
         P["variants/Sleep/parts.cmake<br/>the components of a variant"]
     end
-    G(["tools/variant_data.py"])
+    G(["tools/variant_data.py<br/>run by CMake configure"])
     subgraph gen["Generated, never edited"]
         V["build/variants/Sleep/test/docs.json<br/>one file per variant, kit and target"]
-        A["build/autoconf.json<br/>the variant you work on"]
+        RU["ubproject.variants.toml<br/>one rule per component"]
+        A["build/selection.toml<br/>the build you work on"]
     end
-    R["ubproject.toml and documents<br/>hold the conditions"]
+    R["documents<br/>hold the {if} conditions"]
     U["ubCode and ubc"]
     S["sphinx-build"]
     K --> G
     C --> G
     P --> G
     G --> V
+    G --> RU
     G --> A
+    A -->|names| V
+    RU --> U
+    RU --> S
     A --> U
     A --> S
     R --> U
@@ -71,8 +79,9 @@ flowchart LR
 | **Component** | A folder under `components/`, plus the integration suite `test/spled_integration`. A variant lists its components in its `parts.cmake`. |
 | **Kit** | `prod`, the product, or `test`, which adds unit tests, coverage and, for Disco, the integration suite. |
 | **Target** | `docs`, the documents, or `reports`, the documents plus test results and coverage. |
-| **Variant data file** | `build/variants/<variant>/<kit>/<target>.json`, one per combination: 5 variants × 2 kits × 2 targets = 20 files. |
-| **Pointer** | `build/autoconf.json`, a copy of the variant data file you are working on. ubCode and a plain `sphinx-build` read it. |
+| **Variant data file** | `build/variants/<variant>/<kit>/<target>.json`, one per combination: 5 variants × 2 kits × 2 targets = 20 files, plus one per component report under `<kit>/<component>/`. |
+| **Rules** | `ubproject.variants.toml`, generated: one rule per component, which leaves the component's documents out of a variant that does not contain it. |
+| **Selection** | `build/selection.toml`, generated when a variant is selected: which variant data file the editor and a plain `sphinx-build` read, and, for a CMake build, its generated pages, mounted at `generated`. |
 | **150 % documentation** | Every document of every variant lives in the tree. Conditions remove what one variant does not have. |
 | **`var.*`** | How a condition reads the variant data: `var.features.BLINKING`, `var.build_config.components`. |
 
@@ -84,7 +93,9 @@ flowchart LR
 {
   "build_config": {
     "components": ["components/platform_types", "components/rte", "…", "components/brightness_controller", "components/auto_off"],
+    "component": "",
     "kit": "test",
+    "scope": "variant",
     "target": "docs",
     "variant": "Sleep"
   },
@@ -103,6 +114,8 @@ flowchart LR
   the ones that are off, so a condition on it always has an answer.
 - `build_config.components` is the variant's component list, read from its `parts.cmake`.
 - `build_config.variant`, `kit` and `target` say which combination the file describes.
+- `build_config.scope` is `variant`, or `component` in the file of a per-component report, whose
+  `build_config.component` names the component.
 
 Everything under `build/` is generated, and nobody edits it; VS Code opens it read-only. To change
 a variant, change its sources ([15](#15-add-or-change-a-feature), [16](#16-add-a-variant)), or
@@ -139,28 +152,30 @@ All commands below run from the repository root, with the virtualenv activated.
 python tools/variant_data.py --all
 ```
 
-- This writes all 20 variant data files under `build/variants/`, from `KConfig`, each variant's
-  `config.txt` and each variant's `parts.cmake`. KConfig is pure Python, so it needs neither a
-  compiler nor CMake.
+- This writes the variant data files under `build/variants/`, from `KConfig`, each variant's
+  `config.txt` and each variant's `parts.cmake`, and the rules file `ubproject.variants.toml`.
+  KConfig is pure Python, so it needs neither a compiler nor CMake.
 - Run it again whenever `KConfig`, a `config.txt` or a `parts.cmake` changes.
   `python tools/variant_data.py --all --check` tells you whether the files are up to date; CI runs
   it.
 - Configuring a CMake build, with the build scripts or the CMake extension, writes the files of the
-  variant it configures, and makes that variant the current one ([4](#4-switch-the-variant-your-editor-shows)).
+  variant it configures, and selects that build ([4](#4-switch-the-variant-your-editor-shows)).
 
 ## Explore
 
 ### 3. See which variant you are working on
 
-The pointer says it:
+The selection says it:
 
 ```bash
-python -c "import json; c = json.load(open('build/autoconf.json'))['build_config']; print(c['variant'], c['kit'], c['target'])"
+python -c "import tomllib; print(tomllib.load(open('build/selection.toml', 'rb'))['needs']['variant_data_file'])"
 ```
 
 ```text
-Disco test docs
+/home/you/SPLed/build/variants/Disco/test/reports.json
 ```
+
+If the selection also mounts a build, its `[[source.mounts]]` entry names the build directory.
 
 The documentation says it as well: its start page shows **Variant: Disco**. The page takes that
 from the variant data file ([10](#10-print-a-variant-value-in-the-text)).
@@ -175,14 +190,13 @@ from the variant data file ([10](#10-print-a-variant-value-in-the-text)).
   python tools/variant_data.py --variant Sleep --kit test --current
   ```
 
-Both copy the chosen variant's `docs` file to `build/autoconf.json`, so ubCode and a plain
-`sphinx-build` now read Sleep. If the editor still shows the previous variant, reload the window
-(*Command Palette → Developer: Reload Window*).
+Both write `build/selection.toml`, which names the chosen variant's `docs` file, so ubCode and a
+plain `sphinx-build` now read Sleep. If the editor still shows the previous variant, reload the
+window (*Command Palette → Developer: Reload Window*).
 
 - The kit defaults to `prod`. Give `--kit test` for the test kit.
-- Configuring a CMake build makes the same switch, to the variant you configure.
-- The pointer always holds a `docs` file, so in the editor the report-only sections are inactive
-  ([11](#11-show-a-section-only-in-the-reports-build)).
+- Configuring a CMake build selects that build: a `test` kit build its `reports` file and its
+  generated pages, mounted at `generated`; a `prod` kit build its `docs` file.
 
 ### 5. Look at another variant without switching
 
@@ -207,8 +221,18 @@ You do not have to switch to look at a variant. Point the reader at its file ins
   rule that removed it. `ubc check` also lists the project's other warnings, so its exit code says
   nothing about the variant.
 
-`-D` for Sphinx and `-c` for ubc override the same setting, `variant_data_file`. spl-core passes
-the same `-D` when CMake builds the `docs` and `reports` targets.
+`-D` for Sphinx and `-c` for ubc override the same setting, `variant_data_file`.
+
+To look at another **build**, with its generated pages, hand the readers that build's own
+selection file. CMake writes one per documentation run into the build directory:
+
+```bash
+python -m sphinx -b html -D spl_selection=build/Spa/test/Debug/selection/reports.toml . build/docs/Spa
+ubc check -c "$(cat build/Spa/test/Debug/selection/reports.toml)"
+```
+
+spl-core does the same for every `docs` and `reports` run it starts, so the reports of two builds
+can be built side by side.
 
 ### 6. See what differs between two variants
 
@@ -231,6 +255,13 @@ Build both variants as in [5](#5-look-at-another-variant-without-switching), the
 
   The output lists every need that is new, removed or changed. For Disco against Sleep, it starts
   with `New need SWDD_AO-100`, the first of the auto-off requirements that only Sleep has.
+- **Builds.** Every build keeps its own report pages and `needs.json`
+  (`build/<variant>/<kit>/<type>/reports/html/needs.json`), so two builds compare with `ubc diff -n`,
+  or directly with the other build's selection file:
+
+  ```bash
+  ubc diff -c "$(cat build/Spa/test/Debug/selection/reports.toml)"
+  ```
 
 ### 7. Try a change without touching the product
 
@@ -271,9 +302,10 @@ use one of these, from the quickest to the most complete:
   ([12](#12-include-a-document-only-when-its-component-is-in-the-variant)). An entry for a
   component the variant does not have is reported as `toctree.variant_excluded`, with the rule
   that removed the document.
-- **No generated report pages.** Test results and coverage exist only after a CMake build of the
-  `reports` target. ubCode does not follow the `generated` link to them, and the pointer holds a
-  `docs` file anyway.
+- **No generated pages yet.** Test results, test specifications and source listings exist after a
+  CMake build of the test kit, and the selection mounts them at `generated`. Sphinx reads them;
+  ubCode does not yet, because it does not mount a directory that lies inside the project, and
+  every build lives under `build/`.
 
 ubCode's side is described in [ubCode's guide to variants](https://ubcode.useblocks.com/usage/variants.html).
 
@@ -342,30 +374,31 @@ A `reports` build adds test results and coverage. Gate the section on the target
 `````
 
 The component pages end with a block like this one. The `generated/…` names are the same in every
-variant ([19](#19-when-something-looks-wrong) explains the `generated` link).
+variant: the selection mounts the build directory there.
 
 ### 12. Include a document only when its component is in the variant
 
-Whole documents are gated in `ubproject.toml`, with one rule per component:
+You do not write anything for it. `tools/variant_data.py` generates one rule per component that has
+a `doc/index` page, into `ubproject.variants.toml`:
 
 ```toml
 [[source.variant_sources]]
-if = "'components/auto_off' in var.build_config.components"
+if = "'components/auto_off' in var.build_config.components and (var.build_config.scope == 'variant' or var.build_config.component == 'components/auto_off')"
 files = [
     "components/auto_off/doc/**",
-    "generated/components/auto_off/reports/**",
-    "generated/components/auto_off/__source_docs/**",
+    "generated/components/auto_off/**",
 ]
 ```
 
 - When the condition is false, the files are left out before anything is read: no page, no needs,
   and no warning about a page that no toctree lists.
-- The components page, `doc/components/index.md`, lists every component anyway. Sphinx and ubCode
-  report an entry for a left-out document as information.
+- The components page, `doc/components/index.md`, globs every component's documentation, so it
+  lists exactly the variant's components.
+- The second half of the condition is for the per-component report, which shows one component.
 - **Gate on the component list, never on the variant name.** The list comes from the variant's
   `parts.cmake`, so the product structure is written down once.
   `test_no_rule_names_a_variant_by_name` fails if a rule names a variant.
-- Rule conditions use a smaller grammar than `{if}`. A boolean needs `== True`, as in
+- Rule conditions, such as those of use case 13, use a smaller grammar than `{if}`. A boolean needs `== True`, as in
   `if = "var.features.AUTO_OFF == True"`. `and`, `or`, `not`, `==`, `!=`, `<`, `>`, `in` and
   `not in` work. A condition outside the grammar stops the Sphinx build. A condition that names an
   unknown key is reported, and removes its files.
@@ -387,7 +420,8 @@ changes its place per variant. If one ever has to:
    ```
    ````
 3. Gate the two pages with a rule and its **negation**, so that every variant has exactly one of
-   them:
+   them. Hand-written rules go into `doc/variant_rules.toml`, which `tools/variant_data.py` adds to
+   the generated ones; `ubproject.toml` cannot hold rules, because `extend` replaces an array:
 
    ```toml
    [[source.variant_sources]]
@@ -409,15 +443,13 @@ without a warning.
 1. Add `spl_add_component(components/<name>)` to the `parts.cmake` of every variant that has it.
 2. Write its documentation in `components/<name>/doc/index.md`. If its sources implement design
    needs, give that page a `## Traceability` section with a `src-trace` block
-   ([17](#17-trace-code-to-the-design-per-variant)).
-3. Add one rule to `ubproject.toml`, next to the others: copy the `auto_off` rule from
-   [12](#12-include-a-document-only-when-its-component-is-in-the-variant) and change its paths.
-4. Add one line to the toctree in `doc/components/index.md`: `/components/<name>/doc/index`.
-5. Regenerate the variant data: `python tools/variant_data.py --all`.
+   ([17](#17-trace-code-to-the-design-per-variant)), and end it with a `## Verification` section
+   for the reports, as the other components do ([11](#11-show-a-section-only-in-the-reports-build)).
+3. Regenerate: `python tools/variant_data.py --all`, or configure a build.
 
-Nothing is generated by hand, no loop is edited, and nothing under `build/` is touched.
-`test_every_component_document_is_gated_by_a_rule` fails if step 3 is missing. To have the report
-tasks in VS Code offer the component, add it to the `component` input in `.vscode/tasks.json`. For
+That is all. The generator writes the component's rule, and the glob toctree in
+`doc/components/index.md` lists its page. No rule and no toctree line is written by hand, and
+nothing under `build/` is touched. To have the report tasks in VS Code offer the component, add it to the `component` input in `.vscode/tasks.json`. For
 the code side of a component, see [AGENTS.md](AGENTS.md#spl-specific-cmake-patterns).
 
 ### 15. Add or change a feature
@@ -487,11 +519,11 @@ need inside that branch. `SWDD_BC-203` exists only with automatic brightness adj
 runnable's automatic branch carries `SWIMPL_BC-004c` for it, and the runnable's own need
 `SWIMPL_BC-003c` does not link it.
 
-codelinks takes the branches from `build/compile_commands.json`, which VS Code writes when it
-configures a CMake build (`cmake.copyCompileCommands`). Without that file, codelinks treats every
-`#ifdef` as false, and Sphinx warns. A `test` kit database does not help yet: libclang rejects its
-`-save-temps` option, so codelinks skips the file and its needs disappear. Configure a `prod` kit
-build for the editor until codelinks drops that option.
+codelinks takes the branches from `build/compile_commands.json`. Every build of the selected CMake
+build copies its compile database there (`tools/compile_commands.py`), without the `-save-temps`
+option of the `test` kit, which libclang rejects. After configuring without building, run
+`cmake --build <build dir> --target spled_codelinks_compile_commands`. Without the file, codelinks
+treats every `#ifdef` as false, and Sphinx warns.
 
 ## Check
 
@@ -509,21 +541,21 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
 - The ubc tests find `ubc` through the `UBC` environment variable, on the `PATH` or in the ubCode
   extension folder, and are skipped when it is not there. CI installs ubc and fails instead of
   skipping.
-- No compiler is needed. The tests regenerate `build/variants/`, and restore the `generated` link
-  when they have pointed it elsewhere.
+- The tests regenerate `build/variants/` and the rules, and restore `build/selection.toml` when
+  they have selected another cell.
 
 ### 19. When something looks wrong
 
 | What you see | What to do |
 | --- | --- |
 | A block or a page is missing in one variant | Its condition is false there, or it names a key that is not in the variant data file. Look the key up in `build/variants/<variant>/<kit>/docs.json`, check the spelling, and look for `'if' directive expression failed` or a rule warning in the build output. In a rule, a boolean needs `== True`. |
-| The editor shows another variant than you expect | Look at the pointer ([3](#3-see-which-variant-you-are-working-on)). Configuring a CMake build switches it too. Switch back ([4](#4-switch-the-variant-your-editor-shows)) and reload the window. |
+| The editor shows another variant than you expect | Look at the selection ([3](#3-see-which-variant-you-are-working-on)). Configuring a CMake build selects that build. Switch back ([4](#4-switch-the-variant-your-editor-shows)) and reload the window. |
+| Sphinx stops with `No variant is selected` | `build/selection.toml` does not exist yet. Configure a build, or select a cell ([4](#4-switch-the-variant-your-editor-shows)). ubc stops for the same reason, with `Configuration file could not be loaded`. |
 | A change to a file under `build/` is gone | `build/` is generated and rewritten on every run. Change `KConfig`, a `config.txt` or a `parts.cmake` instead, or try the change on a copy ([7](#7-try-a-change-without-touching-the-product)). |
 | `python tools/variant_data.py --all --check` fails | The variant data is older than its sources. Run `python tools/variant_data.py --all`. |
-| A documentation build stops with `SPL_SPHINX_BINARY_DIR … leads to …, but this build writes to …` | `generated` is a link (a junction on Windows) to the build directory configured last. It gives every generated page the same name in every variant. Since another build was configured, it leads elsewhere: configure this build again, then build its documentation. |
 | A link from a need in the code is dead in one variant | The need sits outside the `#ifdef` that decides the link. Give the link to a need inside the branch that implements it ([17](#17-trace-code-to-the-design-per-variant)). |
-| Sphinx warns `compile_commands … is not a readable file` | codelinks has no compile database and treats every `#ifdef` as false. Configure the variant's `prod` kit in VS Code, which writes `build/compile_commands.json` ([17](#17-trace-code-to-the-design-per-variant)). |
-| ubCode shows no test results or coverage | That is expected. Those pages exist only after a CMake build of the `reports` target, and ubCode does not follow the `generated` link. |
+| Sphinx warns `compile_commands … is not a readable file` | codelinks has no compile database and treats every `#ifdef` as false. Build the selected build, or its `spled_codelinks_compile_commands` target ([17](#17-trace-code-to-the-design-per-variant)). |
+| ubCode shows no test results or listings | That is expected for now: ubCode does not mount a directory inside the project, and the build lives under `build/` ([8](#8-know-what-ubcode-shows-you)). Sphinx shows them. |
 
 ## Rules of thumb
 
@@ -532,10 +564,11 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
 - Gate whole documents on components, blocks on features, and report sections on the target. Never
   gate on the variant name.
 - No Jinja in documents, no conditions in toctree entries, and no variant selection in `conf.py`.
-  Select a variant with `-D` for Sphinx and `-c` for ubc.
+  Select a variant by configuring a build or with `tools/variant_data.py --current`; look at
+  another one with `-D` for Sphinx and `-c` for ubc.
 - A link that holds only in some variants belongs to a need inside the `#ifdef` branch that
   implements it.
-- Do not edit `build/` or `generated/`.
+- Do not edit `build/`, `generated/` or `ubproject.variants.toml`.
 - After changing a variant's sources, regenerate and run `python -m pytest -m docs`.
 
 The design behind all this is described under
