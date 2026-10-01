@@ -706,8 +706,8 @@ typer = ">=0,<1"
 [package.source]
 type = "git"
 url = "https://github.com/useblocks/clanguru.git"
-reference = "07b8843b2e841ee891841eccceed3f0cb1cbd68a"
-resolved_reference = "07b8843b2e841ee891841eccceed3f0cb1cbd68a"
+reference = "50a25d75db7d99e17e8d15ee8955b84dceac81b1"
+resolved_reference = "50a25d75db7d99e17e8d15ee8955b84dceac81b1"
 
 [[package]]
 name = "click"
@@ -4205,8 +4205,8 @@ typer = ">=0,<1"
 [package.source]
 type = "git"
 url = "https://github.com/useblocks/spl-core.git"
-reference = "5b982030ab8e6bf192991a6613669d95a9e37af5"
-resolved_reference = "5b982030ab8e6bf192991a6613669d95a9e37af5"
+reference = "ce62088e6d85116c1e93495971b687f5d03da77f"
+resolved_reference = "ce62088e6d85116c1e93495971b687f5d03da77f"
 
 [[package]]
 name = "text-unidecode"
@@ -4806,4 +4806,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "<3.14,>=3.12"
-content-hash = "7b51e734a961447b8b26d2c1686a221c4f8e4916b62263a358327528bb4bc3dd"
+content-hash = "d80f8f23ee15a96a1ce9b45e8ae37b600224907a88e230e27e736e17005272d8"

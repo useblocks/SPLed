@@ -63,8 +63,9 @@ resolve the same spl-core, so a local override never silently becomes the
 build everyone gets. The override is for the span of one change, not a working
 mode.
 
-`pyproject.toml` currently pins a **commit of the useblocks fork** of spl-core
-(branch `feat/docs-parity-sweep`, stacked on `feat/configurable-docs-pipeline`, based on spl-core 8.9.0). It carries
+`pyproject.toml` currently pins a **commit of the useblocks fork** of spl-core:
+the merge of useblocks/spl-core#5 into the fork's `develop`, which mirrors
+avengineers' `develop` (spl-core 8.9.0 and later). It carries
 the documentation changes this project relies on: `SPL_SOURCE_DOCS_JINJA_RAW_TAGS`,
 `SPL_SPHINX_OPTIONS` / `SPL_SPHINX_COMPONENT_OPTIONS`,
 `SPL_TEST_RESULTS_AS_NEEDS` with its JUnit converter, and
