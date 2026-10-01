@@ -76,11 +76,12 @@ The Brightness Controller is use the RTE interface `RteSetBrightnessAdjustmentCo
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/brightness_controller/reports/unit_test_spec
-/generated/components/brightness_controller/reports/unit_test_results
-/generated/components/brightness_controller/reports/coverage
-/generated/components/brightness_controller/__source_docs/index
+/build/**/components/brightness_controller/reports/unit_test_spec
+/build/**/components/brightness_controller/reports/unit_test_results
+/build/**/components/brightness_controller/reports/coverage
+/build/**/components/brightness_controller/__source_docs/index
 ```
 
 ````

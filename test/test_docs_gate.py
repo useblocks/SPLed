@@ -1,11 +1,18 @@
 """The documentation gate: every variant and kit, both readers, strict, the same needs.
 
-For each cell this selects the build CMake configures for it -- configure only,
-nothing is compiled -- so codelinks evaluates that build's `#ifdef` branches with
-its compile database. Then it builds the documents with `sphinx-build -W` and with
-ubc, and compares the two needs.json files need by need: IDs, types, titles,
-fields and links. Whatever the two readers may differ in is listed, with its
-reason, in docs_exceptions.toml; any other warning or difference fails.
+For each cell this selects the build CMake configures for it, so codelinks
+evaluates that build's `#ifdef` branches with its compile database. Then it builds
+the documents with `sphinx-build -W` and with ubc, and compares the two needs.json
+files need by need: IDs, types, titles, fields and links. Whatever the two readers
+may differ in is listed, with its reason, in docs_exceptions.toml; any other
+warning or difference fails.
+
+Two shapes. The design documentation (`docs`) of every variant and kit, and of
+every component's report, needs a configure only. The reports of the test kit
+(`reports`) carry what the test run produces -- the test specifications, the test
+results and the source listings, read where spl-core writes them -- so that
+build is compiled and its tests are run first. That shape is where the two readers
+once disagreed by 42 needs, every one of them on the verification side.
 
 Both build times go into the job summary on CI (`GITHUB_STEP_SUMMARY`), so the
 speed of the second reader is visible next to the first.
@@ -74,8 +81,11 @@ def _require(what: str, available: bool) -> None:
 @pytest.fixture(scope="module", autouse=True)
 def _restore_the_developers_selection():
     """The gate selects every cell in turn; what the developer had selected comes back."""
+    sys.path.insert(0, str(PROJECT_ROOT / "tools"))
+    import variant_data
+
     saved = {}
-    for name in ("build/selection.toml", "build/compile_commands.json"):
+    for name in variant_data.SELECTION_STATE:
         path = PROJECT_ROOT / name
         saved[path] = path.read_bytes() if path.is_file() else None
     yield
@@ -157,12 +167,36 @@ def test_both_readers_build_the_same_component_report_strictly(variant: str, com
     _check_one_run(variant, "test", f"{component}/docs.toml", tmp_path, label=f"{variant}/{component}")
 
 
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_both_readers_build_the_same_reports_strictly(variant: str, tmp_path: Path) -> None:
+    """A variant's reports: its documents plus the pages its test run generated."""
+    _check_one_run(variant, "test", "reports.toml", tmp_path, label=f"{variant}/test reports", built=True)
+
+
+@pytest.mark.parametrize(("variant", "component"), _component_reports())
+def test_both_readers_build_the_same_component_reports_strictly(variant: str, component: str, tmp_path: Path) -> None:
+    """A component's report with its test specification, results and listings."""
+    _check_one_run(variant, "test", f"{component}/reports.toml", tmp_path, label=f"{variant}/{component} reports", built=True)
+
+
 #: The cell selected last. codelinks reads the selected build's compile database,
 #: so a run of another cell selects that cell first.
 _SELECTED: dict[str, tuple[str, str, Path]] = {}
 
+#: The build directories whose reports have been built in this session.
+_BUILT: set[Path] = set()
 
-def _check_one_run(variant: str, kit: str, selection_name: str, tmp_path: Path, label: str | None = None) -> None:
+
+def _build_reports(build_dir: Path) -> None:
+    """Compile the build and run its tests: what generates the pages the reports read."""
+    if build_dir in _BUILT:
+        return
+    built = subprocess.run(["cmake", "--build", str(build_dir), "--target", "reports"], cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
+    assert built.returncode == 0, f"building the reports of {build_dir} failed:\n{built.stdout[-3000:]}\n{built.stderr[-3000:]}"
+    _BUILT.add(build_dir)
+
+
+def _check_one_run(variant: str, kit: str, selection_name: str, tmp_path: Path, label: str | None = None, built: bool = False) -> None:
     ubc = _find_ubc()
     _require("ubc", ubc is not None)
     _require("CMake and Ninja", bool(shutil.which("cmake") and shutil.which("ninja")))
@@ -171,6 +205,8 @@ def _check_one_run(variant: str, kit: str, selection_name: str, tmp_path: Path, 
     if current is None or current[:2] != (variant, kit):
         _SELECTED["cell"] = (variant, kit, _select_build(variant, kit))
     build_dir = _SELECTED["cell"][2]
+    if built:
+        _build_reports(build_dir)
     selection = build_dir / "selection" / selection_name
     label = label or f"{variant}/{kit}"
 

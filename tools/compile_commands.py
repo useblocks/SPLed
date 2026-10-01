@@ -7,8 +7,8 @@ readers take the database from one fixed path, `build/compile_commands.json`
 (ubproject.toml), because the path cannot follow the selection: `extend` and
 ubc's `-c` both replace a codelinks project's whole table rather than one key in
 it. CMake writes the database only into its build directory, so this copies it
-to that path -- for the selected build only, the one `build/selection.toml`
-mounts, so building another variant leaves the editor's database alone.
+to that path -- for the selected build only, the one `build/selected_build.txt`
+names, so building another variant leaves the editor's database alone.
 
 The test kit compiles with `-save-temps`, which libclang cannot load a file with:
 codelinks would skip every file, and its needs would disappear. The copy leaves
@@ -26,7 +26,6 @@ import argparse
 import json
 import re
 import sys
-import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -35,20 +34,19 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 #: Where codelinks reads the database (ubproject.toml).
 TARGET = "build/compile_commands.json"
 
-#: The selection whose build directory is the one to copy from.
-SELECTION = "build/selection.toml"
+#: The selected build directory, the one to copy from (tools/variant_data.py).
+SELECTED_BUILD = "build/selected_build.txt"
 
 #: `-save-temps` and `-save-temps=obj|cwd`, as a whole token.
 _SAVE_TEMPS = re.compile(r"(?<!\S)-save-temps(?:=\S+)?(?:\s+|$)")
 
 
 def selected_build_dir(project_root: Path) -> Path | None:
-    """The build directory the selection mounts, or None if it names no build."""
-    path = project_root / SELECTION
+    """The build directory the selection names, or None if it names no build."""
+    path = project_root / SELECTED_BUILD
     if not path.is_file():
         return None
-    mounts = tomllib.loads(path.read_text(encoding="utf-8")).get("source", {}).get("mounts", [])
-    return Path(mounts[0]["dir"]).resolve() if mounts else None
+    return (project_root / path.read_text(encoding="utf-8").strip()).resolve()
 
 
 def without_save_temps(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:

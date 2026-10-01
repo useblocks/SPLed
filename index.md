@@ -17,13 +17,32 @@ doc/components/index
 doc/results/index
 ```
 
-````{if} var.build_config.target == "reports"
+% The variant's coverage page, in the one build whose pages the selection reads:
+% build/<variant>/<kit>/<build type>/reports/coverage. A variant's name has one
+% segment (Disco) or two (Base/Dev), so the page is one level deeper for the
+% latter. `*` stays within one segment, while `**` would match every
+% component's coverage page as well.
+
+````{if} var.build_config.target == "reports" and var.build_config.scope == "variant" and "/" not in var.build_config.variant
 
 ```{toctree}
 :caption: Code Coverage
 :maxdepth: 1
+:glob:
 
-/generated/reports/coverage
+/build/*/*/*/reports/coverage
+```
+
+````
+
+````{if} var.build_config.target == "reports" and var.build_config.scope == "variant" and "/" in var.build_config.variant
+
+```{toctree}
+:caption: Code Coverage
+:maxdepth: 1
+:glob:
+
+/build/*/*/*/*/reports/coverage
 ```
 
 ````

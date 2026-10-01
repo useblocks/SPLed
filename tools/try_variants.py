@@ -127,9 +127,13 @@ def selection_summary() -> str:
         return "nothing selected"
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     cell = Path(data["needs"]["variant_data_file"])
-    mounts = data.get("source", {}).get("mounts", [])
+    pages = data.get("parse", {}).get("parsers", {}).get("rst", {}).get("include", [])
     shown = "/".join(cell.parts[cell.parts.index("variants") + 1 :]) if "variants" in cell.parts else str(cell)
-    return f"cell {shown}" + (f", build {rel(Path(mounts[0]['dir']))} mounted at generated" if mounts else ", no build mounted")
+    pointer = ROOT / "build" / "selected_build.txt"
+    build = pointer.read_text(encoding="utf-8").strip() if pointer.is_file() else ""
+    if not build:
+        return f"cell {shown}, no build"
+    return f"cell {shown}, build {build}" + (", its generated pages read where they are" if pages else ", no generated page (docs shape)")
 
 
 def build_dir(variant: str, kit: str) -> Path:
@@ -216,20 +220,24 @@ def do_build(args: argparse.Namespace) -> None:
     target = build_dir(args.variant, args.kit)
     step(
         f"3. A CMake build of {args.variant}/{args.kit}",
-        "configuring the build SELECTS it (build/selection.toml mounts it at `generated`); building it compiles, "
+        "configuring the build SELECTS it (build/selection.toml names its generated pages); building it compiles, "
         "runs the unit tests and writes the report pages, source listings and test results as needs.",
     )
     configure(args.variant, args.kit)
     run("cmake", "--build", target, "--target", "reports" if args.kit == "test" else "docs", quiet=True)
     html = target / ("reports" if args.kit == "test" else "docs") / "html"
+    ubc = find_ubc()
+    if ubc:
+        OUT.mkdir(parents=True, exist_ok=True)
+        run(ubc, "build", "needs", "--no-cache", "-o", OUT / "selected.json", quiet=True)
     look(
         f"{rel(html / 'index.html')} — the report spl-core built: test results and coverage under each component ({needs_count(html / 'needs.json')} needs).",
+        *([f"ubc, as the IDE sees the same selection: {needs_count(OUT / 'selected.json')} needs (the two untitled imports REQ_37/REQ_58 apart, the same)."] if ubc else []),
         f"build/selection.toml — {selection_summary()}.",
         f"{rel(target / 'selection')}/ — one selection file per documentation run, so two builds never get in each other's way.",
         "build/compile_commands.json — this build's compile database: codelinks takes each #ifdef branch from it.",
         "`sphinx-build -b html . <out>` now shows this build, generated pages included, without any option.",
     )
-    note("ubc and the IDE do not show the generated pages yet: ubCode does not mount a directory inside the project.")
 
 
 def do_component(args: argparse.Namespace) -> None:
@@ -262,7 +270,7 @@ def do_component(args: argparse.Namespace) -> None:
         )
     look(
         f"{rel(html / 'doc' / 'component_report.html')} — Sphinx: {needs_count(html / 'needs.json')} needs, all of this component.",
-        *([f"{rel(out / 'doc' / 'component_report.html')} — ubc: {needs_count(out / 'needs.json')} needs (its documents; the generated pages are the known gap)."] if ubc else []),
+        *([f"{rel(out / 'doc' / 'component_report.html')} — ubc: {needs_count(out / 'needs.json')} needs, the same."] if ubc else []),
         f"{rel(selection)} — the file that makes it a component report: its variant data (scope = component) and its root document.",
     )
 

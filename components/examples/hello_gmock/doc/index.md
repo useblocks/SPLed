@@ -102,11 +102,12 @@ Verify that the set interface is called with the expected value through the poin
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/examples/hello_gmock/reports/unit_test_spec
-/generated/components/examples/hello_gmock/reports/unit_test_results
-/generated/components/examples/hello_gmock/reports/coverage
-/generated/components/examples/hello_gmock/__source_docs/index
+/build/**/components/examples/hello_gmock/reports/unit_test_spec
+/build/**/components/examples/hello_gmock/reports/unit_test_results
+/build/**/components/examples/hello_gmock/reports/coverage
+/build/**/components/examples/hello_gmock/__source_docs/index
 ```
 
 ````

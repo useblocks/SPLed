@@ -105,11 +105,12 @@ flowchart TD
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/examples/flight_controller/reports/unit_test_spec
-/generated/components/examples/flight_controller/reports/unit_test_results
-/generated/components/examples/flight_controller/reports/coverage
-/generated/components/examples/flight_controller/__source_docs/index
+/build/**/components/examples/flight_controller/reports/unit_test_spec
+/build/**/components/examples/flight_controller/reports/unit_test_results
+/build/**/components/examples/flight_controller/reports/coverage
+/build/**/components/examples/flight_controller/__source_docs/index
 ```
 
 ````

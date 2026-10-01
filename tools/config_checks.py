@@ -60,27 +60,27 @@ def document_sets(project: dict[str, Any], include_patterns: list[str]) -> list[
     for tree in MARKDOWN_TREES:
         if tree not in include_patterns:
             findings.append(f"conf.py does not include {tree!r}, which the md parser reads")
-    if parsers.get("rst", {}).get("include") != list(variant_data.MOUNTED_PAGES):
-        findings.append(f"the rst parser include is not the mounted pages {list(variant_data.MOUNTED_PAGES)}")
-    for pattern in variant_data.MOUNTED_PAGES:
-        if f"{variant_data.MOUNT_AT}/{pattern}" not in include_patterns:
-            findings.append(f"conf.py does not include {variant_data.MOUNT_AT}/{pattern}, which the mount brings in")
     return findings
 
 
 def generated_half(project: dict[str, Any]) -> list[str]:
     """What the generated files decide, ubproject.toml must not decide as well.
 
-    `extend` merges tables key by key but replaces arrays: a rule or a mount in
-    ubproject.toml would replace every generated one, silently.
+    `extend` merges tables key by key but replaces arrays, and the extending
+    file wins: a rule or an rst parser include in ubproject.toml would replace
+    every generated one, silently. Excluding build/ would hide the selected
+    build's pages, which the selection reads where spl-core writes them.
     """
     findings: list[str] = []
     if project.get("extend") != variant_data.RULES_FILE:
         findings.append(f"ubproject.toml has to extend {variant_data.RULES_FILE}, the generated rules")
     if project.get("source", {}).get("variant_sources"):
         findings.append(f"ubproject.toml declares rules; they would replace the generated ones (use {variant_data.HAND_WRITTEN_RULES})")
-    if project.get("source", {}).get("mounts"):
-        findings.append("ubproject.toml declares mounts; they would replace the selection's")
+    if "include" in project.get("parse", {}).get("parsers", {}).get("rst", {}):
+        findings.append("ubproject.toml declares the rst parser include; it would replace the selection's generated pages")
+    hidden = [pattern for pattern in project.get("source", {}).get("extend_exclude", []) if pattern.rstrip("/*") == "build"]
+    if hidden:
+        findings.append(f"ubproject.toml excludes {hidden}, and with it the generated pages the selection reads")
     if "variant_data_file" in project.get("needs", {}):
         findings.append("ubproject.toml names a variant data file; the selection names it")
     return findings

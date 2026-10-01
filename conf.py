@@ -29,26 +29,21 @@ exclude_patterns = [
     ".venv",
     ".git",
     "**/test_results.rst",  # We renamed this file, but nobody deletes it.
-    # Build output is never read where it lies. The one build a Sphinx run
-    # documents comes in through its mount at `generated` (the selection below),
-    # and spl-core names every page it generates there (SPL_SPHINX_BINARY_DIR in
-    # CMakeLists.txt). Pruning `build` keeps every other variant's output out of
-    # the walk and leaves exactly one route to each generated page:
-    # with two, every page exists twice.
-    #
-    # get_matching_files applies these to directories as well as files, so each
-    # entry prunes the walk rather than filtering its result.
-    "build",
-    # ...and, inside the mounted build, the directories that hold no documents:
-    # CMake's own state and the HTML the builds write.
-    "generated/CMakeFiles",
-    "generated/**/CMakeFiles",
-    "generated/**/html",
+    # Directories under build/ that never hold a document: fetched dependencies,
+    # the variant data, CMake's own state and the HTML the builds write.
+    # get_matching_files applies these to directories as well, so each entry
+    # prunes the walk. Which generated pages are documents is decided by the
+    # selection (below), not here.
+    "build/modules",
+    "build/variants",
+    "build/**/CMakeFiles",
+    "build/**/html",
 ]
 
-# The 150% source set: every document the product line has, hand-written and
-# generated. The same set ubCode's parser includes name in ubproject.toml; the
-# generated pages there are written relative to the mount, here by their names.
+# The 150% source set of the hand-written documents: the same set ubCode's md
+# parser include names in ubproject.toml. The generated pages of the selected
+# build are added from the selection (below), as ubCode's rst parser include
+# names them there.
 #
 # Which of them a build actually contains is decided by the rules in
 # ubproject.variants.toml, against the variant data. Narrowing the set here as
@@ -59,9 +54,6 @@ include_patterns = [
     "doc/**",
     "components/**/doc/**",
     "test/**/doc/**",
-    "generated/components/**/*.rst",
-    "generated/test/**/*.rst",
-    "generated/reports/*.rst",
 ]
 
 # configuration of built-in stuff ###########################################
@@ -144,8 +136,9 @@ for _handler in logging.getLogger("sphinx").handlers:
 #
 # tools/variant_data.py writes build/selection.toml whenever a variant is
 # selected: the variant data file every condition is evaluated against, and, for
-# a CMake build, the mount that brings that build's generated pages in at
-# `generated`; for a per-component report also its root document. ubproject.toml
+# a CMake build's reports, that build's generated pages by their own paths
+# (ubCode's rst parser include); for a per-component report also its root
+# document. ubproject.toml
 # reaches it through `extend` (by way of ubproject.variants.toml), which ubCode
 # and ubc follow. sphinx-needs and sphinx-mounts each read one TOML file and do
 # not follow `extend`, so this hands them the selection's keys: the same keys,
@@ -165,8 +158,8 @@ for _handler in logging.getLogger("sphinx").handlers:
 #     sphinx-build -D needs_variant_data_file=build/variants/Sleep/test/docs.json ...
 #
 # The handler runs at config-inited priority 5: before sphinx-needs loads its
-# TOML (10) and resolves the variant data (11), and before sphinx-mounts loads
-# its rules (400) and mounts (500).
+# TOML (10) and resolves the variant data (11), before sphinx-mounts loads its
+# rules (400), and before Sphinx reads `include_patterns` to find the documents.
 
 root_doc = "index"
 
@@ -188,7 +181,8 @@ def _load_selection(app, config):
     root = selection.get("project", {}).get("root_doc")
     if root is not None and "root_doc" not in overrides:
         config.root_doc = root
-    config.mounts = selection.get("source", {}).get("mounts", [])
+    pages = selection.get("parse", {}).get("parsers", {}).get("rst", {}).get("include", [])
+    config.include_patterns = [*config.include_patterns, *pages]
     # A per-component report's links to the rest of the product dangle by design;
     # its selection says so in ubc's terms, and this is the same statement for
     # sphinx-needs, for that report only.

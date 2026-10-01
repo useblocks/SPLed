@@ -6,7 +6,7 @@ authors = [{ name = "Avengineers" }]
 requires-python = "<3.14,>=3.12"
 
 dependencies = [
-    "spl-core @ git+https://github.com/useblocks/spl-core.git@1181c0a636ac4e85ffab02d52ede21dc8cc7da45",
+    "spl-core @ git+https://github.com/useblocks/spl-core.git@5b982030ab8e6bf192991a6613669d95a9e37af5",
     "pypeline-runner>=1.33,<2",
     "pytest>=8,<9",
     "myst-parser>=4.0,<5",

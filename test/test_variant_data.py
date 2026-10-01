@@ -14,6 +14,7 @@ from a variant's build -- no error, no warning, just less.
 
 import json
 import os
+import shutil
 import sys
 import tomllib
 from pathlib import Path
@@ -245,37 +246,76 @@ def _tmp_project(tmp_path: Path) -> Path:
     return root
 
 
-def test_selection_toml_without_a_build_dir_mounts_nothing(tmp_path: Path) -> None:
+def test_selection_toml_without_a_build_dir_reads_no_generated_page(tmp_path: Path) -> None:
     """Selecting a cell on its own shows its documents and no generated page."""
     cell = variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports")
-    selection = tomllib.loads(variant_data.selection_toml(cell, "Disco", "test", None))
+    selection = tomllib.loads(variant_data.selection_toml(PROJECT_ROOT, cell, "reports", None))
 
     assert selection["needs"]["variant_data_file"] == cell.resolve().as_posix()
-    assert selection["source"]["mounts"] == []
+    assert "parse" not in selection
+    assert "source" not in selection
     assert "project" not in selection
 
 
-def test_selection_toml_with_a_build_dir_mounts_it(tmp_path: Path) -> None:
-    """A CMake build mounts its own directory at the stable `generated` name."""
+def test_selection_toml_reads_a_builds_pages_by_their_own_paths() -> None:
+    """A CMake build's reports read its generated pages where spl-core writes them."""
+    build_dir = PROJECT_ROOT / "build" / "Disco" / "test" / "Debug"
+
+    reports = tomllib.loads(variant_data.selection_toml(PROJECT_ROOT, variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports"), "reports", build_dir))
+    assert reports["parse"]["parsers"]["rst"]["include"] == [f"build/Disco/test/Debug/{pattern}" for pattern in variant_data.GENERATED_PAGES]
+    assert "source" not in reports, "no mount, and no rule: `-c` would replace every generated rule"
+
+    docs = tomllib.loads(variant_data.selection_toml(PROJECT_ROOT, variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "docs"), "docs", build_dir))
+    assert "parse" not in docs, "the docs shape reads no generated page"
+
+
+def test_a_build_outside_the_project_is_refused(tmp_path: Path) -> None:
+    """Its pages would have no name to be read by."""
+    with pytest.raises(ValueError, match="outside"):
+        variant_data.selection_toml(PROJECT_ROOT, variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports"), "reports", tmp_path)
+
+
+def test_the_rules_name_the_selected_build_and_survive_regenerating_the_matrix(tmp_path: Path) -> None:
+    """Selecting a build writes its rule; `--all` afterwards keeps it."""
+    shutil.copytree(PROJECT_ROOT / "variants", tmp_path / "variants")
+    shutil.copy(PROJECT_ROOT / "KConfig", tmp_path / "KConfig")
+    for top in ("components", "test"):
+        for index in (PROJECT_ROOT / top).rglob("doc/index.md"):
+            target = tmp_path / index.relative_to(PROJECT_ROOT)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("# x\n", encoding="utf-8")
+    (tmp_path / "doc").mkdir()
     build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
     build_dir.mkdir(parents=True)
-    cell = variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports")
 
-    selection = tomllib.loads(variant_data.selection_toml(cell, "Disco", "test", build_dir))
-    mount = selection["source"]["mounts"][0]
+    assert variant_data.main(["--project-root", str(tmp_path), "--variant", "Disco", "--kit", "test", "--target", "reports", "--current", "--build-dir", str(build_dir)]) == 0
+    assert variant_data.selected_build(tmp_path) == ("Disco", "test", "build/Disco/test/Debug")
+    rules = (tmp_path / variant_data.RULES_FILE).read_text(encoding="utf-8")
+    assert '"build/Disco/test/Debug/**"' in rules
 
-    assert mount["dir"] == build_dir.resolve().as_posix()
-    assert mount["mount_at"] == variant_data.MOUNT_AT
-    assert mount["include"] == list(variant_data.MOUNTED_PAGES)
-    assert mount["gitignore"] is False
-    assert "Disco" in mount["if"] and "test" in mount["if"] and "reports" in mount["if"]
+    assert variant_data.main(["--project-root", str(tmp_path), "--all"]) == 0
+    assert (tmp_path / variant_data.RULES_FILE).read_text(encoding="utf-8") == rules
+    assert variant_data.main(["--project-root", str(tmp_path), "--all", "--check"]) == 0
+
+    # The build's own tooling finds the selected build by the pointer: the copy of
+    # its compile database follows the selection, for a docs-shape one as well.
+    import compile_commands
+
+    assert compile_commands.selected_build_dir(tmp_path) == build_dir.resolve()
+    assert variant_data.main(["--project-root", str(tmp_path), "--variant", "Disco", "--kit", "prod", "--target", "docs", "--current", "--build-dir", str(build_dir)]) == 0
+    assert compile_commands.selected_build_dir(tmp_path) == build_dir.resolve()
+    assert '"build/Disco/test/Debug/**"' not in (tmp_path / variant_data.RULES_FILE).read_text(encoding="utf-8"), "a docs selection reads no page"
+    assert variant_data.main(["--project-root", str(tmp_path), "--variant", "Disco", "--kit", "test", "--target", "docs", "--current"]) == 0
+    assert compile_commands.selected_build_dir(tmp_path) is None
 
 
-def test_selection_toml_can_name_a_component_root_doc(tmp_path: Path) -> None:
-    """A per-component report renders under its own root document."""
+def test_selection_toml_can_name_a_component_root_doc() -> None:
+    """A per-component report renders under its own root document, and reads only its component's pages."""
+    build_dir = PROJECT_ROOT / "build" / "Disco" / "test" / "Debug"
     cell = variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports", "components/light_controller")
-    selection = tomllib.loads(variant_data.selection_toml(cell, "Disco", "test", None, variant_data.COMPONENT_ROOT_DOC))
+    selection = tomllib.loads(variant_data.selection_toml(PROJECT_ROOT, cell, "reports", build_dir, variant_data.COMPONENT_ROOT_DOC, "components/light_controller"))
     assert selection["project"]["root_doc"] == variant_data.COMPONENT_ROOT_DOC
+    assert selection["parse"]["parsers"]["rst"]["include"] == ["build/Disco/test/Debug/components/light_controller/**/*.rst"]
 
 
 def test_write_selection_writes_the_project_selection_and_every_run(tmp_path: Path) -> None:

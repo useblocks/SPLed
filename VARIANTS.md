@@ -81,7 +81,7 @@ flowchart LR
 | **Target** | `docs`, the documents, or `reports`, the documents plus test results and coverage. |
 | **Variant data file** | `build/variants/<variant>/<kit>/<target>.json`, one per combination: 5 variants × 2 kits × 2 targets = 20 files, plus one per component report under `<kit>/<component>/`. |
 | **Rules** | `ubproject.variants.toml`, generated: one rule per component, which leaves the component's documents out of a variant that does not contain it. |
-| **Selection** | `build/selection.toml`, generated when a variant is selected: which variant data file the editor and a plain `sphinx-build` read, and, for a CMake build, its generated pages, mounted at `generated`. |
+| **Selection** | `build/selection.toml`, generated when a variant is selected: which variant data file the editor and a plain `sphinx-build` read, and, for a CMake build's reports, that build's generated pages, read where the build writes them. |
 | **150 % documentation** | Every document of every variant lives in the tree. Conditions remove what one variant does not have. |
 | **`var.*`** | How a condition reads the variant data: `var.features.BLINKING`, `var.build_config.components`. |
 
@@ -193,7 +193,8 @@ python -c "import tomllib; print(tomllib.load(open('build/selection.toml', 'rb')
 /home/you/SPLed/build/variants/Disco/test/reports.json
 ```
 
-If the selection also mounts a build, its `[[source.mounts]]` entry names the build directory.
+If the selection also reads a build's generated pages, its `[parse.parsers.rst]` entry names
+them, below the build directory, and `build/selected_build.txt` names the directory.
 
 The documentation says it as well: its start page shows **Variant: Disco**. The page takes that
 from the variant data file ([10](#10-print-a-variant-value-in-the-text)).
@@ -214,7 +215,7 @@ window (*Command Palette → Developer: Reload Window*).
 
 - The kit defaults to `prod`. Give `--kit test` for the test kit.
 - Configuring a CMake build selects that build: a `test` kit build its `reports` file and its
-  generated pages, mounted at `generated`; a `prod` kit build its `docs` file.
+  generated pages, where the build writes them; a `prod` kit build its `docs` file.
 
 ### 5. Look at another variant without switching
 
@@ -320,10 +321,10 @@ use one of these, from the quickest to the most complete:
   ([12](#12-include-a-document-only-when-its-component-is-in-the-variant)). An entry for a
   component the variant does not have is reported as `toctree.variant_excluded`, with the rule
   that removed the document.
-- **No generated pages yet.** Test results, test specifications and source listings exist after a
-  CMake build of the test kit, and the selection mounts them at `generated`. Sphinx reads them;
-  ubCode does not yet, because it does not mount a directory that lies inside the project, and
-  every build lives under `build/`.
+- **Generated pages after a build.** Test results, test specifications and source listings exist
+  after a CMake build of the test kit, under its build directory. The selection names them, so
+  ubCode reads exactly the pages Sphinx reads, of that one build. Before the build they do not
+  exist, and the editor shows the documents without them.
 
 ubCode's side is described in [ubCode's guide to variants](https://ubcode.useblocks.com/usage/variants.html).
 
@@ -384,15 +385,18 @@ A `reports` build adds test results and coverage. Gate the section on the target
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/light_controller/reports/unit_test_results
-/generated/components/light_controller/reports/coverage
+/build/**/components/light_controller/reports/unit_test_results
+/build/**/components/light_controller/reports/coverage
 ```
 ````
 `````
 
-The component pages end with a block like this one. The `generated/…` names are the same in every
-variant: the selection mounts the build directory there.
+The component pages end with a block like this one. The pages are where the build writes them,
+`build/<variant>/<kit>/<build type>/components/…`, and the glob finds exactly one of each: a
+reader reads the pages of one build only, the selected one. Always name the component's own path
+in the entry; a bare `/build/**/reports/coverage` would also find every other component's.
 
 ### 12. Include a document only when its component is in the variant
 
@@ -570,7 +574,8 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
 | `python tools/variant_data.py --all --check` fails | The variant data is older than its sources. Run `python tools/variant_data.py --all`. |
 | A link from a need in the code is dead in one variant | The need sits outside the `#ifdef` that decides the link. Give the link to a need inside the branch that implements it ([17](#17-trace-code-to-the-design-per-variant)). |
 | Sphinx warns `compile_commands … is not a readable file` | codelinks has no compile database and treats every `#ifdef` as false. Build the selected build, or its `spled_codelinks_compile_commands` target ([17](#17-trace-code-to-the-design-per-variant)). |
-| ubCode shows no test results or listings | That is expected for now: ubCode does not mount a directory inside the project, and the build lives under `build/` ([8](#8-know-what-ubcode-shows-you)). Sphinx shows them. |
+| ubCode shows no test results or listings | The selected build has not been built yet, or the selection names a `docs` shape. Build the test kit's `reports` target ([8](#8-know-what-ubcode-shows-you)). |
+| A listing shows the code of the wrong `#ifdef` branch | A known clanguru issue: it drops the `-isystem` directory of the feature header, so every feature reads as undefined in the listings. The gate's reports shape fails on it; it is fixed in clanguru. |
 
 ## Rules of thumb
 
@@ -583,7 +588,7 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
   another one with `-D` for Sphinx and `-c` for ubc.
 - A link that holds only in some variants belongs to a need inside the `#ifdef` branch that
   implements it.
-- Do not edit `build/`, `generated/` or `ubproject.variants.toml`.
+- Do not edit `build/` or `ubproject.variants.toml`.
 - After changing a variant's sources, regenerate and run `python -m pytest -m docs`.
 
 The design behind all this is described under

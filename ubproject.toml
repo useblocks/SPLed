@@ -49,30 +49,23 @@ include = [
 ]
 
 # Every .rst in this project is generated: the clanguru source listings and the
-# report pages spl-core writes into the selected build directory, which the
-# selection mounts at `generated` (build/selection.toml). The build tree itself
-# is excluded below (`build/**`): indexing every variant and kit ever built is
-# the problem that exclusion solves.
-#
-# The patterns are written relative to the mounted directory, because that is
-# what ubCode matches a parser include against inside a mount, not the mounted
-# name. conf.py names the same pages as `generated/...` in `include_patterns`.
-[parse.parsers.rst]
-include = ["components/**/*.rst", "test/**/*.rst", "reports/*.rst"]
+# report pages spl-core writes into a build directory. There is no rst parser
+# here: the selection declares it (build/selection.toml), naming the pages of
+# the one build it selects by their own paths, and only for that build's
+# reports. conf.py adds the same patterns to Sphinx's `include_patterns`. Every
+# other build on the machine is matched by no include, so it is never read.
 
 [source]
 exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".svn", ".venv", ".vscode", "_build", "dist", "node_modules", "site-packages"]
 respect_gitignore = false
-# The generated source listings are documents; the rest of build/ is build
-# output. Without the exclude, ubCode indexes every variant and every kit ever
-# built, so need IDs appear many times over and the IDE disagrees with any one
-# build about what the project contains. conf.py prunes `build` from the Sphinx
-# walk for the same reason; the selected build comes in through its mount.
-# `extend_include` is deliberately absent: it is ignored in parser mode, so the
-# generated listings are named by [parse.parsers.rst] instead.
-extend_exclude = [
-    "build/**",
-]
+# Only the dependencies CMake fetches into build/modules (FETCHCONTENT_BASE_DIR
+# in CMakeLists.txt) are excluded from build/: they carry documents of their own
+# (googletest's docs/index.md), and a parser include without a slash, such as
+# `index.md`, matches at any depth. The rest of build/ stays visible, because
+# the selection reads the selected build's pages there; the parser includes
+# decide which files are documents. conf.py prunes the same directory.
+# `extend_include` is deliberately absent: it is ignored in parser mode.
+extend_exclude = ["build/modules/**"]
 
 [needs]
 
@@ -335,7 +328,7 @@ type = "integer"
 # documents just the declarations of the file itself. The key is spelled with
 # hyphens: ubc silently ignores `per_file_ignores`.
 [lint.per-file-ignores]
-"generated/**/__source_docs/**" = ["source.tab_in_line"]
+"build/**/__source_docs/**" = ["source.tab_in_line"]
 
 [codelinks]
 outdir = "output"
@@ -389,7 +382,7 @@ default = []
 # ubproject.variants.toml, which tools/variant_data.py derives from where each
 # component's documentation lives, gated on the variant's component list from
 # parts.cmake. Which build a reader shows is build/selection.toml: the variant
-# data file it evaluates, and the build directory it mounts at `generated`.
+# data file it evaluates, and the generated pages of the build it selects.
 # Blocks inside a document are gated by the {if} directive of Sphinx-Needs,
 # which reads the same `var.*`.
 # ---------------------------------------------------------------------------

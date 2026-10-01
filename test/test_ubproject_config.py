@@ -21,6 +21,7 @@ import sys
 import tomllib
 from importlib.resources import files
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from sphinx.util.matching import Matcher
@@ -131,17 +132,20 @@ def test_source_exclusions_are_vendored(project_config: dict, spl_core_config: d
 
 
 def test_build_output_is_not_indexed(project_config: dict) -> None:
-    """ubCode must not index every variant and kit ever built.
+    """ubCode must not index every variant and kit ever built -- nor hide the selected one.
 
     spl-core's base config turns `respect_gitignore` off and then includes the
     generated source listings, but excludes nothing else under the build
-    directory. The result is every need ID appearing once per variant built on
-    that machine, so the IDE cannot agree with any single build about what the
-    project contains. Sphinx never saw this because conf.py narrows its source
-    set per build shape -- which is exactly the kind of divergence between
-    readers this configuration exists to remove.
+    directory, so every need ID appeared once per variant built on that machine.
+    The document set is the parser includes': the md parser names no path under
+    build/, and the rst parser exists only in the selection, naming the one
+    build it selects. Excluding build/ as a whole would hide that build's pages
+    too; only the fetched dependencies are excluded, because they carry
+    documents of their own (googletest's docs/index.md) that `index.md` matches.
     """
-    assert "build/**" in project_config["source"]["extend_exclude"]
+    assert project_config["source"]["extend_exclude"] == ["build/modules/**"]
+    assert "rst" not in project_config["parse"]["parsers"]
+    assert not [pattern for pattern in project_config["parse"]["parsers"]["md"]["include"] if pattern.startswith("build")]
 
 
 def _removed_by_rules(rules: list[dict], data: dict, path: str) -> bool:
@@ -160,18 +164,16 @@ def _removed_by_rules(rules: list[dict], data: dict, path: str) -> bool:
 def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]) -> None:
     """A variant shows the variant-wide documents and the components it has.
 
-    A component's report shows one component -- its documentation and generated
-    pages, under doc/component_report.md -- and none of the variant-wide
-    documents. The two facts are two rules over `var.build_config.scope`,
-    evaluated here with sphinx-mounts' own interpreter against the real
-    generated cells.
+    A component's report shows one component's documentation under
+    doc/component_report.md, and none of the variant-wide documents. The two
+    facts are two rules over `var.build_config.scope`, evaluated here with
+    sphinx-mounts' own interpreter against the real generated cells. Which
+    generated pages a report reads is its selection's include, not a rule.
     """
     variant_cell = _variant_data("Disco", "test", "reports")
     component_cell = _component_variant_data("Disco", "test", "reports", "components/light_controller")
 
-    # The variant cell: the variant-wide documents and its components' pages,
-    # in the tree and in the mounted build (whose paths are relative to it).
-    for path in ("index.md", "doc/components/index.md", "components/light_controller/doc/index.md", "components/light_controller/reports/coverage.rst", "reports/coverage.rst"):
+    for path in ("index.md", "doc/components/index.md", "components/light_controller/doc/index.md", "build/Disco/test/Debug/reports/coverage.rst"):
         assert not _removed_by_rules(rules, variant_cell, path), f"the variant removes {path}"
     for path in ("doc/component_report.md", "components/auto_off/doc/index.md"):
         assert _removed_by_rules(rules, variant_cell, path), f"the variant keeps {path}"
@@ -180,19 +182,12 @@ def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]
     # variant-wide documents. The root index.md is not named by any rule -- a
     # pattern without a slash would match every index.md -- and is an orphan
     # page there, whose toctree entries are all excluded.
-    for path in (
-        "doc/component_report.md",
-        "components/light_controller/doc/index.md",
-        "components/light_controller/reports/coverage.rst",
-        "components/light_controller/__source_docs/index.rst",
-    ):
+    for path in ("doc/component_report.md", "components/light_controller/doc/index.md"):
         assert not _removed_by_rules(rules, component_cell, path), f"the component report removes {path}"
     for path in (
         "doc/components/index.md",
         "doc/sw_requirements/index.md",
-        "reports/coverage.rst",
         "components/main_control_knob/doc/index.md",
-        "components/main_control_knob/reports/coverage.rst",
         "components/auto_off/doc/index.md",
     ):
         assert _removed_by_rules(rules, component_cell, path), f"the component report keeps {path}"
@@ -205,19 +200,17 @@ def test_extend_include_is_not_used_because_it_would_be_inert(project_config: di
 
     spl-core's base config includes the generated listings with
     `[source] extend_include`, which works only while no parser is configured.
-    This project configures both parsers, so file discovery comes from their
+    This project configures parsers, so file discovery comes from their
     `include` lists and `extend_include` does nothing -- silently, apart from
     one config warning. Carrying the key anyway would look like configuration
-    and behave like a comment. `ubc check` is what caught this.
+    and behave like a comment. `ubc check` is what caught this. The generated
+    listings are named by the selection's rst parser instead.
     """
     assert spl_core_config["source"]["extend_include"] == ["build/**/__source_docs/**"]
     assert "extend_include" not in project_config["source"]
-    # The generated listings are named by the rst parser instead, relative to the
-    # mounted directory (sphinx-mounts matches them inside the mount).
-    assert project_config["parse"]["parsers"]["rst"]["include"] == list(variant_data.MOUNTED_PAGES)
 
 
-def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
+def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The parser includes have to match conf.py's include_patterns.
 
     They did not: `include = ["*.md"]` matched every Markdown file in the tree,
@@ -225,6 +218,9 @@ def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
     definitions as project documents -- 38 files Sphinx never sees. Two readers
     with different document sets cannot agree about the project, which is the
     whole thing this configuration exists to prevent.
+
+    The generated pages are the selection's rst include, which conf.py adds to
+    Sphinx's include_patterns: executed here, against a rendered selection.
     """
     conf = (PROJECT_ROOT / "conf.py").read_text(encoding="utf-8")
     markdown_includes = project_config["parse"]["parsers"]["md"]["include"]
@@ -239,10 +235,25 @@ def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
     for tree in ("index.md", "doc/**", "components/**/doc/**", "test/**/doc/**"):
         assert f'"{tree}"' in conf, f"conf.py does not include {tree}, which the md parser reads"
 
-    # The rst parser reads the mounted build, which Sphinx names `generated/`.
-    assert project_config["parse"]["parsers"]["rst"]["include"] == list(variant_data.MOUNTED_PAGES)
-    for pattern in project_config["parse"]["parsers"]["rst"]["include"]:
-        assert f'"generated/{pattern}"' in conf, f"conf.py does not include generated/{pattern}, which the rst parser reads"
+    build_dir = PROJECT_ROOT / "build" / "Disco" / "test" / "Debug"
+    selection_file = tmp_path / "selection.toml"
+    selection_file.write_text(variant_data.selection_toml(PROJECT_ROOT, variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports"), "reports", build_dir), encoding="utf-8")
+    pages = tomllib.loads(selection_file.read_text(encoding="utf-8"))["parse"]["parsers"]["rst"]["include"]
+
+    monkeypatch.setenv("VARIANT", "Disco")
+    module = runpy.run_path(str(PROJECT_ROOT / "conf.py"))
+
+    app = SimpleNamespace(confdir=str(PROJECT_ROOT))
+    config = SimpleNamespace(
+        spl_selection=str(selection_file),
+        overrides={},
+        include_patterns=list(module["include_patterns"]),
+        suppress_warnings=[],
+        needs_variant_data_file=None,
+        root_doc="index",
+    )
+    module["_load_selection"](app, config)
+    assert config.include_patterns == [*module["include_patterns"], *pages]
 
 
 # --- what the variant machinery needs --------------------------------------
@@ -252,15 +263,10 @@ def test_variant_data_is_named_by_the_selection_not_the_committed_config(project
     """The committed configuration names no cell; a rendered selection does."""
     assert "variant_data_file" not in project_config.get("needs", {})
 
-    rendered = variant_data.selection_toml(
-        PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json",
-        "Disco",
-        "test",
-        None,
-    )
+    rendered = variant_data.selection_toml(PROJECT_ROOT, PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json", "reports", None)
     selection = tomllib.loads(rendered)
     assert selection["needs"]["variant_data_file"].endswith("build/variants/Disco/test/reports.json")
-    assert selection["source"]["mounts"] == []
+    assert "parse" not in selection
 
 
 def test_needs_json_is_written(project_config: dict) -> None:
@@ -277,9 +283,8 @@ def test_needs_json_is_written(project_config: dict) -> None:
 
 @pytest.fixture(scope="module")
 def rules(generated_variant_data: None) -> list[dict]:
-    """The document rules, as tools/variant_data.py wrote them."""
-    text = (PROJECT_ROOT / "ubproject.variants.toml").read_text(encoding="utf-8")
-    return tomllib.loads(text)["source"]["variant_sources"]
+    """The document rules, as tools/variant_data.py writes them with Disco's test build selected."""
+    return tomllib.loads(variant_data.rules_toml(PROJECT_ROOT, ("Disco", "test", "build/Disco/test/Debug")))["source"]["variant_sources"]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -325,15 +330,21 @@ def test_every_component_document_is_gated_by_a_rule(rules: list[dict]) -> None:
 
 
 def test_no_rule_names_a_variant_by_name(rules: list[dict]) -> None:
-    """Membership, never identity.
+    """Membership, never identity -- except for the selected build's own rule.
 
     Gating on the variant name re-encodes what parts.cmake already says, and
     the two are then free to drift. The integration suite is the case in point:
     it used to be gated on `variant == "Disco"`, which also claimed it for
-    Disco's prod kit, where parts.cmake does not add it.
+    Disco's prod kit, where parts.cmake does not add it. The one rule that does
+    name a variant gates a build directory's pages on that build's own variant
+    and kit: a fact about the build, not about the product.
     """
     known_variants = {"Disco", "Sleep", "Spa", "Base/Dev", "IDEA/Sloemada"}
+    build_rules = [rule for rule in rules if rule["files"] == ["build/Disco/test/Debug/**"]]
+    assert len(build_rules) == 1
     for rule in rules:
+        if rule in build_rules:
+            continue
         for variant in known_variants:
             assert f'"{variant}"' not in rule["if"], f"rule {rule['if']!r} names a variant directly"
             assert f"'{variant}'" not in rule["if"], f"rule {rule['if']!r} names a variant directly"
@@ -375,33 +386,19 @@ def test_rules_select_the_expected_documents(rules: list[dict], variant: str, ki
         assert _removed_by_rules(rules, data, path), f"{variant}/{kit}: expected {path} to be excluded"
 
 
-def test_the_mount_condition_names_the_builds_own_cell(tmp_path: Path) -> None:
-    """The mount's condition does name a variant -- the build's own.
+def test_the_selected_build_is_read_only_for_its_own_cell(rules: list[dict]) -> None:
+    """The selected build's pages exist for its own variant's and kit's reports only.
 
-    A reader pointed at another variant's data then reads none of this build's
-    pages, instead of showing them as that variant's. `selection_toml` renders
-    the condition; this evaluates it against the real cells.
+    A reader pointed at another variant's data, with the selection still in
+    place, then reads none of this build's pages, instead of showing them as
+    that variant's. This evaluates the generated rule against the real cells.
     """
-    from sphinx_mounts import variants
-
-    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
-    build_dir.mkdir(parents=True)
-
-    rendered = variant_data.selection_toml(
-        PROJECT_ROOT / "build" / "variants" / "Disco" / "test" / "reports.json",
-        "Disco",
-        "test",
-        build_dir,
-    )
-    mount = tomllib.loads(rendered)["source"]["mounts"][0]
-    assert mount["mount_at"] == variant_data.MOUNT_AT
-    assert mount["include"] == list(variant_data.MOUNTED_PAGES)
-    assert mount["gitignore"] is False
-
-    tree = variants.validate(mount["if"])
-    assert variants.interpret(tree, _variant_data("Disco", "test", "reports")) is True
-    assert variants.interpret(tree, _variant_data("Disco", "test", "docs")) is False
-    assert variants.interpret(tree, _variant_data("Sleep", "test", "reports")) is False
+    page = "build/Disco/test/Debug/components/light_controller/reports/unit_test_results.rst"
+    assert not _removed_by_rules(rules, _variant_data("Disco", "test", "reports"), page)
+    assert not _removed_by_rules(rules, _component_variant_data("Disco", "test", "reports", "components/light_controller"), page)
+    assert _removed_by_rules(rules, _variant_data("Disco", "test", "docs"), page)
+    assert _removed_by_rules(rules, _variant_data("Sleep", "test", "reports"), page)
+    assert _removed_by_rules(rules, _variant_data("Disco", "prod", "reports"), page)
 
 
 #: The report pages spl-core writes per component, and the names a report
@@ -442,37 +439,36 @@ def _component_path(document: Path) -> str | None:
 
 
 def test_report_sections_name_the_generated_pages() -> None:
-    """A report toctree names its pages, and names them through `generated/`.
+    """A report toctree names its pages where spl-core writes them, by a glob over build/.
 
-    The pages spl-core generates are reached through one route: the `generated`
-    link, named `SPL_SPHINX_BINARY_DIR` in CMakeLists.txt. A toctree that still
-    globbed `/build/**` would need `:glob:` and would search every variant's
-    build on the machine; one that pointed at `generated/` without the
-    component's own path would collect another component's report. Both are
-    silently wrong -- an entry that resolves to the wrong page still builds.
+    The selection reads one build's pages, so `/build/**/<component>/reports/<page>`
+    resolves to exactly one page. Without the component's own path, an entry
+    would collect another component's report; the variant's coverage page needs
+    a pattern per depth, because `**` would also match every component's. Both
+    are silently wrong -- an entry that resolves to the wrong page still builds.
     """
     documents = sorted(set(PROJECT_ROOT.glob("components/**/doc/**/*.md")) | set(PROJECT_ROOT.glob("test/**/doc/**/*.md")) | {PROJECT_ROOT / "index.md"})
 
-    report_documents = 0
+    report_toctrees = 0
     for document in documents:
         component = _component_path(document)
         for options, entries in _toctrees(document.read_text(encoding="utf-8")):
-            for entry in entries:
-                assert "/build/" not in entry, f"{document.relative_to(PROJECT_ROOT)}: toctree entry {entry!r} still points into build/"
             if not any("/reports/" in entry for entry in entries):
                 continue
-            report_documents += 1
-            assert ":glob:" not in options, f"{document.relative_to(PROJECT_ROOT)}: report toctree is still a glob"
-            for entry in entries:
-                assert entry.startswith("/generated/"), f"{document.relative_to(PROJECT_ROOT)}: report entry {entry!r} does not start with /generated/"
+            report_toctrees += 1
+            name = document.relative_to(PROJECT_ROOT)
+            assert ":glob:" in options, f"{name}: a report toctree has to be a glob"
+            assert not [entry for entry in entries if "generated" in entry], f"{name}: report entries still name generated/"
             if component is not None:
-                expected = {f"/generated/{component}/reports/{page}" for page in REPORT_PAGES}
-                expected.add(f"/generated/{component}/__source_docs/index")
-                assert set(entries) == expected, f"{document.relative_to(PROJECT_ROOT)}: expected {sorted(expected)}, got {sorted(entries)}"
+                expected = {f"/build/**/{component}/reports/{page}" for page in REPORT_PAGES}
+                expected.add(f"/build/**/{component}/__source_docs/index")
+                assert set(entries) == expected, f"{name}: expected {sorted(expected)}, got {sorted(entries)}"
+            else:
+                assert entries in (["/build/*/*/*/reports/coverage"], ["/build/*/*/*/*/reports/coverage"]), f"{name}: {entries}"
 
-    # Nine component documents (the two examples included) plus index.md's
-    # coverage toctree.
-    assert report_documents == 10, f"expected 10 report toctrees, found {report_documents}"
+    # Nine component documents (the two examples included) plus index.md's two
+    # coverage toctrees, one per depth of a variant's name.
+    assert report_toctrees == 11, f"expected 11 report toctrees, found {report_toctrees}"
 
 
 def _excluded(matcher: Matcher, path: str) -> bool:
@@ -490,35 +486,30 @@ def _excluded(matcher: Matcher, path: str) -> bool:
     return False
 
 
-def test_generated_is_the_only_route_to_the_generated_pages(monkeypatch: pytest.MonkeyPatch) -> None:
-    """With two routes, every generated page exists under two docnames.
+def test_the_generated_pages_are_read_where_spl_core_writes_them(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One route to each generated page: its own path, as upstream names it.
 
-    spl-core's include patterns name the build directory both ways in a SPLed
-    build: the raw `build/<V>/<kit>/<type>/...` path and the stable
-    `generated/...` name. conf.py must forward only the `generated/` one and
-    prune the whole `build` tree from the Sphinx walk, or each report page is
-    discovered twice -- once per name -- and every link and need in it is
-    duplicated. This executes conf.py rather than grepping its text, because the
+    No link, no mount, no stable alias: SPL_SPHINX_BINARY_DIR is gone, and conf.py
+    names no generated page itself -- the selection adds the selected build's.
+    The Sphinx walk prunes only the directories under build/ that never hold a
+    document. This executes conf.py rather than grepping its text, because the
     property is the resulting source set and the resulting matcher.
     """
     monkeypatch.setenv("VARIANT", "Disco")
 
     module = runpy.run_path(str(PROJECT_ROOT / "conf.py"))
 
-    include_patterns = module["include_patterns"]
-    for pattern in variant_data.MOUNTED_PAGES:
-        assert f"generated/{pattern}" in include_patterns
-    assert not [pattern for pattern in include_patterns if pattern.startswith("build/")]
+    assert not [pattern for pattern in module["include_patterns"] if pattern.startswith(("build", "generated"))]
 
     matcher = Matcher(module["exclude_patterns"])
-    assert _excluded(matcher, "build/Disco/test/Debug/components/light_controller/reports/coverage.rst"), "the build tree must be pruned from the Sphinx walk"
-    assert not _excluded(matcher, "generated/components/light_controller/reports/coverage.rst")
-    assert not _excluded(matcher, "generated/reports/coverage.rst")
-    assert _excluded(matcher, "generated/CMakeFiles/x.rst")
-    assert _excluded(matcher, "generated/reports/html/index.rst")
+    assert not _excluded(matcher, "build/Disco/test/Debug/components/light_controller/reports/coverage.rst")
+    assert not _excluded(matcher, "build/Base/Dev/test/Debug/reports/coverage.rst")
+    assert _excluded(matcher, "build/modules/googletest-src/docs/index.md")
+    assert _excluded(matcher, "build/Disco/test/Debug/CMakeFiles/x.rst")
+    assert _excluded(matcher, "build/Disco/test/Debug/reports/html/index.rst")
 
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    assert re.search(r"set\(\s*SPL_SPHINX_BINARY_DIR\s+\$\{CMAKE_SOURCE_DIR\}/generated\s*\)", cmake), "CMakeLists.txt must mount the build at the stable generated/ name"
+    assert "SPL_SPHINX_BINARY_DIR" not in cmake, "the pages keep the names spl-core gives them"
     assert re.search(
         r"set\(\s*SPL_SPHINX_OPTIONS\s+-D\s+spl_selection=\$\{CMAKE_BINARY_DIR\}/selection/@SHAPE@\.toml\s*\)",
         cmake,

@@ -25,6 +25,7 @@ import re
 import shutil
 import subprocess
 import sys
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -89,12 +90,11 @@ def selected_cell(all_variant_data: None) -> Iterator[None]:
 
     `ubc` loads the project through ubproject.toml -> ubproject.variants.toml ->
     build/selection.toml, and refuses to load it when that file is missing. The
-    developer's own build/selection.toml -- which points at the build they
-    configured -- is put back byte for byte, because this test must not repoint
+    developer's own selection -- which points at the build they configured -- is
+    put back byte for byte, every file of it, because this test must not repoint
     their IDE at a test selection.
     """
-    selection = PROJECT_ROOT / "build" / "selection.toml"
-    original = selection.read_bytes() if selection.is_file() else None
+    saved = {PROJECT_ROOT / name: (PROJECT_ROOT / name).read_bytes() if (PROJECT_ROOT / name).is_file() else None for name in variant_data.SELECTION_STATE}
 
     subprocess.run(
         [
@@ -114,10 +114,11 @@ def selected_cell(all_variant_data: None) -> Iterator[None]:
     try:
         yield
     finally:
-        if original is None:
-            selection.unlink(missing_ok=True)
-        else:
-            selection.write_bytes(original)
+        for path, content in saved.items():
+            if content is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(content)
 
 
 def _select_cell(variant: str, kit: str, target: str) -> list[str]:
@@ -459,7 +460,7 @@ def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_pa
         assert ("Verification" in page) is expect_verification, f"the {shape} shape {'should' if expect_verification else 'should not'} render the verification section"
 
 
-# --- the generated report pages, through the mount -------------------------
+# --- the generated report pages, where spl-core writes them ---------------
 
 
 #: The three pages spl-core writes per component at CONFIGURE time, and lists
@@ -499,16 +500,25 @@ def _fake_spl_core_report_tree(build_dir: Path, component: str) -> None:
     )
 
 
+@pytest.fixture
+def fake_build_dir() -> Iterator[Path]:
+    """A build directory of Disco's test kit that no real build uses.
+
+    The generated pages are read where spl-core writes them, by their paths
+    inside the project, so the fixture has to live under build/ as well: at the
+    depth of a real one (build/<variant>/<kit>/<build type>), which the report
+    toctrees' globs rely on.
+    """
+    build_dir = PROJECT_ROOT / "build" / "Disco" / "test" / f"Fixture{uuid.uuid4().hex[:8]}"
+    yield build_dir
+    shutil.rmtree(build_dir, ignore_errors=True)
+
+
 def _selection_file(tmp_path: Path, build_dir: Path, shape: str) -> Path:
     """A selection naming a fake build, as `tools/variant_data.py` would write it."""
     selection = tmp_path / f"selection-{shape}.toml"
     selection.write_text(
-        variant_data.selection_toml(
-            variant_data.cell_path(PROJECT_ROOT, "Disco", "test", shape),
-            "Disco",
-            "test",
-            build_dir,
-        ),
+        variant_data.selection_toml(PROJECT_ROOT, variant_data.cell_path(PROJECT_ROOT, "Disco", "test", shape), shape, build_dir),
         encoding="utf-8",
     )
     return selection
@@ -528,17 +538,16 @@ def _build_with_selection(selection: Path, out_dir: Path) -> subprocess.Complete
     )
 
 
-def test_the_docs_shape_does_not_read_the_generated_report_pages(all_variant_data: None, tmp_path: Path) -> None:
+def test_the_docs_shape_does_not_read_the_generated_report_pages(all_variant_data: None, tmp_path: Path, fake_build_dir: Path) -> None:
     """spl-core writes the report pages for both shapes; a docs build must not read them.
 
     They exist from configure time, and in a docs build the fences that would
     link them are false -- so reading them yields three documents per component
-    that no toctree references. The mount's condition, which names the build's
-    own target, is what keeps them out now: the selection is the same file a
-    reports build reads, and the condition gates the mount off. Declared once,
-    where ubCode reads it too, instead of a Sphinx-only filter.
+    that no toctree references. The docs shape's selection names no generated
+    page, in the file ubCode reads as well, instead of a Sphinx-only filter.
     """
-    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
+    build_dir = fake_build_dir
+    rel = build_dir.relative_to(PROJECT_ROOT).as_posix()
     _fake_spl_core_report_tree(build_dir, "components/light_controller")
     selection = _selection_file(tmp_path, build_dir, "docs")
 
@@ -549,21 +558,22 @@ def test_the_docs_shape_does_not_read_the_generated_report_pages(all_variant_dat
     # Sphinx writes warnings to stderr, so scanning stdout alone made an
     # earlier version of this test pass with the fix reverted.
     log = result.stdout + result.stderr
-    offenders = [line for line in log.splitlines() if "generated/" in line and "WARNING" in line]
+    offenders = [line for line in log.splitlines() if rel in line and "WARNING" in line]
     assert not offenders, "the docs shape read the generated report pages:\n" + "\n".join(offenders)
 
     for page in SPL_CORE_REPORT_PAGES:
-        built = out / "generated" / "components" / "light_controller" / "reports" / f"{page}.html"
+        built = out / rel / "components" / "light_controller" / "reports" / f"{page}.html"
         assert not built.is_file(), f"the docs shape built {page}"
 
 
-def test_the_reports_shape_still_reads_them(all_variant_data: None, tmp_path: Path) -> None:
+def test_the_reports_shape_still_reads_them(all_variant_data: None, tmp_path: Path, fake_build_dir: Path) -> None:
     """The other half: keeping the docs shape clean must not starve the reports one.
 
-    The fixed `/generated/...` toctree names have to resolve, or Sphinx reports
-    a nonexisting document and the page links nothing at all.
+    The report toctrees' globs have to match, or Sphinx reports an empty glob
+    and the page links nothing at all.
     """
-    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
+    build_dir = fake_build_dir
+    rel = build_dir.relative_to(PROJECT_ROOT).as_posix()
     _fake_spl_core_report_tree(build_dir, "components/light_controller")
     selection = _selection_file(tmp_path, build_dir, "reports")
 
@@ -572,28 +582,29 @@ def test_the_reports_shape_still_reads_them(all_variant_data: None, tmp_path: Pa
     assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
 
     log = result.stdout + result.stderr
-    unresolved = [line for line in log.splitlines() if "nonexisting document" in line and "generated/components/light_controller/reports" in line]
+    unresolved = [line for line in log.splitlines() if "light_controller/reports" in line and ("nonexisting document" in line or "match any documents" in line)]
     assert not unresolved, "the report toctree did not resolve:\n" + "\n".join(unresolved)
 
     for page in SPL_CORE_REPORT_PAGES:
-        assert (out / "generated" / "components" / "light_controller" / "reports" / f"{page}.html").is_file()
+        assert (out / rel / "components" / "light_controller" / "reports" / f"{page}.html").is_file()
+    assert (out / rel / "reports" / "coverage.html").is_file(), "the variant's coverage glob did not match"
 
     document = (out / "components" / "light_controller" / "doc" / "index.html").read_text(encoding="utf-8")
     for page in SPL_CORE_REPORT_PAGES:
-        href = f"generated/components/light_controller/reports/{page}.html"
+        href = f"{rel}/components/light_controller/reports/{page}.html"
         assert href in document, f"the light_controller page does not link {page}"
 
 
 # --- the generated listings must not show their Jinja armour ----------------
 
 
-def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None, tmp_path: Path) -> None:
+def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None, tmp_path: Path, fake_build_dir: Path) -> None:
     """spl-core wraps generated listings in `{% raw %}` unless this turns it off.
 
     The global Jinja pass used to consume those markers. It is gone, so the flag
     is what keeps them out: CMakeLists.txt sets SPL_SOURCE_DOCS_JINJA_RAW_TAGS
     OFF, and spl-core then invokes clanguru without `--jinja-raw-tags`. This
-    generates the fixture the same way and builds it through the mount, so it
+    generates the fixture the same way and builds it where spl-core puts it, so it
     tracks what the build actually emits rather than a hand-written idea of it.
     """
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
@@ -606,7 +617,7 @@ def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None
     source = tmp_path / "sample.c"
     source.write_text("int add(int a, int b) { return a + b; }\n", encoding="utf-8")
 
-    build_dir = tmp_path / "build" / "Disco" / "test" / "Debug"
+    build_dir = fake_build_dir
     component = "components/light_controller"
     _fake_spl_core_report_tree(build_dir, component)
     listing_dir = build_dir / component / "__source_docs"
@@ -627,7 +638,7 @@ def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None
     result = _build_with_selection(selection, out)
     assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
 
-    page = out / "generated" / component / "__source_docs" / "sample_c.html"
+    page = out / build_dir.relative_to(PROJECT_ROOT) / component / "__source_docs" / "sample_c.html"
     assert page.is_file(), "the listing was not built"
     rendered = page.read_text(encoding="utf-8")
     for marker in ("{% raw %}", "{% endraw %}"):

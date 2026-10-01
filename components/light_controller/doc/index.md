@@ -124,11 +124,12 @@ stateDiagram-v2
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/light_controller/reports/unit_test_spec
-/generated/components/light_controller/reports/unit_test_results
-/generated/components/light_controller/reports/coverage
-/generated/components/light_controller/__source_docs/index
+/build/**/components/light_controller/reports/unit_test_spec
+/build/**/components/light_controller/reports/unit_test_results
+/build/**/components/light_controller/reports/coverage
+/build/**/components/light_controller/__source_docs/index
 ```
 
 ````

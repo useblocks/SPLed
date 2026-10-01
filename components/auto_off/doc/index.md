@@ -128,11 +128,12 @@ Key press detection and timer reset occur within one execution cycle (CONFIG_OS_
 
 ```{toctree}
 :maxdepth: 1
+:glob:
 
-/generated/components/auto_off/reports/unit_test_spec
-/generated/components/auto_off/reports/unit_test_results
-/generated/components/auto_off/reports/coverage
-/generated/components/auto_off/__source_docs/index
+/build/**/components/auto_off/reports/unit_test_spec
+/build/**/components/auto_off/reports/unit_test_results
+/build/**/components/auto_off/reports/coverage
+/build/**/components/auto_off/__source_docs/index
 ```
 
 ````

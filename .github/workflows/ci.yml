@@ -48,10 +48,11 @@ jobs:
         needs: determine-gate
 
         # The documentation of every variant and kit, in both readers, in strict
-        # mode, with their needs compared (test/test_docs_gate.py). Nothing is
-        # compiled, but each cell is CONFIGURED: codelinks takes a variant's
-        # #ifdef branches from its build's compile database, which only CMake
-        # writes, and CMake's top-level project() call wants a C/C++ toolchain.
+        # mode, with their needs compared (test/test_docs_gate.py). Each cell is
+        # CONFIGURED: codelinks takes a variant's #ifdef branches from its
+        # build's compile database, which only CMake writes. The reports shape
+        # also compiles each test-kit variant and runs its tests, because the
+        # test specifications, results and listings are what that run generates.
         # The runner's gcc, g++, cmake and ninja are enough -- no poks, no scoop,
         # no cross-compiler. It covers every variant, where the build jobs cover
         # the variants they build.

@@ -102,19 +102,13 @@ endif()
 #
 # Every documentation run spl-core starts names its own selection file, which
 # tools/variant_data.py has just written for this build: the variant data file of
-# its shape (and component), and the mount of this build directory. conf.py reads
+# its shape (and component) and, for its reports, this build's generated pages by
+# their own paths. conf.py reads
 # it, and ubc takes the same file with `-c "$(cat <file>)"`. No run depends on
 # which build was configured last, so the reports of two builds can be built side
 # by side.
 set(SPL_SPHINX_OPTIONS -D spl_selection=${CMAKE_BINARY_DIR}/selection/@SHAPE@.toml)
 set(SPL_SPHINX_COMPONENT_OPTIONS -D spl_selection=${CMAKE_BINARY_DIR}/selection/@COMPONENT_PATH@/@SHAPE@.toml)
-
-# The selection mounts this build directory at `generated`, so every page
-# spl-core generates is named `generated/...` whatever the variant, kit or build
-# type, and the report sections name them directly instead of globbing
-# `/build/**`. spl-core writes each coverage report next to its page under that
-# name. `generated` does not exist on disk: it is a mount, not a link.
-set(SPL_SPHINX_BINARY_DIR ${CMAKE_SOURCE_DIR}/generated)
 
 # No document is rendered through Jinja, so the source listings clanguru
 # generates need no `{% raw %}` armour.
