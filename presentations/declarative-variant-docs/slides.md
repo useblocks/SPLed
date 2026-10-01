@@ -1086,10 +1086,10 @@ style: |
 
 ### useblocks GmbH · Munich, Germany
 
-<div class="title-date">September 2026</div>
+<div class="title-date">October 2026</div>
 
 <!--
-Audience: engineers who know Sphinx and sphinx-needs. Four parts: how upstream does it, why static readers fail, the fix, and what is still open. Everything shown is on the useblocks forks: spl-core#4, SPLed#2 and SPLed#3.
+Audience: engineers who know Sphinx and sphinx-needs. Four parts: how upstream does it, why static readers fail, the fix, and what is still open. Everything shown is merged on the useblocks forks: SPLed#4, spl-core#5 and clanguru#1.
 -->
 
 ---
@@ -1104,10 +1104,10 @@ Audience: engineers who know Sphinx and sphinx-needs. Four parts: how upstream d
 |:---:|:---|:---|
 | **1** | **How upstream builds variant docs** | spl-core, Jinja, one CMake build |
 | **2** | **Why ubCode and ubc cannot read it** | static readers, and the one rule they need |
-| **3** | **The fix** | variant data, declarative gates, five spl-core changes |
+| **3** | **The fix** | a generated selection, declarative gates, spl-core and clanguru changes |
 | **4** | **What is still open** | next steps, product ideas, the way upstream |
 
-<div class="note">Everything shown is on <a href="https://github.com/useblocks/spl-core/pull/4">useblocks/spl-core#4</a>, <a href="https://github.com/useblocks/SPLed/pull/2">useblocks/SPLed#2</a> and <a href="https://github.com/useblocks/SPLed/pull/3">useblocks/SPLed#3</a></div>
+<div class="note">Everything shown is merged on the forks: <a href="https://github.com/useblocks/SPLed/pull/4">useblocks/SPLed#4</a>, <a href="https://github.com/useblocks/spl-core/pull/5">useblocks/spl-core#5</a> and <a href="https://github.com/useblocks/clanguru/pull/1">useblocks/clanguru#1</a></div>
 
 ---
 
@@ -1118,9 +1118,9 @@ Audience: engineers who know Sphinx and sphinx-needs. Four parts: how upstream d
 # In one slide
 
 - **Today:** every document is a Jinja template, rendered inside a CMake build that alone knows the variant.
-- **Problem:** readers that do not run the build, such as ubCode, ubc, an editor or a CI gate without a compiler, see templates instead of documents.
-- **Fix:** generate variant data, never content. Sphinx and ubc read the same inputs and select a variant the same way.
-- **Status:** five small spl-core changes, SPLed adapted, [CI green](https://github.com/useblocks/SPLed/actions/runs/35985268428) on Windows, Linux and the devcontainer.
+- **Problem:** readers that do not run the build, such as ubCode, ubc, an editor or a CI gate, see templates instead of documents.
+- **Fix:** selecting a variant generates every file the readers need: the variant data, the rules and the selection. Sphinx and ubc read the same files.
+- **Status:** merged on the useblocks forks. Both readers read the same needs, 134 against 132 in Disco's reports, the two untitled imports apart. The [CI documentation gate](https://github.com/useblocks/SPLed/actions/runs/36923824832) is green.
 
 <div class="highlight">
 
@@ -1368,7 +1368,7 @@ build/Disco/test/Debug/reports/html/build/Disco/test/Debug/components/…/covera
 
 # The fix: generate data, never content
 
-### [SPLed#2](https://github.com/useblocks/SPLed/pull/2) on the fork, five changes in [spl-core#4](https://github.com/useblocks/spl-core/pull/4), and [SPLed#3](https://github.com/useblocks/SPLed/pull/3) that uses them
+### [SPLed#4](https://github.com/useblocks/SPLed/pull/4), with [spl-core#5](https://github.com/useblocks/spl-core/pull/5) and [clanguru#1](https://github.com/useblocks/clanguru/pull/1), merged on the forks
 
 ---
 
@@ -1378,14 +1378,14 @@ build/Disco/test/Debug/reports/html/build/Disco/test/Debug/components/…/covera
 
 # Four rules
 
-1. **One generation step** writes complete, self-describing data for every variant, kit and target.
+1. **One selection step** writes complete, self-describing data for every variant, kit and target, and the rules that gate the documents.
 2. **Content stays 150 %** in the tree. Declarative gates decide what a variant contains.
-3. **Every reader reads the same inputs:** a variant cell, `ubproject.toml` and the documents.
-4. **A variant is selected, not rendered:** one key, `variant_data_file`, picks the cell for Sphinx, ubc and the IDE.
+3. **Every reader reads the same files:** the selection, its variant cell, `ubproject.toml` with its generated rules, and the documents.
+4. **A variant is selected, not rendered:** CMake configure, or `tools/variant_data.py`, writes the selection; nothing is decided on a command line or in `conf.py`.
 
 <div class="highlight">
 
-Nothing that decides content lives in `conf.py`, CMake or a template.
+Nothing that decides content lives in `conf.py`, CMake or a template, and nothing per component is written by hand.
 
 </div>
 
@@ -1399,10 +1399,10 @@ Nothing that decides content lives in `conf.py`, CMake or a template.
 
 ![w:1160](images/declarative-pipeline.svg)
 
-<div class="note"><a href="https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/tools/variant_data.py">tools/variant_data.py</a> writes the cells · <a href="https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/ubproject.toml">ubproject.toml</a> holds the model and the rules · <a href="https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/conf.py">conf.py</a> keeps extensions and theme</div>
+<div class="note"><a href="https://github.com/useblocks/SPLed/blob/e79a759/tools/variant_data.py">tools/variant_data.py</a> writes the cells, the rules and the selection · <a href="https://github.com/useblocks/SPLed/blob/e79a759/ubproject.toml">ubproject.toml</a> holds the model and extends the rules · <a href="https://github.com/useblocks/SPLed/blob/e79a759/conf.py">conf.py</a> hands the selection to Sphinx</div>
 
 <!--
-Left: the generator. Middle: the three inputs, all plain files. Right: the two readers, which select a cell with the same key. The CI parity test checks that they arrive at the same document set.
+Left: the selection step. Middle: the three inputs, all plain files. Right: the two readers. ubCode reaches the selection through extend; conf.py hands the same keys to Sphinx, whose extensions read one TOML file each. The CI gate checks that both arrive at the same needs.
 -->
 
 ---
@@ -1422,6 +1422,8 @@ Left: the generator. Middle: the three inputs, all plain files. Right: the two r
     "variant": "Sleep",
     "kit": "test",
     "target": "reports",
+    "scope": "variant",
+    "component": "",
     "components": ["components/rte", "…",
       "components/brightness_controller",
       "components/auto_off"]
@@ -1438,16 +1440,16 @@ Left: the generator. Middle: the three inputs, all plain files. Right: the two r
 </div>
 <div>
 
-- [`tools/variant_data.py`](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/tools/variant_data.py) writes all 20 cells in one run, without a compiler: 5 variants, 2 kits, 2 targets.
+- [`tools/variant_data.py`](https://github.com/useblocks/SPLed/blob/e79a759/tools/variant_data.py) writes all 114 cells in one run, without a compiler: 20 variant cells (5 variants, 2 kits, 2 targets) and 94 for per-component reports.
 - Every declared boolean is present, including promptless ones that KConfig leaves out when they are off.
 - The component list comes from `parts.cmake`, where the product structure already lives.
-- `build/autoconf.json` points at the cell the IDE shows.
+- `build/selection.toml` names the cell the IDE and a plain build read.
 
 </div>
 </div>
 
 <!--
-The features object is shortened: a cell has 21 features. The pointer is rewritten whenever CMake configures, or by a VS Code task, so the IDE follows the variant a developer is working on.
+The features object is shortened: a cell has 21 features. scope and component make a per-component report a cell of its own. The selection is rewritten whenever CMake configures, or by a VS Code task, so the IDE follows the variant a developer is working on.
 -->
 
 ---
@@ -1459,10 +1461,10 @@ The features object is shortened: a cell has 21 features. The pointer is rewritt
 # Two gates, one data source
 
 ```toml
-# ubproject.toml: whole documents, gated on a component
+# ubproject.variants.toml, generated: whole documents, gated on a component
 [[source.variant_sources]]
-if = "'components/auto_off' in var.build_config.components"
-files = ["components/auto_off/doc/**", "generated/components/auto_off/reports/**"]
+if = "'components/auto_off' in var.build_config.components and (var.build_config.scope == 'variant' or var.build_config.component == 'components/auto_off')"
+files = ["components/auto_off/**"]
 ```
 
 <div class="columns">
@@ -1491,17 +1493,17 @@ stateDiagram-v2
 
 <div class="success">
 
-10 rules and 25 `{if}` fences in 9 documents replace 58 Jinja constructs. The components page becomes a static 150 % toctree.
+12 generated rules and 28 `{if}` fences in 11 documents replace 58 Jinja constructs. The components page is a glob over every component.
 
 </div>
 
 </div>
 </div>
 
-<div class="note">Shortened from the <a href="https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/ubproject.toml#L310-L316">auto_off rule</a> and the <a href="https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/components/light_controller/doc/index.md#L92-L103">light controller diagram</a> · <a href="https://sphinx-needs.readthedocs.io/en/latest/directives/if.html">the {if} directive</a> · <a href="https://github.com/useblocks/sphinx-mounts">sphinx-mounts</a> applies the rules for Sphinx</div>
+<div class="note">The generator derives one rule per component from where its documentation lives · <a href="https://github.com/useblocks/SPLed/blob/e79a759/components/light_controller/doc/index.md">the light controller diagram</a> · <a href="https://sphinx-needs.readthedocs.io/en/latest/directives/if.html">the {if} directive</a> · <a href="https://github.com/useblocks/sphinx-mounts">sphinx-mounts</a> applies the rules for Sphinx</div>
 
 <!--
-Rules remove whole documents, for Sphinx through sphinx-mounts and for ubCode natively. Excluded toctree entries are reported as info by both tools. Content behind a false {if} is never parsed, so its needs never enter the traceability data.
+Rules remove whole documents, for Sphinx through sphinx-mounts and for ubCode natively. Excluded toctree entries are reported as info by both tools. Content behind a false {if} is never parsed, so its needs never enter the traceability data. Adding a component means adding it to parts.cmake and writing its documentation: the next selection writes its rule.
 -->
 
 ---
@@ -1558,14 +1560,13 @@ The one real case is a document in every variant whose place changes. Two thin p
 
 # No toctree variants left in SPLed
 
-- **Components:** [one static 150 % toctree](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/doc/components/index.md) lists them all, and [10 rules](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/ubproject.toml#L253-L340) decide which exist.
-- **Reports:** 8 `{if}` blocks on the build shape, `target == "reports"`. Each hides a whole report section in a docs build, not single entries.
-- **The entries no longer vary.** Upstream decides them per entry, SPLed#2 globs them, SPLed#3 names them:
+- **Components:** [one glob toctree](https://github.com/useblocks/SPLed/blob/e79a759/doc/components/index.md) lists them all, and the generated rules decide which exist.
+- **Reports:** `{if}` blocks on the build shape, `target == "reports"`. Each hides a whole report section in a docs build, not single entries.
+- **The entries no longer vary.** Upstream computes them per entry; the fork globs the one build the selection reads:
 
 ```text
-/{{ component_info.reports_output_dir }}/unit_test_results        upstream: Jinja, per entry
-/build/**/components/light_controller/reports/unit_test_results   SPLed#2: a glob that conf.py narrows
-/generated/components/light_controller/reports/unit_test_results  SPLed#3: one name, every variant
+/{{ component_info.reports_output_dir }}/unit_test_results    upstream: Jinja, per entry
+/build/**/components/light_controller/reports/unit_test_results   fork: one page, in every variant
 ```
 
 <div class="highlight">
@@ -1574,11 +1575,10 @@ The one real case is a document in every variant whose place changes. Two thin p
 
 </div>
 
-<div class="note">Upstream <a href="https://github.com/avengineers/SPLed/blob/f5ba89efcabb494ccc66a7619943260444c497de/doc/components/index.md#L12-L16">components page</a> · SPLed#2 <a href="https://github.com/useblocks/SPLed/blob/bd851d1ba73daac4ea923aabd61512456238cab4/components/light_controller/doc/index.md#L115-L127">glob</a> and <a href="https://github.com/useblocks/SPLed/blob/bd851d1ba73daac4ea923aabd61512456238cab4/conf.py#L166-L189">narrowing in conf.py</a> · SPLed#3 <a href="https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/components/light_controller/doc/index.md#L114-L126">fixed names</a></div>
+<div class="note">Upstream <a href="https://github.com/avengineers/SPLed/blob/f5ba89efcabb494ccc66a7619943260444c497de/doc/components/index.md#L12-L16">components page</a> · fork <a href="https://github.com/useblocks/SPLed/blob/e79a759/components/light_controller/doc/index.md">report section</a></div>
 
 <!--
-Before spl-core#4, the report entries were the one place where a toctree still changed with the variant: SPLed#2 had to glob /build/** and let conf.py narrow discovery to the configured build, so that each glob matched a single page. SPL_SPHINX_BINARY_DIR gives every generated page a stable name under generated/, so the entries are plain names and conf.py only prunes build/ from the walk.
-The remaining {if} blocks gate on the build shape, which is in the variant data, so ubCode and Sphinx evaluate them identically. In the IDE the pointer always holds the docs cell, so they are a clean false there.
+The glob resolves to exactly one page because each reader reads one build's pages: the selection names them as the rst parser's include. The pages keep the names spl-core gives them, so the coverage links next to them work unchanged. The variant's own coverage page needs one pattern per depth, because a two-segment variant name such as Base/Dev puts it one level deeper.
 -->
 
 ---
@@ -1587,23 +1587,26 @@ The remaining {if} blocks gate on the build shape, which is in the variant data,
 
 <span class="badge">The fix</span>
 
-# One key selects the variant
+# One file selects the variant
 
-```bash
-# Sphinx
-sphinx-build -b html -D needs_variant_data_file=build/variants/Sleep/test/docs.json . out
+```toml
+# build/selection.toml, written by CMake configure or tools/variant_data.py
+[needs]
+variant_data_file = ".../build/variants/Disco/test/reports.json"
 
-# ubc
-ubc check -c "needs.variant_data_file = 'build/variants/Sleep/test/docs.json'"
-
-# IDE: the pointer build/autoconf.json, written by CMake or tools/variant_data.py
+[parse.parsers.rst]   # this build's generated pages, where spl-core writes them
+include = ["build/Disco/test/Debug/components/**/*.rst", "…/test/**/*.rst", "…/reports/*.rst"]
 ```
 
-- spl-core passes `-D needs_variant_data_file=` to every docs and reports build, from [two settings in `CMakeLists.txt`](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/CMakeLists.txt#L93-L103).
-- `conf.py` selects nothing. It lists extensions and the theme.
-- A command-line override survives `ubproject.toml`; a value set in `conf.py` would be replaced by it.
+- ubCode reaches it through `extend`; `conf.py` hands the same keys to Sphinx. Nothing is selected on a command line.
+- Every build keeps one such file per documentation run: `sphinx-build -D spl_selection=<file>`, `ubc check -c "$(cat <file>)"`.
+- No link, no copy, no mount: two builds' reports run side by side.
 
-<div class="note"><a href="https://sphinx-needs.readthedocs.io/en/latest/configuration.html">sphinx-needs configuration</a> · <a href="https://github.com/useblocks/spl-core/commit/b3ff837a10d872d95ad4c9ad795641284c702f0d">the spl-core commit that passes the override</a></div>
+<div class="note"><a href="https://github.com/useblocks/SPLed/blob/e79a759/tools/variant_data.py">the generator</a> · <a href="https://github.com/useblocks/SPLed/blob/e79a759/conf.py">conf.py</a> · <a href="https://github.com/useblocks/spl-core/blob/ce62088/docs/reference/variables.md">SPL_SPHINX_OPTIONS</a> names each run's file</div>
+
+<!--
+The first design selected the variant with one key on the command line and reached the generated pages through a link called generated. The link was a cross-platform problem, blocked parallel builds, and ubCode never followed it. Reading the pages in place, named by the selection, removed all three.
+-->
 
 ---
 
@@ -1611,25 +1614,20 @@ ubc check -c "needs.variant_data_file = 'build/variants/Sleep/test/docs.json'"
 
 <span class="badge">The fix</span>
 
-# Five small changes in spl-core
+# Changes in spl-core and clanguru
 
 | New in spl-core | Default | What a project can do |
 |:---|:---|:---|
-| [`KConfig.declared_boolean_symbols()`](https://github.com/useblocks/spl-core/commit/762406d87d1052c5d987a7dff0bc31cf7fe4f69b) | a function | list every boolean the model declares |
-| [`SPL_SOURCE_DOCS_JINJA_RAW_TAGS`](https://github.com/useblocks/spl-core/commit/1b5ee76ec3f65fb9523850b825638e6cc9ba4af9) | `ON` | build listings without `{% raw %}` |
-| [`SPL_VARIANT_DATA_FILE_DOCS`, `_REPORTS`](https://github.com/useblocks/spl-core/commit/b3ff837a10d872d95ad4c9ad795641284c702f0d) | empty | give each Sphinx build its cell |
-| [`SPL_SPHINX_SOURCE_DIR`](https://github.com/useblocks/spl-core/commit/998c97d59a41058ef937ef12c191d19216a72c2c) | project root | run Sphinx on a folder of its own |
-| [`SPL_SPHINX_BINARY_DIR`](https://github.com/useblocks/spl-core/commit/010727d08b27ca73994772444d25d7bc6e028c31) | build dir | give generated pages stable names |
+| `KConfig.declared_boolean_symbols()` | a function | list every declared boolean |
+| `SPL_SOURCE_DOCS_JINJA_RAW_TAGS` | `ON` | listings without `{% raw %}` |
+| `SPL_VARIANT_DATA_FILE_DOCS`, `_REPORTS` | empty | give each Sphinx build its cell |
+| `SPL_SPHINX_SOURCE_DIR` | project root | Sphinx on a folder of its own |
+| `SPL_SPHINX_OPTIONS`, `_COMPONENT_OPTIONS` | empty | each run its own selection file |
+| `SPL_TEST_RESULTS_AS_NEEDS` | `OFF` | test results as needs.json |
 
-- 8 files, 543 lines added, 21 removed. A project that sets none of the new settings builds exactly as before.
-- A stable name moves everything with it: include patterns, the coverage report next to its page, and `SplBuild`'s artifact lookup.
-- A build stops with a clear message if the stable link leads to another build directory.
+- **clanguru:** a listing shows only its file's own declarations, parsed with every preprocessor option. Before, Spa's report listed a manual-brightness test instead of the automatic ones Spa runs.
 
-<div class="note">All five on <a href="https://github.com/useblocks/spl-core/pull/4">useblocks/spl-core#4</a>, documented in the <a href="https://github.com/useblocks/spl-core/blob/010727d08b27ca73994772444d25d7bc6e028c31/docs/reference/variables.md">variables reference</a></div>
-
-<!--
-Each commit has its own tests: 256 unit tests pass, and every new CMake test case also fails when its expectation is flipped.
--->
+<div class="note"><a href="https://github.com/useblocks/spl-core/pull/5">useblocks/spl-core#5</a> · <a href="https://github.com/useblocks/clanguru/pull/1">useblocks/clanguru#1</a>, proposed upstream as <a href="https://github.com/cuinixam/clanguru/pull/9">cuinixam/clanguru#9</a> · <a href="https://github.com/useblocks/spl-core/blob/ce62088/docs/reference/variables.md">variables reference</a></div>
 
 ---
 
@@ -1646,9 +1644,9 @@ Each commit has its own tests: 256 unit tests pass, and every new CMake test cas
 
 - 58 Jinja constructs in 6 documents
 - a `source-read` handler that renders every page
-- two functions in `conf.py`
 - report entries built from Jinja paths
-- no documentation check without a compiler
+- test results through a Sphinx-only directive and a Python link function
+- no documentation check without a full variant build
 - no variant data a static reader can use
 
 </div>
@@ -1657,19 +1655,16 @@ Each commit has its own tests: 256 unit tests pass, and every new CMake test cas
 ### Now
 
 - no Jinja in any document
-- no handler and no function in [`conf.py`](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/conf.py)
-- fixed `generated/…` report names
-- all five variants checked on every PR
-- 20 variant cells and a pointer
+- no `source-read` handler; [`conf.py`](https://github.com/useblocks/SPLed/blob/e79a759/conf.py) hands the selection on
+- report entries as globs over the one selected build
+- test results as needs.json, imported by both readers
+- every variant and kit checked by both readers on every PR
+- 114 variant cells, generated rules and a selection
 
 </div>
 </div>
 
-<div class="note"><a href="https://github.com/useblocks/SPLed/pull/2">SPLed#2</a> removed the Jinja pass and introduced the variant data · <a href="https://github.com/useblocks/SPLed/pull/3">SPLed#3</a> removed the workarounds #2 still needed</div>
-
-<!--
-PR #2 still needed a marker strip in conf.py, fixed-name copies of the variant data and globs into build. PR #3 removes those, because spl-core now provides the settings. conf.py keeps 51 lines of code.
--->
+<div class="note"><a href="https://github.com/useblocks/SPLed/pull/4">useblocks/SPLed#4</a>, which carries the earlier SPLed#2 and #3</div>
 
 ---
 
@@ -1677,17 +1672,17 @@ PR #2 still needed a marker strip in conf.py, fixed-name copies of the variant d
 
 <span class="badge">Proof</span>
 
-# Both readers agree, on every platform
+# Both readers agree, need for need
 
-- **Parity test:** for each variant, [ubc must exclude exactly the documents](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/test/test_documentation.py#L295) the component list omits, and [Sphinx must build exactly the rest](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/test/test_documentation.py#L117).
-- **Compiler-free gate:** all five variants' documents built and checked with ubc on [every pull request](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/.github/workflows/ci.yml#L44), in under two minutes.
-- **End to end:** Disco's reports have every page under `generated/`, working coverage links, and all 16 report artifacts.
+- **The gate:** every variant and kit, every per-component report, and the test kit's reports, built by `sphinx-build -W` and by ubc; their needs.json compared on IDs, types, titles, fields and links.
+- **Allowed differences** are listed with their reason: `REQ_37` and `REQ_58`, untitled in the ubConnect export, and `remote-url`, which the readers store differently.
+- **End to end:** Disco's reports have working coverage links and every relative link resolves: 7,848 of 7,848.
 
 <div class="kpi-grid-4">
-<div class="kpi-tile"><div class="kpi-number">256</div><div class="kpi-label">spl-core unit tests</div><div class="kpi-sublabel">passed</div></div>
-<div class="kpi-tile"><div class="kpi-number">94</div><div class="kpi-label">SPLed documentation tests</div><div class="kpi-sublabel">passed</div></div>
-<div class="kpi-tile"><div class="kpi-number">31</div><div class="kpi-label">CI documentation gate</div><div class="kpi-sublabel">passed, no compiler</div></div>
-<div class="kpi-tile"><div class="kpi-number">8/8</div><div class="kpi-label"><a href="https://github.com/useblocks/SPLed/actions/runs/35985268428">CI jobs green</a></div><div class="kpi-sublabel">Windows, Linux, devcontainer, docs</div></div>
+<div class="kpi-tile"><div class="kpi-number">134 / 132</div><div class="kpi-label">needs, Sphinx / ubc</div><div class="kpi-sublabel">Disco reports, 0 field differences</div></div>
+<div class="kpi-tile"><div class="kpi-number">25 / 25</div><div class="kpi-label">one component's report</div><div class="kpi-sublabel">light_controller</div></div>
+<div class="kpi-tile"><div class="kpi-number">95</div><div class="kpi-label"><a href="https://github.com/useblocks/SPLed/actions/runs/36923824832">CI documentation gate</a></div><div class="kpi-sublabel">passed</div></div>
+<div class="kpi-tile"><div class="kpi-number">3 / 4</div><div class="kpi-label">CI jobs green</div><div class="kpi-sublabel">Windows fails installing the toolchain, as on upstream develop</div></div>
 </div>
 
 ---
@@ -1701,11 +1696,29 @@ PR #2 still needed a marker strip in conf.py, fixed-name copies of the variant d
 - [Upstream's lock refresh](https://github.com/avengineers/SPLed/commit/f5ba89efcabb494ccc66a7619943260444c497de) moved sphinx-needs from 8.2 to 8.5.
 - 8.5 resolves the variant data right after it loads `ubproject.toml`, before the handler in `conf.py` ran.
 - Every reports build read the docs cell and silently lost its report sections, or failed on a fresh checkout.
-- The documentation gate caught it when [upstream was merged](https://github.com/useblocks/SPLed/commit/f4f98a57913d15fa45fe39c073c9bdbad1c03a2f). [Moving the selection to the command line](https://github.com/useblocks/spl-core/commit/b3ff837a10d872d95ad4c9ad795641284c702f0d) fixed it for good.
+- The documentation gate caught it when [upstream was merged](https://github.com/useblocks/SPLed/commit/f4f98a57913d15fa45fe39c073c9bdbad1c03a2f). Today the selection is a generated file that `conf.py` hands on before sphinx-needs loads its TOML.
 
 <div class="warn">
 
 A selection that lives in one reader's code breaks without a sound. A selection that is data, or a standard override, cannot.
+
+</div>
+
+---
+
+<!-- _class: invert -->
+
+<span class="badge">Lesson learned</span>
+
+# What the second reader found
+
+- **Generated pages missing in ubCode:** ubc read 92 of Sphinx's 134 needs while the pages came in through a mount inside the project. All 42 missing ones were on the verification side. Reading the pages in place closed it.
+- **Wrong code in the listings:** clanguru dropped `-isystem`, so every listing showed the `#ifdef` branch of "no feature defined". Spa's report listed `TS_BC-001` instead of `TS_BC-002`/`003`.
+- **A link rule only Sphinx knew:** sphinx-codelinks adds it in Python, so ubCode showed the source URL as plain text.
+
+<div class="warn">
+
+Each one looked fine in one reader. The comparison need by need is what made them visible.
 
 </div>
 
@@ -1727,15 +1740,11 @@ A selection that lives in one reader's code breaks without a sound. A selection 
 
 # Next in SPLed and spl-core
 
-- **A folder for the documents:** move them into `docs/` and mount component docs with [sphinx-mounts](https://github.com/useblocks/sphinx-mounts). The [spl-core setting](https://github.com/useblocks/spl-core/commit/998c97d59a41058ef937ef12c191d19216a72c2c) is ready.
-- **Test results as data:** [sphinx-test-reports 2.0](https://github.com/useblocks/sphinx-test-reports/releases/tag/2.0.0) turns JUnit XML into needs that both readers import.
-- **Links as data:** replace [`sple_tr_link`](https://github.com/avengineers/spl-core/blob/95a634771491f7c649566b06e3e1fed3f422d86b/src/spl_core/report_generation/spl_sphinx.py#L14) with links written at conversion time.
-- **Old warnings:** spl-core's wrapper pages that SPLed does not link, and duplicate implementation needs in the integration suite's listings.
+- **Comparing variants without reconfiguring:** codelinks reads one compile database, the selected build's. One per build, named by each selection, makes a comparison two ubc runs. To discuss: switch off `-save-temps` in spl-core, or let codelinks keep only the preprocessor options.
+- **Windows CI:** the toolchain install fails, on the fork and on upstream `develop` alike.
+- **A folder for the documents:** move them into `docs/`. The [spl-core setting](https://github.com/useblocks/spl-core/commit/998c97d59a41058ef937ef12c191d19216a72c2c) is ready.
 - **The kickstart template:** start new spl-core projects without [the Jinja pass](https://github.com/avengineers/spl-core/blob/95a634771491f7c649566b06e3e1fed3f422d86b/src/spl_core/kickstart/templates/project/conf.py#L71-L84).
-
-<!--
-sphinx-codelinks also reads a compilation database that only the VS Code CMake extension copies into place. Pointing it at the configured build would make source tracing variant-aware in CI as well. needs_global_options should move to needs_fields at the same time as the links.
--->
+- **Upstream data:** titles for `REQ_37` and `REQ_58` in the ubConnect export.
 
 ---
 
@@ -1743,13 +1752,13 @@ sphinx-codelinks also reads a compilation database that only the VS Code CMake e
 
 <span class="badge">Still open</span>
 
-# What would help in ubCode and ubc
+# What would help in ubCode, ubc and codelinks
 
-- **Choosing the variant in the IDE:** a setting or picker for the active variant data file, instead of a pointer file on disk.
-- **The configured build's output:** indexing generated pages without indexing every build. Today a link to the build directory is not followed.
-- **Test results:** first-class support for [sphinx-test-reports](https://github.com/useblocks/sphinx-test-reports) data, so report pages are not placeholders.
-- **Traceability from code:** gate [sphinx-codelinks](https://github.com/useblocks/sphinx-codelinks) projects on the variant, not only on where the directive sits.
-- **Parity as a feature:** a ubc check that compares its document set with a Sphinx build, like SPLed's [CI gate](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/test/test_documentation.py#L295).
+- **Consistent overrides:** `-c` replaces the whole rule array but appends to `extend_exclude`.
+- **Globs and includes:** an include without a slash matches at any depth while `/index.md` matches nothing; an empty toctree glob warns, which forces one `{if}` per depth.
+- **One value for both readers:** sphinx-codelinks stores the path in `remote-url`, ubCode the URL; in a git worktree Sphinx's link has no commit.
+- **Compile commands:** keep only the preprocessor options, as clanguru now does, so `-save-temps` stops costing a file its needs.
+- **Parity as a feature:** a ubc check that compares its needs with a Sphinx build, like SPLed's gate.
 
 ---
 
@@ -1759,13 +1768,13 @@ sphinx-codelinks also reads a compilation database that only the VS Code CMake e
 
 # Getting it upstream
 
-1. Review [useblocks/spl-core#4](https://github.com/useblocks/spl-core/pull/4), then propose the five commits to [avengineers/spl-core](https://github.com/avengineers/spl-core).
-2. Release, then switch SPLed from [the fork commit](https://github.com/useblocks/SPLed/blob/362333b7faa50f54e2233efdca7eccf18613057b/pyproject.toml#L9) back to a PyPI version.
-3. Land [SPLed#2](https://github.com/useblocks/SPLed/pull/2) and [SPLed#3](https://github.com/useblocks/SPLed/pull/3), and bring the forks' `develop` branches level with [avengineers](https://github.com/avengineers).
+1. **clanguru:** [cuinixam/clanguru#9](https://github.com/cuinixam/clanguru/pull/9) is open with the two fixes. Release.
+2. **spl-core:** propose the changes to [avengineers/spl-core](https://github.com/avengineers/spl-core) from a clean branch. Release.
+3. **SPLed:** propose to [avengineers/SPLed](https://github.com/avengineers/SPLed) with both pins moved to PyPI releases, after deciding whether the fork's own 21 commits (customer content, CSV import, codelinks) go along.
 
 <div class="highlight">
 
-Until then, SPLed pins one commit of the fork, so every machine and every CI job builds the same code.
+Until then, SPLed pins merge commits on the forks' default branches, so every machine and every CI job builds the same code.
 
 </div>
 
@@ -1783,7 +1792,7 @@ Until then, SPLed pins one commit of the fork, so every machine and every CI job
 ### Questions? Let's talk.
 
 <div class="closing-contact">
-<strong>spl-core</strong> · <a href="https://github.com/useblocks/spl-core/pull/4">useblocks/spl-core#4</a><br>
-<strong>SPLed</strong> · <a href="https://github.com/useblocks/SPLed/pull/2">useblocks/SPLed#2</a> and <a href="https://github.com/useblocks/SPLed/pull/3">useblocks/SPLed#3</a><br>
-<strong>CI</strong> · <a href="https://github.com/useblocks/SPLed/actions/runs/35985268428">green on Windows, Linux, the devcontainer and the docs gate</a>
+<strong>SPLed</strong> · <a href="https://github.com/useblocks/SPLed/pull/4">useblocks/SPLed#4</a><br>
+<strong>spl-core</strong> · <a href="https://github.com/useblocks/spl-core/pull/5">useblocks/spl-core#5</a> · <strong>clanguru</strong> · <a href="https://github.com/useblocks/clanguru/pull/1">useblocks/clanguru#1</a><br>
+<strong>CI</strong> · <a href="https://github.com/useblocks/SPLed/actions/runs/36923824832">the documentation gate, green</a>
 </div>

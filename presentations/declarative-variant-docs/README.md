@@ -43,7 +43,8 @@ avengineers/SPLed `develop` at
 [f5ba89e](https://github.com/avengineers/SPLed/commit/f5ba89efcabb494ccc66a7619943260444c497de),
 avengineers/spl-core 8.9.0 at
 [95a6347](https://github.com/avengineers/spl-core/commit/95a634771491f7c649566b06e3e1fed3f422d86b),
-[useblocks/spl-core#4](https://github.com/useblocks/spl-core/pull/4),
-[useblocks/SPLed#2](https://github.com/useblocks/SPLed/pull/2) and
-[#3](https://github.com/useblocks/SPLed/pull/3), and
-[CI run 35985268428](https://github.com/useblocks/SPLed/actions/runs/35985268428).
+and the useblocks forks after merging
+[useblocks/SPLed#4](https://github.com/useblocks/SPLed/pull/4) (`develop` at e79a759),
+[useblocks/spl-core#5](https://github.com/useblocks/spl-core/pull/5) (ce62088) and
+[useblocks/clanguru#1](https://github.com/useblocks/clanguru/pull/1) (50a25d7), with
+[CI run 36923824832](https://github.com/useblocks/SPLed/actions/runs/36923824832).

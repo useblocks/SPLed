@@ -19,7 +19,7 @@
   </defs>
 
   <!-- column captions -->
-  <text class="lane" x="18" y="24">GENERATE DATA, ONCE</text>
+  <text class="lane" x="18" y="24">SELECT A VARIANT, ONCE</text>
   <text class="lane" x="278" y="24">THE SAME THREE INPUTS</text>
   <text class="lane" x="700" y="24">TWO READERS</text>
 
@@ -32,22 +32,22 @@
 
   <rect class="box" x="18" y="210" width="214" height="96" rx="8" style="stroke:#E4FF3D"/>
   <text class="t" x="34" y="240">variant_data.py</text>
-  <text class="n" x="34" y="266">no compiler, no CMake</text>
-  <text class="n" x="34" y="288">every cell in one run</text>
+  <text class="n" x="34" y="266">or CMake configure</text>
+  <text class="n" x="34" y="288">cells, rules, selection</text>
   <line class="ln" x1="125" y1="152" x2="125" y2="208" marker-end="url(#a)"/>
 
   <!-- the shared inputs -->
   <rect class="box" x="278" y="40" width="366" height="112" rx="8" style="fill:#292929"/>
-  <text class="t" x="294" y="70">Variant cell</text>
-  <text class="s" x="294" y="96">build/variants/Disco/test/…json</text>
+  <text class="t" x="294" y="70">Selection and cell</text>
+  <text class="s" x="294" y="96">build/selection.toml → cell</text>
   <text class="n" x="294" y="118">features · variant · kit · target</text>
   <text class="n" x="294" y="140">components from parts.cmake</text>
 
   <rect class="box" x="278" y="170" width="366" height="112" rx="8" style="fill:#292929"/>
   <text class="t" x="294" y="200">ubproject.toml</text>
   <text class="n" x="294" y="226">needs model, complete</text>
-  <text class="s" x="294" y="248">[[source.variant_sources]]</text>
-  <text class="n" x="294" y="270">parser includes · build/** excluded</text>
+  <text class="s" x="294" y="248">extend → generated rules</text>
+  <text class="n" x="294" y="270">md include · rst from selection</text>
 
   <rect class="box" x="278" y="300" width="366" height="96" rx="8" style="fill:#292929"/>
   <text class="t" x="294" y="330">Documents, 150%</text>
@@ -67,15 +67,15 @@
   <!-- readers -->
   <rect class="box" x="700" y="64" width="318" height="112" rx="8" style="stroke:#4ADE80;stroke-width:2"/>
   <text class="t" x="716" y="94">sphinx-build</text>
-  <text class="s" x="716" y="120">-D needs_variant_data_file=…</text>
-  <text class="n" x="716" y="142">conf.py: extensions and theme</text>
-  <text class="n" x="716" y="164">spl-core passes the cell</text>
+  <text class="s" x="716" y="120">-D spl_selection=…</text>
+  <text class="n" x="716" y="142">conf.py hands the selection on</text>
+  <text class="n" x="716" y="164">spl-core: one file per run</text>
 
   <rect class="box" x="700" y="244" width="318" height="112" rx="8" style="stroke:#4ADE80;stroke-width:2"/>
   <text class="t" x="716" y="274">ubc · ubCode</text>
-  <text class="s" x="716" y="300">-c needs.variant_data_file=…</text>
-  <text class="n" x="716" y="322">IDE: the pointer file</text>
-  <text class="s" x="716" y="344">build/autoconf.json</text>
+  <text class="s" x="716" y="300">-c &quot;$(cat selection)&quot;</text>
+  <text class="n" x="716" y="322">IDE: through extend</text>
+  <text class="s" x="716" y="344">build/selection.toml</text>
 
   <!-- outputs and parity -->
   <rect x="1044" y="94" width="106" height="52" rx="8" fill="#1E2B22" stroke="#4ADE80" stroke-width="1.5"/>
@@ -89,5 +89,5 @@
   <text class="lbl" x="1097" y="224" text-anchor="middle" style="fill:#4ADE80">documents</text>
 
   <!-- footnote -->
-  <text class="n" x="18" y="440">CMake adds only the generated report pages, reached through the stable link generated/, and passes the cell for docs and reports builds.</text>
+  <text class="n" x="18" y="440">Both readers read the selected build's generated pages where spl-core writes them, through the same rst include.</text>
 </svg>
