@@ -102,12 +102,33 @@ def _write_parts(tmp_path: Path, body: str) -> Path:
         ("else()\n", "else outside if"),
         ("if(BUILD_KIT STREQUAL test)\n  spl_add_component(components/a)\n", "unterminated if"),
         ("set(SOMETHING on)\n", "statement that is not spl_add_component"),
+        ("if(NOT BUILD_KIT STREQUAL test)\n  spl_add_component(components/a)\nendif()\n", "the negated guard"),
+        ("if(BUILD_KIT STREQUAL test OR FOO)\n  spl_add_component(components/a)\nendif()\n", "a compound guard"),
+        ("if(BUILD_KIT STREQUAL testing)\n  spl_add_component(components/a)\nendif()\n", "another kit name"),
+        ("if(BUILD_KIT STREQUAL Test)\n  spl_add_component(components/a)\nendif()\n", "STREQUAL is case-sensitive"),
+        ("spl_add_component(\n  components/a)\n", "a call over two lines"),
+        ("spl_add_component(components/a components/b)\n", "two arguments"),
+        ("if(BUILD_KIT STREQUAL test)\nelse(X)\nendif()\n", "else with an argument"),
     ],
 )
 def test_unsupported_grammar_raises(tmp_path: Path, body: str, because: str) -> None:
     root = _write_parts(tmp_path, body)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"variants[/\\]Fake[/\\]parts\.cmake(:\d+)?: "):
         variant_data.components(root, "Fake", "test")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        'spl_add_component("components/a")\n',
+        "SPL_ADD_COMPONENT( components/a )\n",
+        'IF (BUILD_KIT STREQUAL "test")\n  spl_add_component(components/a)\nENDIF()\n',
+    ],
+)
+def test_the_grammar_accepts_its_cmake_spellings(tmp_path: Path, body: str) -> None:
+    """Command names in any case, a quoted argument without its quotes, a quoted kit."""
+    root = _write_parts(tmp_path, body)
+    assert variant_data.components(root, "Fake", "test") == ["components/a"]
 
 
 def test_comments_and_blank_lines_are_ignored(tmp_path: Path) -> None:

@@ -55,6 +55,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -99,6 +100,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 #: Components a variant's `parts.cmake` adds only for the test build kit.
 TEST_KIT_GUARD = "BUILD_KIT STREQUAL test"
+
+#: The statements of the parts.cmake grammar, matched whole. CMake's command
+#: names are case-insensitive, its arguments are not: `STREQUAL Test` or
+#: `STREQUAL testing` is another condition, and `NOT ...` the opposite one.
+_GUARD_RE = re.compile(r'(?i:if)\s*\(\s*BUILD_KIT\s+STREQUAL\s+(?:test|"test")\s*\)')
+_ELSE_RE = re.compile(r"(?i:else)\s*\(\s*\)")
+_ENDIF_RE = re.compile(r"(?i:endif)\s*\(\s*\)")
+_COMPONENT_RE = re.compile(r'(?i:spl_add_component)\s*\(\s*(?:"([^"\s()]+)"|([^"\s()]+))\s*\)')
+_KEYWORD_RE = re.compile(r"(?i)(if|elseif|else|endif|spl_add_component)\b")
 
 #: The build shapes spl-core builds. `docs` is the design documentation of a
 #: variant; `reports` additionally carries the generated test and coverage
@@ -189,11 +199,12 @@ def components(project_root: Path, variant: str, kit: str) -> list[str]:
         line = raw_line.split("#", 1)[0].strip()
         if not line:
             continue
-        lowered = line.lower()
         where = f"{parts.relative_to(project_root)}:{number}"
+        keyword = _KEYWORD_RE.match(line)
+        statement = keyword.group(1).lower() if keyword else None
 
-        if lowered.startswith(("if(", "if ")):
-            if depth or TEST_KIT_GUARD.lower() not in lowered:
+        if statement == "if":
+            if depth or not _GUARD_RE.fullmatch(line):
                 raise ValueError(
                     f"{where}: unsupported condition {line!r}. "
                     f"{parts.name} may only use a single, non-nested "
@@ -203,24 +214,31 @@ def components(project_root: Path, variant: str, kit: str) -> list[str]:
             depth += 1
             branch_kit = "test"
             continue
-        if lowered.startswith(("else(", "else ", "else")) and not lowered.startswith("elseif"):
+        if statement == "elseif":
+            raise ValueError(f"{where}: `elseif()` is not supported, see above.")
+        if statement == "else":
+            if not _ELSE_RE.fullmatch(line):
+                raise ValueError(f"{where}: unsupported statement {line!r}; write `else()`.")
             if not depth:
                 raise ValueError(f"{where}: `else()` outside any `if()`.")
             # The other side of the test-kit guard is every kit that is not test.
             branch_kit = "prod"
             continue
-        if lowered.startswith("elseif"):
-            raise ValueError(f"{where}: `elseif()` is not supported, see above.")
-        if lowered.startswith(("endif(", "endif ", "endif")):
+        if statement == "endif":
+            if not _ENDIF_RE.fullmatch(line):
+                raise ValueError(f"{where}: unsupported statement {line!r}; write `endif()`.")
             if not depth:
                 raise ValueError(f"{where}: `endif()` without `if()`.")
             depth -= 1
             branch_kit = None
             continue
-        if lowered.startswith("spl_add_component("):
+        if statement == "spl_add_component":
+            component = _COMPONENT_RE.fullmatch(line)
+            if not component:
+                raise ValueError(f"{where}: unsupported statement {line!r}; `spl_add_component()` takes one component path, on one line.")
             if branch_kit is not None and branch_kit != kit:
                 continue
-            result.append(line[len("spl_add_component(") : line.rindex(")")].strip())
+            result.append(component.group(1) or component.group(2))
             continue
 
         raise ValueError(f"{where}: unsupported statement {line!r}. {parts.name} may only contain `spl_add_component()` calls and the test-kit guard.")
