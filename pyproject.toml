@@ -7,6 +7,9 @@ requires-python = "<3.14,>=3.12"
 
 dependencies = [
     "spl-core @ git+https://github.com/useblocks/spl-core.git@5b982030ab8e6bf192991a6613669d95a9e37af5",
+    # Until cuinixam/clanguru releases the fix: listings of the source file's own
+    # declarations, parsed with all its preprocessor options (-isystem included).
+    "clanguru @ git+https://github.com/useblocks/clanguru.git@07b8843b2e841ee891841eccceed3f0cb1cbd68a",
     "pypeline-runner>=1.33,<2",
     "pytest>=8,<9",
     "myst-parser>=4.0,<5",

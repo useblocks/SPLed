@@ -365,16 +365,15 @@ such as `index.md`, matches at any depth, and the fetched dependencies carry
 documents of their own -- because excluding `build/` would hide the selected
 build's pages too. `tools/config_checks.py` checks all three.
 
-**Known issue: clanguru.** The source listings come from clanguru, which keeps
-only `-I` and `-D` from the compile database and documents every definition of
-the translation unit, the included headers' too. The build passes the feature
-header's directory (`kconfig/`) as `-isystem`, so each listing is parsed with no
-feature defined and shows the `#ifdef` branch that this selects -- in Spa's
-reports a manual-brightness test specification (`TS_BC-001`) instead of the
-automatic ones Spa runs, which the gate's reports shape fails on. And the
-system header functions it lists (`__gthread_*`) carry tabs, which
-`[lint.per-file-ignores]` silences for the listings. Both are fixed in clanguru,
-not here.
+**clanguru** writes the source listings. `pyproject.toml` pins a commit of the
+useblocks fork until cuinixam/clanguru releases two fixes this project depends on:
+a listing documents only the declarations of its own file (not those of the
+headers it includes), and the file is parsed with every preprocessor option of
+its compile command -- `-isystem` included, which is how the feature header
+`autoconf.h` reaches the test sources. Without the second, every listing shows
+the `#ifdef` branch of "no feature defined", and the gate's reports shape fails
+(Spa's report listed a manual-brightness test specification instead of the
+automatic ones Spa runs).
 
 ### Adding a component
 

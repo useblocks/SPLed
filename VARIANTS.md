@@ -575,7 +575,7 @@ python -m pytest test/test_ubproject_config.py test/test_variant_data.py   # rul
 | A link from a need in the code is dead in one variant | The need sits outside the `#ifdef` that decides the link. Give the link to a need inside the branch that implements it ([17](#17-trace-code-to-the-design-per-variant)). |
 | Sphinx warns `compile_commands … is not a readable file` | codelinks has no compile database and treats every `#ifdef` as false. Build the selected build, or its `spled_codelinks_compile_commands` target ([17](#17-trace-code-to-the-design-per-variant)). |
 | ubCode shows no test results or listings | The selected build has not been built yet, or the selection names a `docs` shape. Build the test kit's `reports` target ([8](#8-know-what-ubcode-shows-you)). |
-| A listing shows the code of the wrong `#ifdef` branch | A known clanguru issue: it drops the `-isystem` directory of the feature header, so every feature reads as undefined in the listings. The gate's reports shape fails on it; it is fixed in clanguru. |
+| A listing shows the code of the wrong `#ifdef` branch | The installed clanguru predates the fix this project pins. Run `poetry install` (or the tour's `setup`) again. |
 
 ## Rules of thumb
 
