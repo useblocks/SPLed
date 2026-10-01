@@ -34,10 +34,7 @@ def spl_core_config() -> dict[str, Any]:
 def vendored_needs_model(project: dict[str, Any], spl_core: dict[str, Any]) -> list[str]:
     """spl-core's needs model is vendored into ubproject.toml; a copy has to stay a copy."""
     findings: list[str] = []
-    expected_links = {
-        link["option"]: {"incoming": link["incoming"], "outgoing": link["outgoing"]}
-        for link in spl_core["needs"]["extra_links"]
-    }
+    expected_links = {link["option"]: {"incoming": link["incoming"], "outgoing": link["outgoing"]} for link in spl_core["needs"]["extra_links"]}
     if project["needs"].get("links") != expected_links:
         findings.append("the link types in ubproject.toml differ from spl-core's extra_links")
     fields = project["needs"].get("fields", {})

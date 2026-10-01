@@ -68,8 +68,7 @@ def fail(text: str) -> None:
     sys.exit(1)
 
 
-def run(*command: str | Path, quiet: bool = False, check: bool = True, env: dict | None = None,
-        shown: str | None = None) -> subprocess.CompletedProcess:
+def run(*command: str | Path, quiet: bool = False, check: bool = True, env: dict | None = None, shown: str | None = None) -> subprocess.CompletedProcess:
     if shown is None:
         parts = [rel(part) if isinstance(part, Path) else part for part in command]
         shown = " ".join(part if " " not in part else f'"{part}"' for part in parts)
@@ -81,6 +80,7 @@ def run(*command: str | Path, quiet: bool = False, check: bool = True, env: dict
         env={**os.environ, "PATH": f"{VENV_BIN}{os.pathsep}{os.environ['PATH']}", **(env or {})},
         capture_output=quiet,
         text=True,
+        check=False,
     )
     seconds = time.perf_counter() - started
     if check and result.returncode != 0:
@@ -143,8 +143,7 @@ def have_cmake() -> bool:
 def configure(variant: str, kit: str) -> Path:
     """Configure a cell's build, which selects it, and hand codelinks its compile database."""
     target = build_dir(variant, kit)
-    command = ["cmake", "-S", ".", "-B", target, "-G", "Ninja", f"-DVARIANT={variant}", f"-DBUILD_KIT={kit}",
-               "-DCMAKE_BUILD_TYPE=Debug"]
+    command = ["cmake", "-S", ".", "-B", target, "-G", "Ninja", f"-DVARIANT={variant}", f"-DBUILD_KIT={kit}", "-DCMAKE_BUILD_TYPE=Debug"]
     if kit == "test":
         toolchain = "toolchain.cmake" if WINDOWS else "toolchain_linux.cmake"
         command.append(f"-DCMAKE_TOOLCHAIN_FILE=tools/toolchains/gcc/{toolchain}")
@@ -162,8 +161,7 @@ def do_setup(args: argparse.Namespace) -> None:
         fail("uv is not on PATH. Install it from https://docs.astral.sh/uv/ and run this again.")
     if not PYTHON.is_file():
         run("uv", "venv", "--python", "3.12", ".venv")
-    run("uvx", "--from", "poetry==2.4.1", "poetry", "install", "--no-root", "--no-interaction",
-        env={"POETRY_VIRTUALENVS_IN_PROJECT": "true"})
+    run("uvx", "--from", "poetry==2.4.1", "poetry", "install", "--no-root", "--no-interaction", env={"POETRY_VIRTUALENVS_IN_PROJECT": "true"})
     run(PYTHON, "tools/variant_data.py", "--all", "--current", "--variant", args.variant, "--kit", args.kit, quiet=True)
     look(
         "build/variants/<variant>/<kit>/<target>.json — the variant data, one file per cell (open one: features and components).",
@@ -178,28 +176,35 @@ def do_setup(args: argparse.Namespace) -> None:
 def do_docs(args: argparse.Namespace) -> None:
     need_venv()
     cell = ROOT / "build" / "variants" / args.variant / args.kit / "docs.json"
-    step(f"2. Documents of {args.variant}/{args.kit}, nothing compiled",
-         "both readers build the same variant from the same data file: Sphinx, then ubc. "
-         "CMake only configures the variant, for its compile database: nothing is compiled.")
+    step(
+        f"2. Documents of {args.variant}/{args.kit}, nothing compiled",
+        "both readers build the same variant from the same data file: Sphinx, then ubc. CMake only configures the variant, for its compile database: nothing is compiled.",
+    )
     if have_cmake():
         configure(args.variant, args.kit)
     else:
         run(PYTHON, "tools/variant_data.py", "--all", "--current", "--variant", args.variant, "--kit", args.kit, quiet=True)
-        note("no CMake/Ninja: the one-line needs in the code follow whichever compile database "
-             "build/compile_commands.json holds, which may be another variant's #ifdef branches.")
+        note("no CMake/Ninja: the one-line needs in the code follow whichever compile database build/compile_commands.json holds, which may be another variant's #ifdef branches.")
     out = OUT / f"docs-{args.variant.replace('/', '-')}-{args.kit}"
-    run(PYTHON, "-m", "sphinx", "-q", "-b", "html", "-D", f"needs_variant_data_file={rel(cell)}",
-        "-d", out / "doctrees", ".", out / "sphinx", env={"VARIANT": args.variant})
+    run(PYTHON, "-m", "sphinx", "-q", "-b", "html", "-D", f"needs_variant_data_file={rel(cell)}", "-d", out / "doctrees", ".", out / "sphinx", env={"VARIANT": args.variant})
     ubc = find_ubc()
     if ubc:
-        run(ubc, "build", "html", "--no-cache", "--deny", "none", "-o", out / "ubc",
-            "-c", f"needs.variant_data_file = '{rel(cell)}'", quiet=True)
+        run(ubc, "build", "html", "--no-cache", "--deny", "none", "-o", out / "ubc", "-c", f"needs.variant_data_file = '{rel(cell)}'", quiet=True)
     look(
         f"{rel(out / 'sphinx' / 'index.html')} — the Sphinx build: {needs_count(out / 'sphinx' / 'needs.json')} needs.",
-        *([f"{rel(out / 'ubc' / 'index.html')} — the ubc build of the same variant: {needs_count(out / 'ubc' / 'needs.json')} needs "
-           "(the two untitled imports REQ_37/REQ_58 are the only difference)."] if ubc else []),
+        *(
+            [
+                (
+                    f"{rel(out / 'ubc' / 'index.html')} — the ubc build of the same variant: {needs_count(out / 'ubc' / 'needs.json')} needs "
+                    "(the two untitled imports REQ_37/REQ_58 are the only difference)."
+                )
+            ]
+            if ubc
+            else []
+        ),
         "The components page lists exactly this variant's components (a glob, gated by the generated rules).",
         "Each component page ends with Traceability: its one-line @need comments from the C sources.",
+        f"build/selection.toml — your editor now shows this variant too: {selection_summary()}.",
     )
 
 
@@ -209,15 +214,16 @@ def do_build(args: argparse.Namespace) -> None:
         if not shutil.which(tool):
             fail(f"{tool} is not on PATH; the build case needs CMake, Ninja and a C/C++ compiler.")
     target = build_dir(args.variant, args.kit)
-    step(f"3. A CMake build of {args.variant}/{args.kit}",
-         "configuring the build SELECTS it (build/selection.toml mounts it at `generated`); building it compiles, "
-         "runs the unit tests and writes the report pages, source listings and test results as needs.")
+    step(
+        f"3. A CMake build of {args.variant}/{args.kit}",
+        "configuring the build SELECTS it (build/selection.toml mounts it at `generated`); building it compiles, "
+        "runs the unit tests and writes the report pages, source listings and test results as needs.",
+    )
     configure(args.variant, args.kit)
     run("cmake", "--build", target, "--target", "reports" if args.kit == "test" else "docs", quiet=True)
     html = target / ("reports" if args.kit == "test" else "docs") / "html"
     look(
-        f"{rel(html / 'index.html')} — the report spl-core built: test results and coverage under each component "
-        f"({needs_count(html / 'needs.json')} needs).",
+        f"{rel(html / 'index.html')} — the report spl-core built: test results and coverage under each component ({needs_count(html / 'needs.json')} needs).",
         f"build/selection.toml — {selection_summary()}.",
         f"{rel(target / 'selection')}/ — one selection file per documentation run, so two builds never get in each other's way.",
         "build/compile_commands.json — this build's compile database: codelinks takes each #ifdef branch from it.",
@@ -240,8 +246,20 @@ def do_component(args: argparse.Namespace) -> None:
     ubc = find_ubc()
     out = OUT / f"component-{name}"
     if ubc:
-        run(ubc, "build", "html", "--no-cache", "--deny", "none", "-o", out, "-c", selection.read_text(encoding="utf-8"), quiet=True,
-            shown=f'ubc build html --no-cache --deny none -o {rel(out)} -c "$(cat {rel(selection)})"')
+        run(
+            ubc,
+            "build",
+            "html",
+            "--no-cache",
+            "--deny",
+            "none",
+            "-o",
+            out,
+            "-c",
+            selection.read_text(encoding="utf-8"),
+            quiet=True,
+            shown=f'ubc build html --no-cache --deny none -o {rel(out)} -c "$(cat {rel(selection)})"',
+        )
     look(
         f"{rel(html / 'doc' / 'component_report.html')} — Sphinx: {needs_count(html / 'needs.json')} needs, all of this component.",
         *([f"{rel(out / 'doc' / 'component_report.html')} — ubc: {needs_count(out / 'needs.json')} needs (its documents; the generated pages are the known gap)."] if ubc else []),
@@ -255,13 +273,15 @@ def do_compare(args: argparse.Namespace) -> None:
     if not ubc:
         fail("compare needs ubc.")
     a, b = (ROOT / "build" / "variants" / v / args.kit / "docs.json" for v in (args.first, args.second))
-    step(f"5. {args.first} against {args.second}", "ubc builds both variants' needs and lists what is new, removed or changed. "
-         "Each variant is configured first, so the needs in the code follow its own #ifdef branches; "
-         "your selection is put back afterwards.")
+    step(
+        f"5. {args.first} against {args.second}",
+        "ubc builds both variants' needs and lists what is new, removed or changed. "
+        "Each variant is configured first, so the needs in the code follow its own #ifdef branches; "
+        "your selection is put back afterwards.",
+    )
     run(PYTHON, "tools/variant_data.py", "--all", quiet=True)
     OUT.mkdir(parents=True, exist_ok=True)
-    saved = {path: path.read_bytes() if path.is_file() else None
-             for path in (ROOT / "build" / "selection.toml", ROOT / "build" / "compile_commands.json")}
+    saved = {path: path.read_bytes() if path.is_file() else None for path in (ROOT / "build" / "selection.toml", ROOT / "build" / "compile_commands.json")}
     try:
         for variant, cell, name in ((args.first, a, "first"), (args.second, b, "second")):
             if have_cmake():
@@ -278,20 +298,17 @@ def do_compare(args: argparse.Namespace) -> None:
     print("\n".join(f"    {line}" for line in lines[:30]) + ("\n    …" if len(lines) > 30 else ""))
     look(
         f"{len(lines)} differences: the needs of components and features one variant has and the other has not.",
-        "The same comparison for whole builds, reports included: "
-        "ubc diff -c \"$(cat build/<variant>/test/Debug/selection/reports.toml)\".",
+        'The same comparison for whole builds, reports included: ubc diff -c "$(cat build/<variant>/test/Debug/selection/reports.toml)".',
     )
 
 
 def do_check(args: argparse.Namespace) -> None:
     need_venv()
-    step("6. The checks", "the configuration and generator tests, then the CI documentation gate: every variant and kit, "
-         "both readers in strict mode, their needs compared.")
+    step("6. The checks", "the configuration and generator tests, then the CI documentation gate: every variant and kit, both readers in strict mode, their needs compared.")
     run(PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", "test/test_ubproject_config.py", "test/test_variant_data.py")
     if have_cmake() and find_ubc():
         run(PYTHON, "-m", "pytest", "-q", "-p", "no:cacheprovider", "test/test_docs_gate.py")
-        look("Every gate run passes: each variant cell and each component report, Sphinx -W and ubc agreeing need for need.",
-             "The gate restores your selection afterwards.")
+        look("Every gate run passes: each variant cell and each component report, Sphinx -W and ubc agreeing need for need.", "The gate restores your selection afterwards.")
     else:
         note("the gate needs CMake, Ninja, a compiler and ubc; skipped.")
 
@@ -320,9 +337,12 @@ def variants() -> list[str]:
 
 def main() -> None:
     known = ", ".join(variants())
-    parser = _Parser(prog="python tools/try_variants.py", description=__doc__.split("\n\n")[0],
-                     formatter_class=argparse.RawDescriptionHelpFormatter,
-                     epilog=__doc__.split("\n\n", 1)[1] + f"\nVariants: {known}.")
+    parser = _Parser(
+        prog="python tools/try_variants.py",
+        description=__doc__.split("\n\n")[0],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__.split("\n\n", 1)[1] + f"\nVariants: {known}.",
+    )
     cases = parser.add_subparsers(dest="case", metavar="<case>", parser_class=_Parser)
 
     def add(name: str, function, summary: str, variant: bool = True, kit: bool = True) -> argparse.ArgumentParser:

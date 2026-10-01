@@ -28,7 +28,7 @@ from sphinx.util.matching import Matcher
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 
-import variant_data  # noqa: E402
+import variant_data
 
 pytestmark = [
     pytest.mark.unittests,
@@ -96,10 +96,7 @@ def test_sphinx_reads_this_exact_file() -> None:
 
 def test_every_spl_core_link_type_is_vendored(project_config: dict, spl_core_config: dict) -> None:
     """Modernized from `extra_links` to `[needs.links]` while copying."""
-    expected = {
-        link["option"]: {"incoming": link["incoming"], "outgoing": link["outgoing"]}
-        for link in spl_core_config["needs"]["extra_links"]
-    }
+    expected = {link["option"]: {"incoming": link["incoming"], "outgoing": link["outgoing"]} for link in spl_core_config["needs"]["extra_links"]}
     assert project_config["needs"]["links"] == expected
 
 
@@ -157,12 +154,7 @@ def _removed_by_rules(rules: list[dict], data: dict, path: str) -> bool:
     """
     from sphinx_mounts import dialect, variants
 
-    return any(
-        dialect.matches(pattern, path)
-        for rule in rules
-        if not variants.interpret(variants.validate(rule["if"]), data)
-        for pattern in rule["files"]
-    )
+    return any(dialect.matches(pattern, path) for rule in rules if not variants.interpret(variants.validate(rule["if"]), data) for pattern in rule["files"])
 
 
 def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]) -> None:
@@ -179,8 +171,7 @@ def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]
 
     # The variant cell: the variant-wide documents and its components' pages,
     # in the tree and in the mounted build (whose paths are relative to it).
-    for path in ("index.md", "doc/components/index.md", "components/light_controller/doc/index.md",
-                 "components/light_controller/reports/coverage.rst", "reports/coverage.rst"):
+    for path in ("index.md", "doc/components/index.md", "components/light_controller/doc/index.md", "components/light_controller/reports/coverage.rst", "reports/coverage.rst"):
         assert not _removed_by_rules(rules, variant_cell, path), f"the variant removes {path}"
     for path in ("doc/component_report.md", "components/auto_off/doc/index.md"):
         assert _removed_by_rules(rules, variant_cell, path), f"the variant keeps {path}"
@@ -189,12 +180,21 @@ def test_the_scope_rules_split_variant_and_component_documents(rules: list[dict]
     # variant-wide documents. The root index.md is not named by any rule -- a
     # pattern without a slash would match every index.md -- and is an orphan
     # page there, whose toctree entries are all excluded.
-    for path in ("doc/component_report.md", "components/light_controller/doc/index.md",
-                 "components/light_controller/reports/coverage.rst", "components/light_controller/__source_docs/index.rst"):
+    for path in (
+        "doc/component_report.md",
+        "components/light_controller/doc/index.md",
+        "components/light_controller/reports/coverage.rst",
+        "components/light_controller/__source_docs/index.rst",
+    ):
         assert not _removed_by_rules(rules, component_cell, path), f"the component report removes {path}"
-    for path in ("doc/components/index.md", "doc/sw_requirements/index.md", "reports/coverage.rst",
-                 "components/main_control_knob/doc/index.md", "components/main_control_knob/reports/coverage.rst",
-                 "components/auto_off/doc/index.md"):
+    for path in (
+        "doc/components/index.md",
+        "doc/sw_requirements/index.md",
+        "reports/coverage.rst",
+        "components/main_control_knob/doc/index.md",
+        "components/main_control_knob/reports/coverage.rst",
+        "components/auto_off/doc/index.md",
+    ):
         assert _removed_by_rules(rules, component_cell, path), f"the component report keeps {path}"
     assert not _removed_by_rules(rules, component_cell, "index.md")
     assert "orphan: true" in (PROJECT_ROOT / "index.md").read_text(encoding="utf-8").split("---")[1]
@@ -242,9 +242,7 @@ def test_ubcode_and_sphinx_see_the_same_documents(project_config: dict) -> None:
     # The rst parser reads the mounted build, which Sphinx names `generated/`.
     assert project_config["parse"]["parsers"]["rst"]["include"] == list(variant_data.MOUNTED_PAGES)
     for pattern in project_config["parse"]["parsers"]["rst"]["include"]:
-        assert f'"generated/{pattern}"' in conf, (
-            f"conf.py does not include generated/{pattern}, which the rst parser reads"
-        )
+        assert f'"generated/{pattern}"' in conf, f"conf.py does not include generated/{pattern}, which the rst parser reads"
 
 
 # --- what the variant machinery needs --------------------------------------
@@ -323,9 +321,7 @@ def test_every_component_document_is_gated_by_a_rule(rules: list[dict]) -> None:
     patterns = [pattern for rule in rules for pattern in rule["files"]]
     for doc_dir in sorted(PROJECT_ROOT.glob("components/**/doc")) + sorted(PROJECT_ROOT.glob("test/*/doc")):
         rel = doc_dir.relative_to(PROJECT_ROOT).as_posix()
-        assert any(dialect.matches(pattern, f"{rel}/index.md") for pattern in patterns), (
-            f"{rel} is not gated by any generated rule"
-        )
+        assert any(dialect.matches(pattern, f"{rel}/index.md") for pattern in patterns), f"{rel} is not gated by any generated rule"
 
 
 def test_no_rule_names_a_variant_by_name(rules: list[dict]) -> None:
@@ -356,7 +352,12 @@ def test_every_rule_condition_is_inside_the_grammar(rules: list[dict]) -> None:
     [
         # Disco: BLINKING, so no brightness; no auto-off; integration suite in
         # the test kit only.
-        ("Disco", "test", ["components/light_controller/doc/index.md", "test/spled_integration/doc/index.md"], ["components/auto_off/doc/index.md", "components/brightness_controller/doc/index.md"]),
+        (
+            "Disco",
+            "test",
+            ["components/light_controller/doc/index.md", "test/spled_integration/doc/index.md"],
+            ["components/auto_off/doc/index.md", "components/brightness_controller/doc/index.md"],
+        ),
         ("Disco", "prod", ["components/light_controller/doc/index.md"], ["test/spled_integration/doc/index.md", "components/auto_off/doc/index.md"]),
         # Sleep: manual brightness and auto-off, no integration suite.
         ("Sleep", "test", ["components/auto_off/doc/index.md", "components/brightness_controller/doc/index.md"], ["test/spled_integration/doc/index.md"]),
@@ -450,36 +451,24 @@ def test_report_sections_name_the_generated_pages() -> None:
     component's own path would collect another component's report. Both are
     silently wrong -- an entry that resolves to the wrong page still builds.
     """
-    documents = sorted(
-        set(PROJECT_ROOT.glob("components/**/doc/**/*.md"))
-        | set(PROJECT_ROOT.glob("test/**/doc/**/*.md"))
-        | {PROJECT_ROOT / "index.md"}
-    )
+    documents = sorted(set(PROJECT_ROOT.glob("components/**/doc/**/*.md")) | set(PROJECT_ROOT.glob("test/**/doc/**/*.md")) | {PROJECT_ROOT / "index.md"})
 
     report_documents = 0
     for document in documents:
         component = _component_path(document)
         for options, entries in _toctrees(document.read_text(encoding="utf-8")):
             for entry in entries:
-                assert "/build/" not in entry, (
-                    f"{document.relative_to(PROJECT_ROOT)}: toctree entry {entry!r} still points into build/"
-                )
+                assert "/build/" not in entry, f"{document.relative_to(PROJECT_ROOT)}: toctree entry {entry!r} still points into build/"
             if not any("/reports/" in entry for entry in entries):
                 continue
             report_documents += 1
-            assert ":glob:" not in options, (
-                f"{document.relative_to(PROJECT_ROOT)}: report toctree is still a glob"
-            )
+            assert ":glob:" not in options, f"{document.relative_to(PROJECT_ROOT)}: report toctree is still a glob"
             for entry in entries:
-                assert entry.startswith("/generated/"), (
-                    f"{document.relative_to(PROJECT_ROOT)}: report entry {entry!r} does not start with /generated/"
-                )
+                assert entry.startswith("/generated/"), f"{document.relative_to(PROJECT_ROOT)}: report entry {entry!r} does not start with /generated/"
             if component is not None:
                 expected = {f"/generated/{component}/reports/{page}" for page in REPORT_PAGES}
                 expected.add(f"/generated/{component}/__source_docs/index")
-                assert set(entries) == expected, (
-                    f"{document.relative_to(PROJECT_ROOT)}: expected {sorted(expected)}, got {sorted(entries)}"
-                )
+                assert set(entries) == expected, f"{document.relative_to(PROJECT_ROOT)}: expected {sorted(expected)}, got {sorted(entries)}"
 
     # Nine component documents (the two examples included) plus index.md's
     # coverage toctree.
@@ -522,18 +511,14 @@ def test_generated_is_the_only_route_to_the_generated_pages(monkeypatch: pytest.
     assert not [pattern for pattern in include_patterns if pattern.startswith("build/")]
 
     matcher = Matcher(module["exclude_patterns"])
-    assert _excluded(matcher, "build/Disco/test/Debug/components/light_controller/reports/coverage.rst"), (
-        "the build tree must be pruned from the Sphinx walk"
-    )
+    assert _excluded(matcher, "build/Disco/test/Debug/components/light_controller/reports/coverage.rst"), "the build tree must be pruned from the Sphinx walk"
     assert not _excluded(matcher, "generated/components/light_controller/reports/coverage.rst")
     assert not _excluded(matcher, "generated/reports/coverage.rst")
     assert _excluded(matcher, "generated/CMakeFiles/x.rst")
     assert _excluded(matcher, "generated/reports/html/index.rst")
 
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    assert re.search(r"set\(\s*SPL_SPHINX_BINARY_DIR\s+\$\{CMAKE_SOURCE_DIR\}/generated\s*\)", cmake), (
-        "CMakeLists.txt must mount the build at the stable generated/ name"
-    )
+    assert re.search(r"set\(\s*SPL_SPHINX_BINARY_DIR\s+\$\{CMAKE_SOURCE_DIR\}/generated\s*\)", cmake), "CMakeLists.txt must mount the build at the stable generated/ name"
     assert re.search(
         r"set\(\s*SPL_SPHINX_OPTIONS\s+-D\s+spl_selection=\$\{CMAKE_BINARY_DIR\}/selection/@SHAPE@\.toml\s*\)",
         cmake,
@@ -555,7 +540,7 @@ def test_the_checks_conf_py_runs_find_nothing() -> None:
     with, so a build under -W and this suite cannot disagree about whether the
     configuration is intact.
     """
-    import config_checks  # noqa: PLC0415 - tools/ is on sys.path, see above
+    import config_checks
 
     module = runpy.run_path(str(PROJECT_ROOT / "conf.py"))
     assert config_checks.run_all(PROJECT_ROOT, list(module["include_patterns"])) == []
@@ -563,7 +548,7 @@ def test_the_checks_conf_py_runs_find_nothing() -> None:
 
 def test_the_checks_notice_a_hand_written_rule(project_config: dict) -> None:
     """A rule in ubproject.toml would replace every generated one: `extend` replaces arrays."""
-    import config_checks  # noqa: PLC0415
+    import config_checks
 
     tampered = {**project_config, "source": {**project_config["source"], "variant_sources": [{"if": "True", "files": ["x"]}]}}
     assert any("declares rules" in finding for finding in config_checks.generated_half(tampered))

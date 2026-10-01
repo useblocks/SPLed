@@ -87,25 +87,35 @@ def _restore_the_developers_selection():
     if os.environ.get("GITHUB_STEP_SUMMARY") and TIMINGS:
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
             summary.write("### Documentation build time per cell\n\n| Variant | Kit | Sphinx | ubc | Needs |\n| --- | --- | ---: | ---: | ---: |\n")
-            for variant, kit, sphinx_s, ubc_s, needs in TIMINGS:
-                summary.write(f"| {variant} | {kit} | {sphinx_s:.2f} s | {ubc_s:.2f} s | {needs} |\n")
+            summary.writelines(f"| {variant} | {kit} | {sphinx_s:.2f} s | {ubc_s:.2f} s | {needs} |\n" for variant, kit, sphinx_s, ubc_s, needs in TIMINGS)
 
 
 def _select_build(variant: str, kit: str) -> Path:
     """Configure the cell's build, which selects it, and hand codelinks its database."""
     build_dir = PROJECT_ROOT / "build" / variant / kit / "Debug"
     command = [
-        "cmake", "-S", str(PROJECT_ROOT), "-B", str(build_dir), "-G", "Ninja",
-        f"-DVARIANT={variant}", f"-DBUILD_KIT={kit}", "-DCMAKE_BUILD_TYPE=Debug",
+        "cmake",
+        "-S",
+        str(PROJECT_ROOT),
+        "-B",
+        str(build_dir),
+        "-G",
+        "Ninja",
+        f"-DVARIANT={variant}",
+        f"-DBUILD_KIT={kit}",
+        "-DCMAKE_BUILD_TYPE=Debug",
     ]
     if kit == "test":
         toolchain = "toolchain.cmake" if platform.system() == "Windows" else "toolchain_linux.cmake"
         command.append(f"-DCMAKE_TOOLCHAIN_FILE={PROJECT_ROOT / 'tools' / 'toolchains' / 'gcc' / toolchain}")
-    configured = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True)
+    configured = subprocess.run(command, cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
     assert configured.returncode == 0, f"configuring {variant}/{kit} failed:\n{configured.stdout[-3000:]}\n{configured.stderr[-3000:]}"
     copied = subprocess.run(
         ["cmake", "--build", str(build_dir), "--target", "spled_codelinks_compile_commands"],
-        cwd=PROJECT_ROOT, capture_output=True, text=True,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert copied.returncode == 0, f"copying the compile database of {variant}/{kit} failed:\n{copied.stdout[-3000:]}"
     return build_dir
@@ -130,7 +140,7 @@ def _normalized(value):
 def _component_reports() -> list[tuple[str, str]]:
     """(variant, component) for every component report spl-core builds: the test kit's."""
     sys.path.insert(0, str(PROJECT_ROOT / "tools"))
-    import variant_data  # noqa: PLC0415
+    import variant_data
 
     return [(variant, component) for variant in VARIANTS for component in variant_data.reported_components(PROJECT_ROOT, variant, "test")]
 
@@ -166,9 +176,27 @@ def _check_one_run(variant: str, kit: str, selection_name: str, tmp_path: Path, 
 
     started = time.perf_counter()
     sphinx = subprocess.run(
-        [sys.executable, "-m", "sphinx", "-W", "--keep-going", "-q", "-b", "html",
-         "-D", f"spl_selection={selection}", "-d", str(tmp_path / "doctrees"), str(PROJECT_ROOT), str(tmp_path / "sphinx")],
-        cwd=PROJECT_ROOT, capture_output=True, text=True, env={**os.environ, "VARIANT": variant},
+        [
+            sys.executable,
+            "-m",
+            "sphinx",
+            "-W",
+            "--keep-going",
+            "-q",
+            "-b",
+            "html",
+            "-D",
+            f"spl_selection={selection}",
+            "-d",
+            str(tmp_path / "doctrees"),
+            str(PROJECT_ROOT),
+            str(tmp_path / "sphinx"),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "VARIANT": variant},
+        check=False,
     )
     sphinx_seconds = time.perf_counter() - started
     warnings = [line for line in sphinx.stderr.splitlines() if "WARNING" in line or "ERROR" in line]
@@ -181,7 +209,7 @@ def _check_one_run(variant: str, kit: str, selection_name: str, tmp_path: Path, 
     assert (sphinx.returncode == 0 or tolerated_only) and not warnings, f"{label}: Sphinx is not clean in strict mode:\n" + "\n".join(warnings or [sphinx.stderr[-3000:]])
 
     override = selection.read_text(encoding="utf-8")
-    checked = subprocess.run([ubc, "check", "--no-cache", "--output-format", "json", "-c", override], cwd=PROJECT_ROOT, capture_output=True, text=True)
+    checked = subprocess.run([ubc, "check", "--no-cache", "--output-format", "json", "-c", override], cwd=PROJECT_ROOT, capture_output=True, text=True, check=False)
     counts: dict[str, int] = {}
     for diagnostic in json.loads(checked.stdout or "{}").get("diagnostics", []):
         if diagnostic["severity"] != "info":
@@ -190,7 +218,9 @@ def _check_one_run(variant: str, kit: str, selection_name: str, tmp_path: Path, 
     assert not unexpected, f"{label}: ubc reports findings docs_exceptions.toml does not name: {unexpected}"
 
     started = time.perf_counter()
-    built = subprocess.run([ubc, "build", "html", "--no-cache", "--deny", "none", "-o", str(tmp_path / "ubc"), "-c", override], cwd=PROJECT_ROOT, capture_output=True, text=True)
+    built = subprocess.run(
+        [ubc, "build", "html", "--no-cache", "--deny", "none", "-o", str(tmp_path / "ubc"), "-c", override], cwd=PROJECT_ROOT, capture_output=True, text=True, check=False
+    )
     ubc_seconds = time.perf_counter() - started
     assert built.returncode == 0, f"{label}: ubc build html failed:\n{built.stdout[-3000:]}\n{built.stderr[-3000:]}"
 

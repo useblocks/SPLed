@@ -33,7 +33,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 
-import variant_data  # noqa: E402
+import variant_data
 
 pytestmark = [
     pytest.mark.docs,
@@ -141,6 +141,7 @@ def _build_docs(variant: str, kit: str, target: str, out_dir: Path) -> subproces
         env=env,
         capture_output=True,
         text=True,
+        check=False,
     )
 
 
@@ -151,6 +152,7 @@ def test_variant_data_generates_for_every_variant(all_variant_data: None) -> Non
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
 
@@ -309,6 +311,7 @@ def _ubc_check(variant: str, kit: str, target: str) -> list[dict]:
         cwd=PROJECT_ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     assert result.stdout, f"ubc check produced no JSON for {variant}:\n{result.stderr[-2000:]}"
     return json.loads(result.stdout).get("diagnostics", [])
@@ -331,11 +334,7 @@ def test_ubc_finds_no_configuration_problem(all_variant_data: None) -> None:
     and which the rest of this suite proves.
     """
     diagnostics = _ubc_check("Disco", "test", "docs")
-    problems = [
-        d
-        for d in diagnostics
-        if d["code"].startswith("config") and d["code"] != "config.variant_sources_sphinx_unsupported"
-    ]
+    problems = [d for d in diagnostics if d["code"].startswith("config") and d["code"] != "config.variant_sources_sphinx_unsupported"]
     assert not problems, "; ".join(f"{d['code']}: {d['message']}" for d in problems)
 
 
@@ -378,24 +377,15 @@ def test_ubc_excludes_exactly_what_sphinx_excludes(all_variant_data: None, varia
         assert component in COMPONENT_DOCS, message
 
     components = set(variant_data.components(PROJECT_ROOT, variant, "test"))
-    covered = {
-        component
-        for glob in COMPONENT_TOCTREE_GLOBS
-        for component in COMPONENT_DOCS
-        if _glob_matches(glob, f"{component}/doc/index")
-    }
-    assert covered == set(COMPONENT_DOCS), (
-        "the toctree globs must name every documented component, or the parity "
-        f"check silently skips {sorted(set(COMPONENT_DOCS) - covered)}"
-    )
+    covered = {component for glob in COMPONENT_TOCTREE_GLOBS for component in COMPONENT_DOCS if _glob_matches(glob, f"{component}/doc/index")}
+    assert covered == set(COMPONENT_DOCS), f"the toctree globs must name every documented component, or the parity check silently skips {sorted(set(COMPONENT_DOCS) - covered)}"
 
     for glob in COMPONENT_TOCTREE_GLOBS:
         matched = {component for component in COMPONENT_DOCS if _glob_matches(glob, f"{component}/doc/index")}
         assert matched, f"the toctree glob {glob!r} matched no known component"
         all_excluded = all(component not in components for component in matched)
-        assert (glob in reported_globs) == all_excluded, (
-            f"{variant}: ubCode {'reported' if glob in reported_globs else 'did not report'} "
-            f"{glob!r}, but it matches " + ", ".join(sorted(matched))
+        assert (glob in reported_globs) == all_excluded, f"{variant}: ubCode {'reported' if glob in reported_globs else 'did not report'} {glob!r}, but it matches " + ", ".join(
+            sorted(matched)
         )
 
 
@@ -424,6 +414,7 @@ def _build_with_cell(shape: str, out_dir: Path) -> subprocess.CompletedProcess:
         env=env,
         capture_output=True,
         text=True,
+        check=False,
     )
 
 
@@ -444,12 +435,8 @@ def test_cmake_points_each_documentation_run_at_its_selection() -> None:
     mention in a comment cannot satisfy it.
     """
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    assert _cmake_set(cmake, "SPL_SPHINX_OPTIONS") == (
-        "-D spl_selection=${CMAKE_BINARY_DIR}/selection/@SHAPE@.toml"
-    )
-    assert _cmake_set(cmake, "SPL_SPHINX_COMPONENT_OPTIONS") == (
-        "-D spl_selection=${CMAKE_BINARY_DIR}/selection/@COMPONENT_PATH@/@SHAPE@.toml"
-    )
+    assert _cmake_set(cmake, "SPL_SPHINX_OPTIONS") == ("-D spl_selection=${CMAKE_BINARY_DIR}/selection/@SHAPE@.toml")
+    assert _cmake_set(cmake, "SPL_SPHINX_COMPONENT_OPTIONS") == ("-D spl_selection=${CMAKE_BINARY_DIR}/selection/@COMPONENT_PATH@/@SHAPE@.toml")
 
 
 def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_path: Path) -> None:
@@ -469,9 +456,7 @@ def test_the_reports_shape_reads_the_reports_cell(all_variant_data: None, tmp_pa
         result = _build_with_cell(shape, out)
         assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
         page = (out / "components" / "light_controller" / "doc" / "index.html").read_text(encoding="utf-8")
-        assert ("Verification" in page) is expect_verification, (
-            f"the {shape} shape {'should' if expect_verification else 'should not'} render the verification section"
-        )
+        assert ("Verification" in page) is expect_verification, f"the {shape} shape {'should' if expect_verification else 'should not'} render the verification section"
 
 
 # --- the generated report pages, through the mount -------------------------
@@ -539,6 +524,7 @@ def _build_with_selection(selection: Path, out_dir: Path) -> subprocess.Complete
         env=env,
         capture_output=True,
         text=True,
+        check=False,
     )
 
 
@@ -586,11 +572,7 @@ def test_the_reports_shape_still_reads_them(all_variant_data: None, tmp_path: Pa
     assert result.returncode == 0, (result.stdout + result.stderr)[-2000:]
 
     log = result.stdout + result.stderr
-    unresolved = [
-        line
-        for line in log.splitlines()
-        if "nonexisting document" in line and "generated/components/light_controller/reports" in line
-    ]
+    unresolved = [line for line in log.splitlines() if "nonexisting document" in line and "generated/components/light_controller/reports" in line]
     assert not unresolved, "the report toctree did not resolve:\n" + "\n".join(unresolved)
 
     for page in SPL_CORE_REPORT_PAGES:
@@ -615,9 +597,7 @@ def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None
     tracks what the build actually emits rather than a hand-written idea of it.
     """
     cmake = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    assert _cmake_set(cmake, "SPL_SOURCE_DOCS_JINJA_RAW_TAGS") == "OFF", (
-        "CMakeLists.txt must turn the raw-tag armour off"
-    )
+    assert _cmake_set(cmake, "SPL_SOURCE_DOCS_JINJA_RAW_TAGS") == "OFF", "CMakeLists.txt must turn the raw-tag armour off"
 
     clanguru = shutil.which("clanguru") or str(Path(sys.executable).parent / "clanguru")
     if not Path(clanguru).exists():
@@ -636,9 +616,7 @@ def test_generated_source_listings_carry_no_jinja_markers(all_variant_data: None
         check=True,
         capture_output=True,
     )
-    assert "{% raw %}" not in listing.read_text(encoding="utf-8"), (
-        "this is not what spl-core generates with the raw-tag flag off"
-    )
+    assert "{% raw %}" not in listing.read_text(encoding="utf-8"), "this is not what spl-core generates with the raw-tag flag off"
     (listing_dir / "index.rst").write_text(
         "Source Files\n============\n\n.. toctree::\n   :maxdepth: 1\n\n   sample_c\n",
         encoding="utf-8",

@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
 """Configuration"""
+
 import datetime
 import logging
 import os
@@ -7,11 +7,10 @@ import tomllib
 from pathlib import Path
 
 from sphinx.errors import ConfigError
-
+from spl_core.report_generation.spl_html_settings import html_last_updated_fmt, html_show_sourcelink, html_sidebars, html_theme, html_theme_options  # noqa: F401
 from spl_core.report_generation.spl_sphinx import SplSphinx
-from spl_core.report_generation.spl_html_settings import html_theme, html_show_sourcelink, html_theme_options, html_sidebars, html_last_updated_fmt  # noqa: F401
 
-day = datetime.date.today()
+day = datetime.date.today()  # noqa: DTZ011 -- the release is the local date of the build
 # meta data #################################################################
 
 project = "SPLed"
@@ -117,6 +116,7 @@ sources_from_toml = "ubproject.variants.toml"
 # no computed default is registered: every need and every link is something
 # ubCode reads as well.
 
+
 # One warning is dropped, and only that one. ubproject.toml has to declare the
 # test results' `file` field, because ubc drops an undeclared field of an
 # imported need without a word. sphinx-codelinks registers a field of the same
@@ -131,7 +131,7 @@ class _DropTheDuplicateFileFieldWarning(logging.Filter):
             return True
         try:
             return "Duplicate need field 'file'" not in record.getMessage()
-        except Exception:
+        except (TypeError, ValueError):  # a record whose arguments do not fit its message
             return True
 
 

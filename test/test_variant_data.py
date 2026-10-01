@@ -23,7 +23,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "tools"))
 
-import variant_data  # noqa: E402
+import variant_data
 
 # The variant data is the input to every documentation gate, and generating it
 # is pure Python that costs milliseconds -- so it runs in all of them. A
@@ -121,11 +121,7 @@ def test_else_branch_belongs_to_the_other_kit(tmp_path: Path) -> None:
     """Not used in this project today, but it must not be silently wrong."""
     root = _write_parts(
         tmp_path,
-        "if(BUILD_KIT STREQUAL test)\n"
-        "  spl_add_component(test/suite)\n"
-        "else()\n"
-        "  spl_add_component(components/stub)\n"
-        "endif()\n",
+        "if(BUILD_KIT STREQUAL test)\n  spl_add_component(test/suite)\nelse()\n  spl_add_component(components/stub)\nendif()\n",
     )
     assert variant_data.components(root, "Fake", "test") == ["test/suite"]
     assert variant_data.components(root, "Fake", "prod") == ["components/stub"]
@@ -278,9 +274,7 @@ def test_selection_toml_with_a_build_dir_mounts_it(tmp_path: Path) -> None:
 def test_selection_toml_can_name_a_component_root_doc(tmp_path: Path) -> None:
     """A per-component report renders under its own root document."""
     cell = variant_data.cell_path(PROJECT_ROOT, "Disco", "test", "reports", "components/light_controller")
-    selection = tomllib.loads(
-        variant_data.selection_toml(cell, "Disco", "test", None, variant_data.COMPONENT_ROOT_DOC)
-    )
+    selection = tomllib.loads(variant_data.selection_toml(cell, "Disco", "test", None, variant_data.COMPONENT_ROOT_DOC))
     assert selection["project"]["root_doc"] == variant_data.COMPONENT_ROOT_DOC
 
 
@@ -298,25 +292,19 @@ def test_write_selection_writes_the_project_selection_and_every_run(tmp_path: Pa
     variant_data.write_selection(root, "Test", "test", "reports", build_dir)
 
     selection = tomllib.loads((root / variant_data.SELECTION_FILE).read_text(encoding="utf-8"))
-    assert selection["needs"]["variant_data_file"] == variant_data.cell_path(
-        root, "Test", "test", "reports"
-    ).resolve().as_posix()
+    assert selection["needs"]["variant_data_file"] == variant_data.cell_path(root, "Test", "test", "reports").resolve().as_posix()
 
     for shape in variant_data.TARGETS:
         run = build_dir / "selection" / f"{shape}.toml"
         assert run.is_file(), f"the variant-wide {shape} run has no selection"
-        assert tomllib.loads(run.read_text(encoding="utf-8"))["needs"]["variant_data_file"] == (
-            variant_data.cell_path(root, "Test", "test", shape).resolve().as_posix()
-        )
+        assert tomllib.loads(run.read_text(encoding="utf-8"))["needs"]["variant_data_file"] == (variant_data.cell_path(root, "Test", "test", shape).resolve().as_posix())
 
     for component in variant_data.reported_components(root, "Test", "test"):
         for shape in variant_data.TARGETS:
             run = build_dir / "selection" / component / f"{shape}.toml"
             assert run.is_file(), f"{component}'s {shape} run has no selection"
             parsed = tomllib.loads(run.read_text(encoding="utf-8"))
-            assert parsed["needs"]["variant_data_file"] == (
-                variant_data.cell_path(root, "Test", "test", shape, component).resolve().as_posix()
-            )
+            assert parsed["needs"]["variant_data_file"] == (variant_data.cell_path(root, "Test", "test", shape, component).resolve().as_posix())
             assert parsed["project"]["root_doc"] == variant_data.COMPONENT_ROOT_DOC
 
 
