@@ -53,11 +53,12 @@ static brightness_t manualBrightnessAdjustment(void)
 
 #endif /* CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC */
 
-// @need Brightness Controller runnable, SWIMPL_BC-003c, impl, [SWDD_BC-200, SWDD_BC-202, SWDD_BC-203], [REQ_46, REQ_47, REQ_48]
+// @need Brightness Controller runnable, SWIMPL_BC-003c, impl, [SWDD_BC-200, SWDD_BC-202], [REQ_46, REQ_47, REQ_48]
 void brightnessController(void)
 {
     brightness_t brightnessValue = 0;
 #ifdef CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC
+    // @need Automatic brightness adjustment in the runnable, SWIMPL_BC-004c, impl, [SWDD_BC-203], [REQ_48]
     static BrightnessAdjustmentData data = {
         .ticksCounter = 0,
         .period = BRIGHTNESS_PERIOD_TICKS,

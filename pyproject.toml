@@ -6,7 +6,10 @@ authors = [{ name = "Avengineers" }]
 requires-python = "<3.14,>=3.12"
 
 dependencies = [
-    "spl-core==8.6.0",
+    "spl-core @ git+https://github.com/useblocks/spl-core.git@ce62088e6d85116c1e93495971b687f5d03da77f",
+    # Until cuinixam/clanguru releases the fix: listings of the source file's own
+    # declarations, parsed with all its preprocessor options (-isystem included).
+    "clanguru @ git+https://github.com/useblocks/clanguru.git@50a25d75db7d99e17e8d15ee8955b84dceac81b1",
     "pypeline-runner>=1.33,<2",
     "pytest>=8,<9",
     "myst-parser>=4.0,<5",

@@ -1,0 +1,22 @@
+# What the two readers of the documentation may differ in -- and nothing else.
+#
+# test_docs_gate.py builds every variant and kit with Sphinx and with ubc and
+# fails on any warning and any difference in the needs that is not listed here.
+# Every entry names its reason; remove it the day the reason is gone.
+
+[[needs]]
+id = "REQ_37"
+reason = "Imported from the ubConnect ReqIF export without a title (upstream data). Sphinx imports it with an empty title; ubc refuses an untitled need."
+
+[[needs]]
+id = "REQ_58"
+reason = "As REQ_37."
+
+[[ubc_warnings]]
+code = "needs.import"
+count = 2
+reason = "ubc's warnings about REQ_37 and REQ_58, see above."
+
+[[fields]]
+name = "remote-url"
+reason = "sphinx-codelinks stores the path relative to the git root and renders the URL through a link rule it adds at run time; ubCode stores the whole URL. Both link to the same line. Report to the codelinks team: one value for both readers."

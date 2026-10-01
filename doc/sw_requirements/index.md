@@ -4,5 +4,4 @@
 ```
 
 ```{needimport} ../ubconnect/csv/needs.json
-:template: csv_image
 ```

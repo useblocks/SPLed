@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Testing Strategy
 
 This document describes the testing strategy for the SPLED project, including

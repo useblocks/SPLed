@@ -1,9 +1,6 @@
-# Software Detailed Design
+# Brightness Controller
 
-```{toctree}
-:maxdepth: 2
-:caption: Table of Contents
-```
+**Software Detailed Design**
 
 ## Introduction
 
@@ -69,5 +66,22 @@ The Brightness Controller is use the RTE interface `RteSetBrightnessAdjustmentCo
 ## Traceability
 
 ```{src-trace}
-:project: brightness_controller
+:project: components
+:directory: brightness_controller
 ```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/brightness_controller/reports/unit_test_spec
+/build/**/components/brightness_controller/reports/unit_test_results
+/build/**/components/brightness_controller/reports/coverage
+/build/**/components/brightness_controller/__source_docs/index
+```
+
+````

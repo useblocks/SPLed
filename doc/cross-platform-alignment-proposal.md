@@ -1,3 +1,7 @@
+---
+orphan: true
+---
+
 # Cross-Platform Alignment Proposal: `hammocking` & `SPLed`
 
 **Goal:** Develop and build both projects consistently under **Windows**, **Linux**, and inside a
@@ -123,7 +127,7 @@ toolchain layer; drop SPLed's `docker-compose` indirection unless multi-service 
 
 Shared skeleton (identical in both repos except the `Dockerfile` toolchain layer and extensions):
 
-```jsonc
+```json
 {
     "name": "<project>",
     "build": { "dockerfile": "Dockerfile" },
@@ -299,6 +303,10 @@ Implemented and pushed as the working basis:
 > **Dependency pin:** `SPLed` pins `spl-core==8.6.0` (progressed `8.6.0rc1` → `rc2` → final during
 > this branch) — the release that ships the platform-aware `SplBuild` plus the cross-platform
 > `gcov_maid` fix.
+>
+> Since then, upstream SPLed requires spl-core 8.9, and the useblocks fork pins spl-core 8.9.0 plus
+> the documentation changes of useblocks/spl-core#5, as a commit, until upstream releases them
+> (`pyproject.toml`).
 
 > **Verification note:** the local WSL environment has no network access to PyPI/GitHub, so the full
 > Linux build could not be exercised locally; the `spl-core` unit tests, `bash -n`, and argument

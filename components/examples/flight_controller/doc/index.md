@@ -1,11 +1,5 @@
 # Software Detailed Design
 
-```{toctree}
-:maxdepth: 2
-:caption: Contents
-:class: toc
-```
-
 ## Introduction
 
 The Flight Controller module is responsible for evaluating mission abort conditions and triggering the SelfDestruct system if necessary. It demonstrates a clear MC/DC coverage example.
@@ -97,3 +91,26 @@ flowchart TD
     off_course -- "False" --> FALSE
 
 ```
+
+## Traceability
+
+```{src-trace}
+:project: components
+:directory: examples/flight_controller
+```
+
+````{if} var.build_config.target == "reports"
+
+## Verification
+
+```{toctree}
+:maxdepth: 1
+:glob:
+
+/build/**/components/examples/flight_controller/reports/unit_test_spec
+/build/**/components/examples/flight_controller/reports/unit_test_results
+/build/**/components/examples/flight_controller/reports/coverage
+/build/**/components/examples/flight_controller/__source_docs/index
+```
+
+````

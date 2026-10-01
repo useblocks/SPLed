@@ -41,6 +41,60 @@ jobs:
                   echo "Selected gate marker: $marker"
                   echo "marker=$marker" >> "$GITHUB_OUTPUT"
 
+    documentation:
+        name: Documentation
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
+        needs: determine-gate
+
+        # The documentation of every variant and kit, in both readers, in strict
+        # mode, with their needs compared (test/test_docs_gate.py). Each cell is
+        # CONFIGURED: codelinks takes a variant's #ifdef branches from its
+        # build's compile database, which only CMake writes. The reports shape
+        # also compiles each test-kit variant and runs its tests, because the
+        # test specifications, results and listings are what that run generates.
+        # The runner's gcc, g++, cmake and ninja are enough -- no poks, no scoop,
+        # no cross-compiler. It covers every variant, where the build jobs cover
+        # the variants they build.
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Python
+              uses: actions/setup-python@v6
+              with:
+                  python-version: "3.12"
+
+            - name: Install documentation dependencies
+              run: |
+                  pipx install poetry==2.4.1
+                  poetry config virtualenvs.in-project true
+                  poetry install --no-root
+
+            # cmake and gcc are part of the runner image; Ninja is the generator
+            # the builds use.
+            - name: Install Ninja
+              run: sudo apt-get install -y --no-install-recommends ninja-build
+
+            # `ubc` is the second reader. Without it the parity tests skip, and
+            # a guarantee that only holds on a developer machine is not a
+            # guarantee -- so the gate installs it and CI_REQUIRE_UBC turns a
+            # skip into a failure. No licence is needed for `check`; the inputs
+            # are passed anyway so that adding the secrets later just works.
+            - name: Install ubc
+              uses: useblocks/ubc-action@0.1
+              with:
+                  version: "0.35.0"
+                  license-key: ${{ secrets.UBCODE_LICENSE_KEY }}
+                  license-user: ${{ secrets.UBCODE_LICENSE_USER }}
+
+            - name: Documentation gate
+              env:
+                  CI_REQUIRE_UBC: "1"
+              run: poetry run pytest -m "docs and ${{ needs.determine-gate.outputs.marker }}"
+
     test-on-windows:
         name: Build and Test on Windows
         runs-on: windows-2025

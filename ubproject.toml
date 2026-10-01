@@ -1,72 +1,398 @@
 "$schema" = "https://ubcode.useblocks.com/ubproject.schema.json"
 
-extend = ".venv/lib/python3.13/site-packages/spl_core/report_generation/ubproject.toml"
+# The generated half of the configuration: the document rules, one per
+# documented component, and through them the selected build (build/selection.toml).
+# tools/variant_data.py writes both whenever a variant is selected, so nothing in
+# this file has to change when a component is added. ubCode and ubc follow the
+# `extend`; conf.py hands the same files to Sphinx, whose extensions do not.
+extend = "ubproject.variants.toml"
+
+# ---------------------------------------------------------------------------
+# The one configuration file. Both readers of this project's documentation read
+# it: ubCode and ubc directly, and the Sphinx build through `needs_from_toml`
+# in conf.py.
+#
+# It used to `extend` spl-core's base configuration out of the virtualenv, by a
+# path with the Python minor version baked into it. That was wrong twice over.
+# The path named a Python that did not exist, so the base configuration silently
+# failed to resolve for ubCode; and sphinx-needs does not implement `extend` at
+# all -- it reads exactly one file's [needs] table -- so conf.py resolved the
+# same base file a second time, through importlib. Two mechanisms for one file,
+# one of them broken, and no way to tell from either end.
+#
+# spl-core's base needs configuration is therefore vendored below rather than
+# referenced. test_ubproject_config.py fails if it drifts from what the
+# installed spl-core ships, so vendoring cannot rot quietly. The one `extend`
+# left names files this project generates itself, which every reader is handed.
+# ---------------------------------------------------------------------------
 
 [server]
 index_on_save = true
 hover_need_refs = true
 
-[parse.parsers.rst]
+# File discovery. Configuring parsers puts ubCode in "parser mode", where the
+# document set comes from each parser's `include` and `[source] extend_include`
+# is IGNORED -- silently, apart from one config warning. So the document set
+# lives here, and it has to be the same set conf.py gives Sphinx through
+# `include_patterns`. It was not: `include = ["*.md"]` matched every Markdown
+# file in the tree, so ubCode was also parsing AGENTS.md, README.md, CLAUDE.md
+# and three dozen agent skill definitions as project documents -- 38 documents
+# Sphinx never sees, each reported as missing from a toctree.
 
 [parse.parsers.md]
 flavour = "myst"
-include = ["*.md"]
+include = [
+    "index.md",
+    "doc/**/*.md",
+    "components/**/doc/**/*.md",
+    "test/**/doc/**/*.md",
+]
+
+# Every .rst in this project is generated: the clanguru source listings and the
+# report pages spl-core writes into a build directory. There is no rst parser
+# here: the selection declares it (build/selection.toml), naming the pages of
+# the one build it selects by their own paths, and only for that build's
+# reports. conf.py adds the same patterns to Sphinx's `include_patterns`. Every
+# other build on the machine is matched by no include, so it is never read.
+
+[source]
+exclude = [".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg", ".svn", ".venv", ".vscode", "_build", "dist", "node_modules", "site-packages"]
+respect_gitignore = false
+# Only the dependencies CMake fetches into build/modules (FETCHCONTENT_BASE_DIR
+# in CMakeLists.txt) are excluded from build/: they carry documents of their own
+# (googletest's docs/index.md), and a parser include without a slash, such as
+# `index.md`, matches at any depth. The rest of build/ stays visible, because
+# the selection reads the selected build's pages there; the parser includes
+# decide which files are documents. conf.py prunes the same directory.
+# `extend_include` is deliberately absent: it is ignored in parser mode.
+extend_exclude = ["build/modules/**"]
 
 [needs]
-schema_definitions_from_json = "schema.json"
-
-variant_data_file = "build/autoconf.json"
 
 src_trace_config_from_toml = "ubproject.toml"
 
-[needs.fields.image]
-description = "Image associated with the need"
+# Write the merged needs.json (all needs, after import and resolution).
+build_json = true
+
+# --- vendored from spl-core -------------------------------------------------
+# Modernized to the `links`/`fields` tables while copying: the `extra_links`
+# and `extra_options` lists spl-core still ships are deprecated in sphinx-needs
+# and warned about on every build, and the `image` field below already used the
+# new form, so the file was mixing both.
+
+[needs.links.realizes]
+incoming = "is realized by"
+outgoing = "realizes"
+
+[needs.links.fulfills]
+incoming = "is fulfilled by"
+outgoing = "fulfills"
+
+[needs.links.refines]
+incoming = "is refined by"
+outgoing = "refines"
+
+[needs.links.implements]
+incoming = "is implemented by"
+outgoing = "implements"
+
+[needs.links.results]
+incoming = "results from"
+outgoing = "results"
+
+[needs.links.verifies]
+incoming = "is verified by"
+outgoing = "verifies"
+
+[needs.links.tests]
+incoming = "is tested by"
+outgoing = "tests"
+
+# The CSV requirements carry their image in their content (doc/sw_requirements).
+# ubc refuses an asset in imported content unless its source is listed here;
+# Sphinx needs no such permission and ignores the key.
+[[needs.import_sources]]
+json_path = "doc/ubconnect/csv/needs.json"
+allow_assets = true
+
+[needs.fields.integrity]
+# spl-core declares this through the deprecated `extra_options` list. That form
+# implies an empty-string default, which is what every existing need carries, so
+# it is stated explicitly here -- the modern form warns when a field declares
+# neither schema, nullable nor default, and defaulting to null instead would
+# change the value of `integrity` on all 87 needs.
+description = "Integrity level of the need"
+default = ""
+
+[needs.fields.integrity.schema]
+type = "string"
+
+[[needs.types]]
+directive = "arch"
+title = "Architecture"
+prefix = "A_"
+color = "#DF744A"
+style = "node"
+
+[[needs.types]]
+directive = "req"
+title = "Requirement"
+prefix = "R_"
+color = "#BFD8D2"
+style = "node"
+
+[[needs.types]]
+directive = "spec"
+title = "Specification"
+prefix = "S_"
+color = "#FEDCD2"
+style = "node"
+
+[[needs.types]]
+directive = "impl"
+title = "Implementation"
+prefix = "I_"
+color = "#DF744A"
+style = "node"
+
+[[needs.types]]
+directive = "test"
+title = "Test Case"
+prefix = "T_"
+color = "#DCB239"
+style = "node"
+
+# --- end vendored -----------------------------------------------------------
+
+# Test results. spl-core converts each component's JUnit XML into needs.json
+# after the test run (SPL_TEST_RESULTS_AS_NEEDS in CMakeLists.txt), with the
+# types, IDs and fields sphinx-test-reports' test-report directive used to
+# create, so both readers import them. Declared here because no extension
+# registers them any more.
+[[needs.types]]
+directive = "testfile"
+title = "Test-File"
+prefix = "TF_"
+color = "#ffffff"
+style = "node"
+
+[[needs.types]]
+directive = "testsuite"
+title = "Test-Suite"
+prefix = "TS_"
+color = "#cccccc"
+style = "folder"
+
+[[needs.types]]
+directive = "testcase"
+title = "Test-Case"
+prefix = "TC_"
+color = "#999999"
+style = "rectangle"
+
+[needs.fields.suites]
+description = "Test result: suites"
 nullable = true
 
-[needs.fields.image.schema]
+[needs.fields.suites.schema]
+type = "integer"
+
+[needs.fields.cases]
+description = "Test result: cases"
+nullable = true
+
+[needs.fields.cases.schema]
+type = "integer"
+
+[needs.fields.passed]
+description = "Test result: passed"
+nullable = true
+
+[needs.fields.passed.schema]
+type = "integer"
+
+[needs.fields.skipped]
+description = "Test result: skipped"
+nullable = true
+
+[needs.fields.skipped.schema]
+type = "integer"
+
+[needs.fields.failed]
+description = "Test result: failed"
+nullable = true
+
+[needs.fields.failed.schema]
+type = "integer"
+
+[needs.fields.errors]
+description = "Test result: errors"
+nullable = true
+
+[needs.fields.errors.schema]
+type = "integer"
+
+[needs.fields.file]
+description = "Test result: file"
+nullable = true
+
+[needs.fields.file.schema]
 type = "string"
+
+[needs.fields.suite]
+description = "Test result: suite"
+nullable = true
+
+[needs.fields.suite.schema]
+type = "string"
+
+[needs.fields.case]
+description = "Test result: case"
+nullable = true
+
+[needs.fields.case.schema]
+type = "string"
+
+[needs.fields.case_name]
+description = "Test result: case_name"
+nullable = true
+
+[needs.fields.case_name.schema]
+type = "string"
+
+[needs.fields.case_parameter]
+description = "Test result: case_parameter"
+nullable = true
+
+[needs.fields.case_parameter.schema]
+type = "string"
+
+[needs.fields.classname]
+description = "Test result: classname"
+nullable = true
+
+[needs.fields.classname.schema]
+type = "string"
+
+[needs.fields.result]
+description = "Test result: result"
+nullable = true
+
+[needs.fields.result.schema]
+type = "string"
+
+[needs.fields.time]
+description = "Test result: time"
+nullable = true
+
+[needs.fields.time.schema]
+type = "string"
+
+[needs.fields.configuration]
+description = "Configuration, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.configuration.schema]
+type = "string"
+
+[needs.fields.origin]
+description = "Origin, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.origin.schema]
+type = "string"
+
+[needs.fields.priority]
+description = "Priority, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.priority.schema]
+type = "string"
+
+[needs.fields.reqif_uuid]
+description = "ReqIF identifier, from the ubConnect ReqIF export"
+nullable = true
+
+[needs.fields.reqif_uuid.schema]
+type = "string"
+
+[needs.fields.level]
+description = "Hierarchy level, from the CSV import"
+nullable = true
+
+[needs.fields.level.schema]
+type = "integer"
+
+# The link to the code of a one-line need, filled in by codelinks
+# (`set_remote_url` below). sphinx-codelinks registers the field itself and adds
+# a link rule for it in Python, while it runs, which ubCode and ubc never see:
+# they need the field declared, and a rule of their own, to render the value as
+# a link. The readers store different values -- sphinx-codelinks the path,
+# ubCode the whole URL -- so the rule matches only a URL, and Sphinx keeps
+# codelinks' own rule for the path.
+[needs.fields.remote-url]
+description = "Remote source URL, from codelinks"
+nullable = true
+
+[needs.string_links.remote_url]
+regex = '^(?P<url>https?://\S+?/blob/[^/]+/(?P<path>[^#\s]+)#L(?P<line>\d+))$'
+link_url = "{{url}}"
+link_name = "{{path}}#L{{line}}"
+options = ["remote-url"]
 
 [codelinks]
 outdir = "output"
 set_remote_url = true
 
-[codelinks.projects.brightness_controller]
+[codelinks.projects.components]
 remote_url_pattern = "https://github.com/avengineers/SPLed/blob/{commit}/{path}#L{line}"
 
-[codelinks.projects.brightness_controller.source_discover]
-src_dir = "components/brightness_controller/src"
-include = ["**/*.c", "**/*.h"]
+[codelinks.projects.components.source_discover]
+src_dir = "components"
+include = ["**/src/**/*.c", "**/src/**/*.h"]
 comment_type = "cpp"
 
-[codelinks.projects.brightness_controller.analyse]
+[codelinks.projects.components.analyse]
 get_oneline_needs = true
 get_need_id_refs = false
 get_rst = false
 
-[codelinks.projects.brightness_controller.analyse.preprocessor]
+[codelinks.projects.components.analyse.preprocessor]
 compile_commands = "build/compile_commands.json"
 
-[codelinks.projects.brightness_controller.analyse.oneline_comment_style]
+[codelinks.projects.components.analyse.oneline_comment_style]
 start_sequence = "@need"
 end_sequence = "\n"
 field_split_char = ","
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "title"
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "id"
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "type"
 default = "impl"
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "implements"
 type = "list[str]"
 default = []
 
-[[codelinks.projects.brightness_controller.analyse.oneline_comment_style.needs_fields]]
+[[codelinks.projects.components.analyse.oneline_comment_style.needs_fields]]
 name = "fulfills"
 type = "list[str]"
 default = []
+
+# ---------------------------------------------------------------------------
+# Variant-dependent documentation.
+#
+# Nothing here. Which documents a variant has is decided by the rules in
+# ubproject.variants.toml, which tools/variant_data.py derives from where each
+# component's documentation lives, gated on the variant's component list from
+# parts.cmake. Which build a reader shows is build/selection.toml: the variant
+# data file it evaluates, and the generated pages of the build it selects.
+# Blocks inside a document are gated by the {if} directive of Sphinx-Needs,
+# which reads the same `var.*`.
+# ---------------------------------------------------------------------------

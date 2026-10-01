@@ -1,29 +1,10 @@
-{% if build_config.component_info %}
-
-# Software Component Report
-
-**Variant:** {{ build_config.variant }}<br/>
-**Component:** {{ build_config.component_info.long_name }}<br/>
-**Timestamp:** {{ timestamp }}
-
-```{toctree}
-:maxdepth: 2
-
-{{ build_config.component_info.path }}/doc/index
-{% if build_config.component_info.has_reports %}
-{{ build_config.component_info.reports_output_dir }}/unit_test_spec
-{{ build_config.component_info.reports_output_dir }}/unit_test_results
-{{ build_config.component_info.reports_output_dir }}/doxygen/html/index
-{{ build_config.component_info.reports_output_dir }}/coverage
-{% endif %}
-```
-
-{% else %}
+---
+orphan: true
+---
 
 # Variant Report
 
-**Variant:** {variant}`build_config.variant`<br/>
-**Timestamp:** {{ timestamp }}
+**Variant:** {variant}`build_config.variant`
 
 ```{toctree}
 :maxdepth: 1
@@ -33,9 +14,35 @@ doc/customer_requirements/index
 doc/software_architecture/index
 doc/sw_requirements/index
 doc/components/index
-{% if build_config.target == 'reports' %}
-{{ build_config.reports_output_dir }}/coverage
-{% endif %}
+doc/results/index
 ```
 
-{% endif %}
+% The variant's coverage page, in the one build whose pages the selection reads:
+% build/<variant>/<kit>/<build type>/reports/coverage. A variant's name has one
+% segment (Disco) or two (Base/Dev), so the page is one level deeper for the
+% latter. `*` stays within one segment, while `**` would match every
+% component's coverage page as well.
+
+````{if} var.build_config.target == "reports" and var.build_config.scope == "variant" and "/" not in var.build_config.variant
+
+```{toctree}
+:caption: Code Coverage
+:maxdepth: 1
+:glob:
+
+/build/*/*/*/reports/coverage
+```
+
+````
+
+````{if} var.build_config.target == "reports" and var.build_config.scope == "variant" and "/" in var.build_config.variant
+
+```{toctree}
+:caption: Code Coverage
+:maxdepth: 1
+:glob:
+
+/build/*/*/*/*/reports/coverage
+```
+
+````

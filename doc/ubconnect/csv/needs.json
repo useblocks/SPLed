@@ -18,7 +18,6 @@
           "status": "new",
           "links": [],
           "level": 1,
-          "image": "",
           "implements": "",
           "links_back": [
             "REQ_CSV_2",
@@ -29,13 +28,12 @@
           "id": "REQ_CSV_2",
           "type": "req",
           "title": "",
-          "content": "Text Req 2",
+          "content": "Text Req 2\n\n```{image} /doc/ubconnect/csv/picture/pic1.jpg\n:width: 300px\n```",
           "status": "open",
           "links": [
             "REQ_CSV_1"
           ],
           "level": 2,
-          "image": "picture/pic1.jpg",
           "implements": "",
           "links_back": [
             "REQ_CSV_3"
@@ -45,14 +43,13 @@
           "id": "REQ_CSV_3",
           "type": "req",
           "title": "",
-          "content": "Text Req 3",
+          "content": "Text Req 3\n\n```{image} /doc/ubconnect/csv/picture/pic1.jpg\n:width: 300px\n```",
           "status": "open",
           "links": [
             "REQ_CSV_1",
             "REQ_CSV_2"
           ],
           "level": 2,
-          "image": "picture/pic1.jpg",
           "implements": ""
         },
         "ARCH_CSV_1": {
@@ -63,7 +60,6 @@
           "status": "open",
           "links": [],
           "level": 1,
-          "image": "",
           "implements": [
             "REQ_CSV_1",
             "REQ_CSV_2",

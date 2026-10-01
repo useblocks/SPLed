@@ -1,6 +1,16 @@
 # Binary output dir, not recommended to push binary results to Git.
 /build
 
+# ubc's default output (`ubc build html` without -o writes _build/html), and
+# Sphinx's conventional `_build/<builder>`. SPLed's own commands write under
+# build/; this catches a bare run.
+/_build/
+
+# The document rules tools/variant_data.py generates whenever a variant is
+# selected (see ubproject.toml). Generated output, never committed; the
+# selection itself lives under /build.
+/ubproject.variants.toml
+
 # Output directory of test results
 /test/output
 
