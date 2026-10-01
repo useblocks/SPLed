@@ -123,6 +123,24 @@ try a change on a copy ([7](#7-try-a-change-without-touching-the-product)).
 
 ## Setup
 
+**The quickest way in** is the guided tour, which works the same on Linux, macOS and Windows.
+It needs only Python 3.11+ and [uv](https://docs.astral.sh/uv/); `ubc` for the ubCode side, and
+CMake, Ninja and a C/C++ compiler for the build cases. Each step says what it is about to do, runs
+it, and then says what to look at and what to expect:
+
+```bash
+python tools/try_variants.py                                  # the cases, and what each needs
+python tools/try_variants.py setup                            # .venv, the variant data, the rules
+python tools/try_variants.py docs -v Sleep                    # one variant's documents in Sphinx and ubc
+python tools/try_variants.py build -v Disco                   # a CMake build: reports, test results
+python tools/try_variants.py component light_controller       # one component's report
+python tools/try_variants.py compare Disco Spa                # the needs that differ ([6](#6-see-what-differs-between-two-variants))
+python tools/try_variants.py check                            # the tests and the CI gate ([18](#18-run-the-checks))
+python tools/try_variants.py all                              # all of it, in that order
+```
+
+Its output goes to `build/try/`. The rest of this guide is the same steps by hand.
+
 ### 1. Set up a documentation environment
 
 You need Python 3.12 and the locked Python dependencies. Nothing in this guide needs a compiler.
