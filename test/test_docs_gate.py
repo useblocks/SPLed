@@ -18,8 +18,9 @@ Both build times go into the job summary on CI (`GITHUB_STEP_SUMMARY`), so the
 speed of the second reader is visible next to the first.
 
 The configure needs CMake, Ninja and a C/C++ compiler: on CI the runner's, here
-whatever is on PATH. Without them the tests skip, and on CI (`CI` is set) they
-fail instead, because a gate that only runs on a developer machine is none.
+whatever is on PATH. Without them, or without ubc, the tests skip -- except in
+the documentation job, which sets CI_REQUIRE_UBC: there they fail instead,
+because a gate that only runs on a developer machine is none.
 """
 
 from __future__ import annotations
@@ -73,8 +74,11 @@ def _find_ubc() -> str | None:
 def _require(what: str, available: bool) -> None:
     if available:
         return
-    if os.environ.get("CI"):
-        pytest.fail(f"{what} is required on CI")
+    # The documentation job sets CI_REQUIRE_UBC and installs what the gate needs.
+    # The build jobs select these tests by their gate markers as well, without
+    # ubc, so `CI` alone must not turn a skip into a failure.
+    if os.environ.get("CI_REQUIRE_UBC"):
+        pytest.fail(f"{what} is required where CI_REQUIRE_UBC is set")
     pytest.skip(f"{what} is not available")
 
 
