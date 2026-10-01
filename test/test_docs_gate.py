@@ -54,6 +54,7 @@ pytestmark = [
 EXCEPTIONS = tomllib.loads((PROJECT_ROOT / "test" / "docs_exceptions.toml").read_text(encoding="utf-8"))
 EXCEPTED_NEEDS = {entry["id"] for entry in EXCEPTIONS.get("needs", [])}
 EXCEPTED_UBC_WARNINGS = {entry["code"]: entry["count"] for entry in EXCEPTIONS.get("ubc_warnings", [])}
+EXCEPTED_FIELDS = {entry["name"] for entry in EXCEPTIONS.get("fields", [])}
 
 #: Build times per cell, for the job summary.
 TIMINGS: list[tuple[str, str, float, float, int]] = []
@@ -142,7 +143,8 @@ def _needs(path: Path) -> dict[str, dict]:
 
 def _compared_fields() -> list[str]:
     config = tomllib.loads((PROJECT_ROOT / "ubproject.toml").read_text(encoding="utf-8"))["needs"]
-    return ["type", "title", "status", "tags", *config.get("links", {}), *config.get("fields", {})]
+    compared = ["type", "title", "status", "tags", *config.get("links", {}), *config.get("fields", {})]
+    return [field for field in compared if field not in EXCEPTED_FIELDS]
 
 
 def _normalized(value):

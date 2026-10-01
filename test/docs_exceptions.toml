@@ -16,3 +16,7 @@ reason = "As REQ_37."
 code = "needs.import"
 count = 2
 reason = "ubc's warnings about REQ_37 and REQ_58, see above."
+
+[[fields]]
+name = "remote-url"
+reason = "sphinx-codelinks stores the path relative to the git root and renders the URL through a link rule it adds at run time; ubCode stores the whole URL. Both link to the same line. Report to the codelinks team: one value for both readers."

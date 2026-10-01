@@ -567,3 +567,23 @@ def test_the_checks_notice_a_hand_written_rule(project_config: dict) -> None:
 
     tampered = {**project_config, "source": {**project_config["source"], "variant_sources": [{"if": "True", "files": ["x"]}]}}
     assert any("declares rules" in finding for finding in config_checks.generated_half(tampered))
+
+
+def test_remote_url_links_in_both_readers(project_config: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    """ubCode links the codelinks URL through a declared field and a rule; Sphinx keeps codelinks' own rule.
+
+    sphinx-codelinks registers `remote-url` and adds its link rule only while
+    Sphinx runs, so ubCode needs both declared here. sphinx-needs applies only
+    the first rule naming a field, so conf.py drops this one for Sphinx, or it
+    would shadow codelinks' rule and leave Sphinx's value unlinked.
+    """
+    assert "remote-url" in project_config["needs"]["fields"]
+    rule = project_config["needs"]["string_links"]["remote_url"]
+    assert rule["options"] == ["remote-url"]
+    assert re.match(rule["regex"], "https://github.com/avengineers/SPLed/blob/abc123/components/x/src/x.c#L13")
+
+    monkeypatch.setenv("VARIANT", "Disco")
+    module = runpy.run_path(str(PROJECT_ROOT / "conf.py"))
+    config = SimpleNamespace(needs_string_links={"remote_url": rule, "other": {"options": ["status"]}})
+    module["_leave_codelinks_links_to_codelinks"](None, config)
+    assert config.needs_string_links == {"other": {"options": ["status"]}}

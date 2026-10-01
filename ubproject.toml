@@ -323,6 +323,23 @@ nullable = true
 [needs.fields.level.schema]
 type = "integer"
 
+# The link to the code of a one-line need, filled in by codelinks
+# (`set_remote_url` below). sphinx-codelinks registers the field itself and adds
+# a link rule for it in Python, while it runs, which ubCode and ubc never see:
+# they need the field declared, and a rule of their own, to render the value as
+# a link. The readers store different values -- sphinx-codelinks the path,
+# ubCode the whole URL -- so the rule matches only a URL, and Sphinx keeps
+# codelinks' own rule for the path.
+[needs.fields.remote-url]
+description = "Remote source URL, from codelinks"
+nullable = true
+
+[needs.string_links.remote_url]
+regex = '^(?P<url>https?://\S+?/blob/[^/]+/(?P<path>[^#\s]+)#L(?P<line>\d+))$'
+link_url = "{{url}}"
+link_name = "{{path}}#L{{line}}"
+options = ["remote-url"]
+
 [codelinks]
 outdir = "output"
 set_remote_url = true

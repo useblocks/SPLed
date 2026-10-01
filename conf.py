@@ -109,26 +109,31 @@ sources_from_toml = "ubproject.variants.toml"
 # ubCode reads as well.
 
 
-# One warning is dropped, and only that one. ubproject.toml has to declare the
-# test results' `file` field, because ubc drops an undeclared field of an
-# imported need without a word. sphinx-codelinks registers a field of the same
-# name, and sphinx-needs compares field names only, so it warns
-# "Duplicate need field 'file'" although both declarations agree. Sphinx can only
+# One warning is dropped, and only that one, for two fields. ubproject.toml has
+# to declare the test results' `file` field, because ubc drops an undeclared
+# field of an imported need without a word, and `remote-url`, because ubc links
+# only a declared field. sphinx-codelinks registers fields of the same names,
+# and sphinx-needs compares field names only, so it warns
+# "Duplicate need field '<name>'" although both declarations agree. Sphinx can only
 # suppress a whole warning type (`needs.config`), which would hide every other
-# problem in the needs configuration; this filter matches the one message.
+# problem in the needs configuration; this filter matches the two messages.
 # Remove it once sphinx-needs accepts a matching declaration.
-class _DropTheDuplicateFileFieldWarning(logging.Filter):
+_FIELDS_CODELINKS_REGISTERS_TOO = ("file", "remote-url")
+
+
+class _DropTheDuplicateFieldWarning(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         if getattr(record, "type", "") != "needs" or getattr(record, "subtype", "") != "config":
             return True
         try:
-            return "Duplicate need field 'file'" not in record.getMessage()
+            message = record.getMessage()
         except (TypeError, ValueError):  # a record whose arguments do not fit its message
             return True
+        return not any(f"Duplicate need field '{name}'" in message for name in _FIELDS_CODELINKS_REGISTERS_TOO)
 
 
 for _handler in logging.getLogger("sphinx").handlers:
-    _handler.filters.insert(0, _DropTheDuplicateFileFieldWarning())
+    _handler.filters.insert(0, _DropTheDuplicateFieldWarning())
 
 # variant selection #########################################################
 #
@@ -190,6 +195,22 @@ def _load_selection(app, config):
         config.suppress_warnings = [*config.suppress_warnings, "needs.link_outgoing"]
 
 
+# links that sphinx-codelinks renders itself ##############################
+#
+# ubproject.toml declares a link rule for `remote-url`, because ubCode stores
+# the whole URL there and renders a field as plain text without a rule. In
+# Sphinx, sphinx-codelinks stores the path instead and adds its own rule while
+# its directive runs, pinned to the commit. sphinx-needs applies only the FIRST
+# rule naming a field, matching or not, and the one from ubproject.toml comes
+# first, so it would leave Sphinx's path unlinked. Sphinx gets codelinks' rule
+# alone: this drops the ubCode rule between sphinx-needs loading the TOML (10)
+# and compiling the rules (551).
+
+
+def _leave_codelinks_links_to_codelinks(app, config):
+    config.needs_string_links = {name: rule for name, rule in config.needs_string_links.items() if "remote-url" not in rule.get("options", [])}
+
+
 # configuration checks ######################################################
 #
 # The checks test_ubproject_config.py runs, run again whenever Sphinx reads this
@@ -217,4 +238,5 @@ def _check_configuration(app, config):
 def setup(app):
     app.add_config_value("spl_selection", "build/selection.toml", "env", types=(str,))
     app.connect("config-inited", _load_selection, priority=5)
+    app.connect("config-inited", _leave_codelinks_links_to_codelinks, priority=20)
     app.connect("config-inited", _check_configuration, priority=900)
