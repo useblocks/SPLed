@@ -520,6 +520,30 @@ def test_the_generated_pages_are_read_where_spl_core_writes_them(monkeypatch: py
     ), "CMakeLists.txt must point the per-component runs at this build's selection"
 
 
+#: The spl-core settings that decide what spl-core writes for each component.
+SPL_CORE_DOCS_SETTINGS = ("SPL_SPHINX_OPTIONS", "SPL_SPHINX_COMPONENT_OPTIONS", "SPL_SOURCE_DOCS_JINJA_RAW_TAGS", "SPL_TEST_RESULTS_AS_NEEDS")
+
+
+def test_the_spl_core_settings_come_before_the_components() -> None:
+    """spl-core computes what it writes for a component while parts.cmake adds it.
+
+    A setting placed after `include(.../parts.cmake)` would apply to no component:
+    the reports would be built without it, and every other test of its value would
+    still pass.
+    """
+    lines = (PROJECT_ROOT / "CMakeLists.txt").read_text(encoding="utf-8").splitlines()
+
+    def first(pattern: str) -> int:
+        found = [number for number, line in enumerate(lines, start=1) if re.match(pattern, line.strip())]
+        assert found, f"CMakeLists.txt has no line matching {pattern!r}"
+        return found[0]
+
+    parts = first(r"include\(.*/variants/\$\{VARIANT\}/parts\.cmake\)")
+    for setting in SPL_CORE_DOCS_SETTINGS:
+        line = first(rf"set\(\s*{setting}\b")
+        assert line < parts, f"CMakeLists.txt:{line} sets {setting} after parts.cmake is included (line {parts})"
+
+
 # --- the same checks, as conf.py runs them ------------------------------------
 
 
