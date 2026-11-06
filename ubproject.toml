@@ -164,13 +164,21 @@ style = "node"
 
 # --- end vendored -----------------------------------------------------------
 
-# A test specification's `results` are the test cases whose GTest name is its
-# title, derived by both readers from the test-report needs. A join compares
-# exactly, so a parameterised specification titled `Suite/Test.Case/*` matches
-# no instance and has no results.
+# A test specification's `results` are the test cases it names in `test_cases`,
+# derived by both readers from the test-report needs. A join compares exactly
+# and takes no wildcard, so a parameterised specification lists every instance.
 [needs.links.results.derive_by_type.test]
 kind = "links"
-join = { field = "case", equals = "title" }
+join = { field = "case", equals = "test_cases" }
+
+# ponytail: instances listed by hand; drop once ub-test-reports splits the GTest
+# instance into `case_parameter` and the join can use `case_name`.
+[needs.fields.test_cases]
+description = "The GTest names of the test cases a test specification covers, comma-separated"
+default = ""
+
+[needs.fields.test_cases.schema]
+type = "string"
 
 [needs.fields.configuration]
 description = "Configuration, from the ubConnect ReqIF export"
@@ -276,10 +284,12 @@ name = "fulfills"
 type = "list[str]"
 default = []
 
-# The test specifications, one line above each GTest case. The title is the
-# case's GTest name, which the derived `results` link matches. Test sources are
-# in the compile database of a test-kit build only, so in a prod build codelinks
-# skips them.
+# The test specifications, one line above each GTest case. `test_cases` names the
+# GTest cases it covers, which the derived `results` link matches, separated by
+# `\,` (an escaped field separator). It is a string: ubc drops a list field that
+# is not a link type, and the join splits a string on commas -- so a case name
+# cannot contain one. Test sources are in the compile database of a test-kit
+# build only, so in a prod build codelinks skips them.
 [codelinks.projects.tests]
 remote_url_pattern = "https://github.com/avengineers/SPLed/blob/{commit}/{path}#L{line}"
 
@@ -314,6 +324,10 @@ default = "test"
 name = "tests"
 type = "list[str]"
 default = []
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "test_cases"
+default = ""
 
 # ---------------------------------------------------------------------------
 # Variant-dependent documentation.

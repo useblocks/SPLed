@@ -535,14 +535,16 @@ A test specification is the same kind of comment, right above its GTest case, in
 codelinks project:
 
 ```cpp
-// @need light_controller.test_light_on_and_off, TS_LC-001, test, [SWDD_LC-100, SWDD_LC-102, SWDD_LC-300]
+// @need light_controller.test_light_on_and_off, TS_LC-001, test, [SWDD_LC-100, SWDD_LC-102, SWDD_LC-300], light_controller.test_light_on_and_off
 ```
 
-The fields are the title, which is the case's GTest name, the ID, the type and the design needs it
-tests. The page shows them in its `## Verification` section, with `:project: tests`. Only a
-`test`-kit build compiles the test sources, so only its reports carry the specifications, with
-their `results` links derived from the test-report needs whose case name is the title. A
-parameterised specification, titled `Suite/Test.Case/*`, matches no case and has none.
+The fields are the title, which is the case's GTest name, the ID, the type, the design needs it
+tests and the GTest cases it covers. The page shows them in its `## Verification` section, with
+`:project: tests`. Only a `test`-kit build compiles the test sources, so only its reports carry
+the specifications, with their `results` links derived from the test-report needs whose case name
+is one of the listed cases. Several cases are separated by `\,`: a
+parameterised specification lists every instance (`Suite/Test.Case/Instance`), and a case name
+cannot contain a comma.
 
 **The preprocessor decides per variant.** A need inside an `#ifdef` branch exists only in the
 variants that compile that branch. A link that holds only in some variants therefore belongs to a

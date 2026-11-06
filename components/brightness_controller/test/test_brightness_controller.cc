@@ -20,7 +20,7 @@ extern "C"
 
 #ifdef CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC
 
-// @need brightness_controller.test_brightness_ramp, TS_BC-002, test, [SWDD_BC-100, SWDD_BC-102, SWDD_BC-203]
+// @need brightness_controller.test_brightness_ramp, TS_BC-002, test, [SWDD_BC-100, SWDD_BC-102, SWDD_BC-203], brightness_controller.test_brightness_ramp
 TEST(brightness_controller, test_brightness_ramp)
 {
     /* Arrange */
@@ -58,7 +58,7 @@ TEST(brightness_controller, test_brightness_ramp)
     }
 }
 
-// @need brightness_controller.test_brightness_controller_auto, TS_BC-003, test, [SWDD_BC-200, SWDD_BC-202, SWDD_BC-203]
+// @need brightness_controller.test_brightness_controller_auto, TS_BC-003, test, [SWDD_BC-200, SWDD_BC-202, SWDD_BC-203], brightness_controller.test_brightness_controller_auto
 TEST(brightness_controller, test_brightness_controller_auto)
 {
     const uint16_t halfPeriodTicks = CONFIG_BRIGHTNESS_ADJUSTMENT_PERIOD * 1000 / 10 / 2;
@@ -86,7 +86,7 @@ TEST(brightness_controller, test_brightness_controller_auto)
 
 #else /* CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC */
 
-// @need brightness_controller.test_brightness_knob, TS_BC-001, test, [SWDD_BC-100, SWDD_BC-101, SWDD_BC-200, SWDD_BC-201, SWDD_BC-202]
+// @need brightness_controller.test_brightness_knob, TS_BC-001, test, [SWDD_BC-100, SWDD_BC-101, SWDD_BC-200, SWDD_BC-201, SWDD_BC-202], brightness_controller.test_brightness_knob
 TEST(brightness_controller, test_brightness_knob)
 {
     CREATE_MOCK(mymock);

@@ -12,7 +12,7 @@ extern "C"
 
 #include "mockup_components_examples_hello_gmock.h"
 
-// @need hello_gmock_suite.get_by_value, TS_COMP_A_010, test, [SWDD_COMP_A-010]
+// @need hello_gmock_suite.get_by_value, TS_COMP_A_010, test, [SWDD_COMP_A-010], hello_gmock_suite.get_by_value
 TEST(hello_gmock_suite, get_by_value)
 {
     /* Arrange */
@@ -24,7 +24,7 @@ TEST(hello_gmock_suite, get_by_value)
     ASSERT_EQ(26, ProcessSensorValue());
 }
 
-// @need hello_gmock_suite.get_by_pointer, TS_COMP_A_020, test, [SWDD_COMP_A-020]
+// @need hello_gmock_suite.get_by_pointer, TS_COMP_A_020, test, [SWDD_COMP_A-020], hello_gmock_suite.get_by_pointer
 TEST(hello_gmock_suite, get_by_pointer)
 {
     /* Arrange */
@@ -36,7 +36,7 @@ TEST(hello_gmock_suite, get_by_pointer)
     ASSERT_EQ(84, ProcessSensorStatus());
 }
 
-// @need hello_gmock_suite.get_by_pointer_and_return_value, TS_COMP_A_030, test, [SWDD_COMP_A-030]
+// @need hello_gmock_suite.get_by_pointer_and_return_value, TS_COMP_A_030, test, [SWDD_COMP_A-030], hello_gmock_suite.get_by_pointer_and_return_value
 TEST(hello_gmock_suite, get_by_pointer_and_return_value)
 {
     /* Arrange */
@@ -54,7 +54,7 @@ TEST(hello_gmock_suite, get_by_pointer_and_return_value)
     ASSERT_EQ(42, value);
 }
 
-// @need hello_gmock_suite.init_data_structure, TS_COMP_A_035, test, [SWDD_COMP_A-035]
+// @need hello_gmock_suite.init_data_structure, TS_COMP_A_035, test, [SWDD_COMP_A-035], hello_gmock_suite.init_data_structure
 TEST(hello_gmock_suite, init_data_structure)
 {
     /* Arrange */
@@ -73,7 +73,7 @@ MATCHER_P(EqualToSensorConfig, expected, "")
     return (arg.threshold == expected.threshold) && (arg.unit == expected.unit);
 }
 
-// @need hello_gmock_suite.init_data_structure_with_matcher, TS_COMP_A_036, test, [SWDD_COMP_A-035]
+// @need hello_gmock_suite.init_data_structure_with_matcher, TS_COMP_A_036, test, [SWDD_COMP_A-035], hello_gmock_suite.init_data_structure_with_matcher
 TEST(hello_gmock_suite, init_data_structure_with_matcher)
 {
     /* Arrange */
@@ -87,7 +87,7 @@ TEST(hello_gmock_suite, init_data_structure_with_matcher)
     ASSERT_THAT(data, EqualToSensorConfig(expected_data));
 }
 
-// @need hello_gmock_suite.get_data_structure_by_pointer, TS_COMP_A_040, test, [SWDD_COMP_A-040]
+// @need hello_gmock_suite.get_data_structure_by_pointer, TS_COMP_A_040, test, [SWDD_COMP_A-040], hello_gmock_suite.get_data_structure_by_pointer
 TEST(hello_gmock_suite, get_data_structure_by_pointer)
 {
     /* Arrange */
@@ -106,7 +106,7 @@ TEST(hello_gmock_suite, get_data_structure_by_pointer)
     ASSERT_EQ(result.unit, 42);
 }
 
-// @need hello_gmock_suite.get_data_structure_by_pointer_1, TS_COMP_A_041, test, [SWDD_COMP_A-040]
+// @need hello_gmock_suite.get_data_structure_by_pointer_1, TS_COMP_A_041, test, [SWDD_COMP_A-040], hello_gmock_suite.get_data_structure_by_pointer_1
 TEST(hello_gmock_suite, get_data_structure_by_pointer_1)
 {
     /* Arrange */
@@ -129,7 +129,7 @@ TEST(hello_gmock_suite, get_data_structure_by_pointer_1)
     ASSERT_EQ(result.unit, 42);
 }
 
-// @need hello_gmock_suite.get_data_structure_array, TS_COMP_A_050, test, [SWDD_COMP_A-050]
+// @need hello_gmock_suite.get_data_structure_array, TS_COMP_A_050, test, [SWDD_COMP_A-050], hello_gmock_suite.get_data_structure_array
 TEST(hello_gmock_suite, get_data_structure_array)
 {
     /* Arrange */
@@ -150,7 +150,7 @@ TEST(hello_gmock_suite, get_data_structure_array)
     ASSERT_EQ(result[1].unit, 'b');
 }
 
-// @need hello_gmock_suite.set_by_value, TS_COMP_A_110, test, [SWDD_COMP_A-110]
+// @need hello_gmock_suite.set_by_value, TS_COMP_A_110, test, [SWDD_COMP_A-110], hello_gmock_suite.set_by_value
 TEST(hello_gmock_suite, set_by_value)
 {
     /* Arrange */
@@ -162,7 +162,7 @@ TEST(hello_gmock_suite, set_by_value)
     ProcessSensorOutput(42);
 }
 
-// @need hello_gmock_suite.set_data_by_pointer, TS_COMP_A_120, test, [SWDD_COMP_A-120]
+// @need hello_gmock_suite.set_data_by_pointer, TS_COMP_A_120, test, [SWDD_COMP_A-120], hello_gmock_suite.set_data_by_pointer
 TEST(hello_gmock_suite, set_data_by_pointer)
 {
     /* Arrange */

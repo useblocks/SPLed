@@ -22,7 +22,7 @@ protected:
     }
 };
 
-// @need PowerButtonTest.InitialStateIsReleased, TS_PB-001, test, [SWDD_PB-100, SWDD_PB-201, SWDD_PB-203]
+// @need PowerButtonTest.InitialStateIsReleased, TS_PB-001, test, [SWDD_PB-100, SWDD_PB-201, SWDD_PB-203], PowerButtonTest.InitialStateIsReleased
 TEST_F(PowerButtonTest, InitialStateIsReleased)
 {
     CREATE_MOCK(mymock);
@@ -33,7 +33,7 @@ TEST_F(PowerButtonTest, InitialStateIsReleased)
     powerButton();
 }
 
-// @need PowerButtonTest.PressEventSentOnlyAfterDebounce, TS_PB-002, test, [SWDD_PB-101, SWDD_PB-203]
+// @need PowerButtonTest.PressEventSentOnlyAfterDebounce, TS_PB-002, test, [SWDD_PB-101, SWDD_PB-203], PowerButtonTest.PressEventSentOnlyAfterDebounce
 TEST_F(PowerButtonTest, PressEventSentOnlyAfterDebounce)
 {
     CREATE_MOCK(mymock);
@@ -52,7 +52,7 @@ TEST_F(PowerButtonTest, PressEventSentOnlyAfterDebounce)
     powerButton();
 }
 
-// @need PowerButtonTest.FullPressAndReleaseCycle, TS_PB-003, test, [SWDD_PB-100, SWDD_PB-101, SWDD_PB-200, SWDD_PB-202, SWDD_PB-203, SWDD_PB-300]
+// @need PowerButtonTest.FullPressAndReleaseCycle, TS_PB-003, test, [SWDD_PB-100, SWDD_PB-101, SWDD_PB-200, SWDD_PB-202, SWDD_PB-203, SWDD_PB-300], PowerButtonTest.FullPressAndReleaseCycle
 TEST_F(PowerButtonTest, FullPressAndReleaseCycle)
 {
     CREATE_MOCK(mymock);
@@ -118,7 +118,7 @@ TEST_F(PowerButtonTest, FullPressAndReleaseCycle)
     powerButton();
 }
 
-// @need PowerButtonTest.InitToReleasedTransition, TS_PB-004, test, [SWDD_PB-100, SWDD_PB-101, SWDD_PB-300]
+// @need PowerButtonTest.InitToReleasedTransition, TS_PB-004, test, [SWDD_PB-100, SWDD_PB-101, SWDD_PB-300], PowerButtonTest.InitToReleasedTransition
 TEST_F(PowerButtonTest, InitToReleasedTransition)
 {
     CREATE_MOCK(mymock);

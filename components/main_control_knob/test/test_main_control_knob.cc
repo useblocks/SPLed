@@ -34,7 +34,7 @@ class MainControlKnobTest : public TestWithParam<struct MainControlKnobParameter
 {
 };
 
-// @need MainControlKnobTests/MainControlKnobTest.HandleKnobInput/*, TS_MCK-001, test, [SWDD_MCK-100, SWDD_MCK-101, SWDD_MCK-200, SWDD_MCK-201, SWDD_MCK-202, SWDD_MCK-203]
+// @need MainControlKnobTests/MainControlKnobTest.HandleKnobInput/*, TS_MCK-001, test, [SWDD_MCK-100, SWDD_MCK-101, SWDD_MCK-200, SWDD_MCK-201, SWDD_MCK-202, SWDD_MCK-203], MainControlKnobTests/MainControlKnobTest.HandleKnobInput/Arrow Up increases value\, MainControlKnobTests/MainControlKnobTest.HandleKnobInput/Arrow Down decreases value\, MainControlKnobTests/MainControlKnobTest.HandleKnobInput/Does not increase over 100\, MainControlKnobTests/MainControlKnobTest.HandleKnobInput/Does not increase over 100 if already 100\, MainControlKnobTests/MainControlKnobTest.HandleKnobInput/Does not decrease below zero\, MainControlKnobTests/MainControlKnobTest.HandleKnobInput/Does not decrease below zero if already zero\, MainControlKnobTests/MainControlKnobTest.HandleKnobInput/No key pressed leaves value unchanged
 TEST_P(MainControlKnobTest, HandleKnobInput)
 {
     /* Arrange */
@@ -69,4 +69,4 @@ INSTANTIATE_TEST_SUITE_P(
         MainControlKnobParameters{"Does not decrease below zero if already zero", false, true, 0, 0},
         MainControlKnobParameters{"Does not increase over 100", true, false, 99, 100},
         MainControlKnobParameters{"Does not increase over 100 if already 100", true, false, 100, 100},
-        MainControlKnobParameters{"No key pressed, value remains the same", false, false, 50, 50}));
+        MainControlKnobParameters{"No key pressed leaves value unchanged", false, false, 50, 50}));

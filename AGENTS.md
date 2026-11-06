@@ -299,18 +299,22 @@ takes the `#ifdef` branches from `build/compile_commands.json`, which
 `-save-temps` libclang rejects.
 
 **Test specifications in the code: one-line comments too.** `// @need <GTest
-name>, <id>, test, [<tests>]` above the test case, shown in the component's
-`## Verification` section by `src-trace` (`:project: tests`). Only a test-kit
-build compiles the test sources, so codelinks skips them in any other. The
-title has to stay the GTest name: it is what the derived `results` link matches.
+name>, <id>, test, [<tests>], <test_cases>` above the test case, shown in the
+component's `## Verification` section by `src-trace` (`:project: tests`). Only a
+test-kit build compiles the test sources, so codelinks skips them in any other.
+`test_cases` names the GTest cases the specification covers, separated by `\,`
+-- a parameterised one lists every instance -- and is what the derived `results`
+link matches. It is a string, because ubc drops a codelinks list field that is not
+a link type, so a case name cannot contain a comma.
 
 **Test results: the test-report directive.** spl-core writes each component's
 results page with sphinx-test-reports' `test-report` directive
 (`SPL_TEST_RESULTS_AS_NEEDS` is off), which reads the JUnit XML. Both readers
 run it, with the settings of the `[test_reports]` table in ubproject.toml. A
 test specification's `results` link is derived in ubproject.toml: the test
-cases whose `case` is the specification's title. A join compares exactly, so a
-parameterised specification titled `Suite/Test.Case/*` has no results.
+cases whose `case` is one of the specification's `test_cases`. A join compares
+exactly and takes no wildcard, so a new instance of a parameterised test links
+only once its specification lists it.
 
 ### What the data holds
 
