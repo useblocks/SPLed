@@ -540,7 +540,9 @@ codelinks project:
 
 The fields are the title, which is the case's GTest name, the ID, the type and the design needs it
 tests. The page shows them in its `## Verification` section, with `:project: tests`. Only a
-`test`-kit build compiles the test sources, so only its reports carry the specifications.
+`test`-kit build compiles the test sources, so only its reports carry the specifications, with
+their `results` links derived from the test-report needs whose case name is the title. A
+parameterised specification, titled `Suite/Test.Case/*`, matches no case and has none.
 
 **The preprocessor decides per variant.** A need inside an `#ifdef` branch exists only in the
 variants that compile that branch. A link that holds only in some variants therefore belongs to a

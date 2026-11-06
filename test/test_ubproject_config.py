@@ -98,7 +98,8 @@ def test_sphinx_reads_this_exact_file() -> None:
 def test_every_spl_core_link_type_is_vendored(project_config: dict, spl_core_config: dict) -> None:
     """Modernized from `extra_links` to `[needs.links]` while copying."""
     expected = {link["option"]: {"incoming": link["incoming"], "outgoing": link["outgoing"]} for link in spl_core_config["needs"]["extra_links"]}
-    assert project_config["needs"]["links"] == expected
+    ours = {name: {key: link.get(key) for key in ("incoming", "outgoing")} for name, link in project_config["needs"]["links"].items()}
+    assert ours == expected
 
 
 def test_every_spl_core_field_is_vendored(project_config: dict, spl_core_config: dict) -> None:

@@ -301,13 +301,16 @@ takes the `#ifdef` branches from `build/compile_commands.json`, which
 **Test specifications in the code: one-line comments too.** `// @need <GTest
 name>, <id>, test, [<tests>]` above the test case, shown in the component's
 `## Verification` section by `src-trace` (`:project: tests`). Only a test-kit
-build compiles the test sources, so codelinks skips them in any other.
+build compiles the test sources, so codelinks skips them in any other. The
+title has to stay the GTest name: it is what the derived `results` link matches.
 
-**Test results: needs.json.** spl-core converts each component's JUnit XML into
-`unit_test_results.needs.json` after the test run (`SPL_TEST_RESULTS_AS_NEEDS`)
-and writes the page that imports it, with the test specifications' `results`
-links as `needextend` blocks. Both readers import them; sphinx-test-reports and
-the `sple_tr_link` needs function are gone.
+**Test results: the test-report directive.** spl-core writes each component's
+results page with sphinx-test-reports' `test-report` directive
+(`SPL_TEST_RESULTS_AS_NEEDS` is off), which reads the JUnit XML. Both readers
+run it, with the settings of the `[test_reports]` table in ubproject.toml. A
+test specification's `results` link is derived in ubproject.toml: the test
+cases whose `case` is the specification's title. A join compares exactly, so a
+parameterised specification titled `Suite/Test.Case/*` has no results.
 
 ### What the data holds
 

@@ -114,10 +114,11 @@ set(SPL_SPHINX_COMPONENT_OPTIONS -D spl_selection=${CMAKE_BINARY_DIR}/selection/
 # generates need no `{% raw %}` armour.
 set(SPL_SOURCE_DOCS_JINJA_RAW_TAGS OFF)
 
-# Test results as needs.json that every reader imports, instead of
-# sphinx-test-reports' test-report directive, which only Sphinx knows. The
-# results page also carries the `results` links of the test specifications.
-set(SPL_TEST_RESULTS_AS_NEEDS ON)
+# Test results through sphinx-test-reports' test-report directive, which ubCode
+# and ubc read as well: spl-core writes each results page at configure time and
+# the directive reads the JUnit XML. The `results` links are derived
+# (ubproject.toml), not written on the page.
+set(SPL_TEST_RESULTS_AS_NEEDS OFF)
 
 # The object_deps_report extension is currently Windows-only: its index.cmake
 # hardcodes the runner as "object_deps_report.exe", which does not exist on

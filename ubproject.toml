@@ -164,129 +164,13 @@ style = "node"
 
 # --- end vendored -----------------------------------------------------------
 
-# Test results. spl-core converts each component's JUnit XML into needs.json
-# after the test run (SPL_TEST_RESULTS_AS_NEEDS in CMakeLists.txt), with the
-# types, IDs and fields sphinx-test-reports' test-report directive used to
-# create, so both readers import them. Declared here because no extension
-# registers them any more.
-[[needs.types]]
-directive = "testfile"
-title = "Test-File"
-prefix = "TF_"
-color = "#ffffff"
-style = "node"
-
-[[needs.types]]
-directive = "testsuite"
-title = "Test-Suite"
-prefix = "TS_"
-color = "#cccccc"
-style = "folder"
-
-[[needs.types]]
-directive = "testcase"
-title = "Test-Case"
-prefix = "TC_"
-color = "#999999"
-style = "rectangle"
-
-[needs.fields.suites]
-description = "Test result: suites"
-nullable = true
-
-[needs.fields.suites.schema]
-type = "integer"
-
-[needs.fields.cases]
-description = "Test result: cases"
-nullable = true
-
-[needs.fields.cases.schema]
-type = "integer"
-
-[needs.fields.passed]
-description = "Test result: passed"
-nullable = true
-
-[needs.fields.passed.schema]
-type = "integer"
-
-[needs.fields.skipped]
-description = "Test result: skipped"
-nullable = true
-
-[needs.fields.skipped.schema]
-type = "integer"
-
-[needs.fields.failed]
-description = "Test result: failed"
-nullable = true
-
-[needs.fields.failed.schema]
-type = "integer"
-
-[needs.fields.errors]
-description = "Test result: errors"
-nullable = true
-
-[needs.fields.errors.schema]
-type = "integer"
-
-[needs.fields.file]
-description = "Test result: file"
-nullable = true
-
-[needs.fields.file.schema]
-type = "string"
-
-[needs.fields.suite]
-description = "Test result: suite"
-nullable = true
-
-[needs.fields.suite.schema]
-type = "string"
-
-[needs.fields.case]
-description = "Test result: case"
-nullable = true
-
-[needs.fields.case.schema]
-type = "string"
-
-[needs.fields.case_name]
-description = "Test result: case_name"
-nullable = true
-
-[needs.fields.case_name.schema]
-type = "string"
-
-[needs.fields.case_parameter]
-description = "Test result: case_parameter"
-nullable = true
-
-[needs.fields.case_parameter.schema]
-type = "string"
-
-[needs.fields.classname]
-description = "Test result: classname"
-nullable = true
-
-[needs.fields.classname.schema]
-type = "string"
-
-[needs.fields.result]
-description = "Test result: result"
-nullable = true
-
-[needs.fields.result.schema]
-type = "string"
-
-[needs.fields.time]
-description = "Test result: time"
-nullable = true
-
-[needs.fields.time.schema]
-type = "string"
+# A test specification's `results` are the test cases whose GTest name is its
+# title, derived by both readers from the test-report needs. A join compares
+# exactly, so a parameterised specification titled `Suite/Test.Case/*` matches
+# no instance and has no results.
+[needs.links.results.derive_by_type.test]
+kind = "links"
+join = { field = "case", equals = "title" }
 
 [needs.fields.configuration]
 description = "Configuration, from the ubConnect ReqIF export"
@@ -340,6 +224,14 @@ link_url = "{{url}}"
 link_name = "{{path}}#L{{line}}"
 options = ["remote-url"]
 
+# Test results. sphinx-test-reports' test-report directive reads each
+# component's JUnit XML (the page spl-core writes, SPL_TEST_RESULTS_AS_NEEDS OFF
+# in CMakeLists.txt) and creates the testfile, testsuite and testcase needs. The
+# extension registers their types and fields; ubCode and ubc read the same
+# directive, and both take its settings from this table.
+[test_reports]
+report_template = "doc/test_report_template.txt"
+
 [codelinks]
 outdir = "output"
 set_remote_url = true
@@ -384,9 +276,10 @@ name = "fulfills"
 type = "list[str]"
 default = []
 
-# The test specifications, one line above each GTest case, titled with the
-# case's GTest name. Test sources are in the compile database of a test-kit
-# build only, so in a prod build codelinks skips them.
+# The test specifications, one line above each GTest case. The title is the
+# case's GTest name, which the derived `results` link matches. Test sources are
+# in the compile database of a test-kit build only, so in a prod build codelinks
+# skips them.
 [codelinks.projects.tests]
 remote_url_pattern = "https://github.com/avengineers/SPLed/blob/{commit}/{path}#L{line}"
 
