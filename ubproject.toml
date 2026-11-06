@@ -355,7 +355,6 @@ comment_type = "cpp"
 [codelinks.projects.components.analyse]
 get_oneline_needs = true
 get_need_id_refs = false
-get_rst = false
 
 [codelinks.projects.components.analyse.preprocessor]
 compile_commands = "build/compile_commands.json"
