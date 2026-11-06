@@ -298,6 +298,11 @@ takes the `#ifdef` branches from `build/compile_commands.json`, which
 `tools/compile_commands.py` copies from the selected build without the
 `-save-temps` libclang rejects.
 
+**Test specifications in the code: one-line comments too.** `// @need <GTest
+name>, <id>, test, [<tests>]` above the test case, shown in the component's
+`## Verification` section by `src-trace` (`:project: tests`). Only a test-kit
+build compiles the test sources, so codelinks skips them in any other.
+
 **Test results: needs.json.** spl-core converts each component's JUnit XML into
 `unit_test_results.needs.json` after the test run (`SPL_TEST_RESULTS_AS_NEEDS`)
 and writes the page that imports it, with the test specifications' `results`
@@ -381,7 +386,8 @@ automatic ones Spa runs).
 1. Add it to the variant's `parts.cmake`.
 2. Write its documentation in `<component>/doc/index.md`, with a `## Traceability`
    section (`src-trace`) and a `## Verification` section inside
-   `{if} var.build_config.target == "reports"`, as the other components do.
+   `{if} var.build_config.target == "reports"` (`src-trace` with `:project: tests`
+   if it has test specifications), as the other components do.
 
 The next selection writes its rule, and the glob toctree in
 `doc/components/index.md` lists it. Nothing else is edited, and nothing under

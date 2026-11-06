@@ -103,6 +103,11 @@ flowchart TD
 
 ## Verification
 
+```{src-trace}
+:project: tests
+:directory: examples/flight_controller
+```
+
 ```{toctree}
 :maxdepth: 1
 :glob:

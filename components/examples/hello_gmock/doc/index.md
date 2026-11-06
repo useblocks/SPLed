@@ -100,6 +100,11 @@ Verify that the set interface is called with the expected value through the poin
 
 ## Verification
 
+```{src-trace}
+:project: tests
+:directory: examples/hello_gmock
+```
+
 ```{toctree}
 :maxdepth: 1
 :glob:

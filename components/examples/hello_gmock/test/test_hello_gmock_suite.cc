@@ -12,13 +12,7 @@ extern "C"
 
 #include "mockup_components_examples_hello_gmock.h"
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.get_by_value
- *    :id: TS_COMP_A_010
- *    :tests: SWDD_COMP_A-010
- * @endrst
- */
+// @need hello_gmock_suite.get_by_value, TS_COMP_A_010, test, [SWDD_COMP_A-010]
 TEST(hello_gmock_suite, get_by_value)
 {
     /* Arrange */
@@ -30,13 +24,7 @@ TEST(hello_gmock_suite, get_by_value)
     ASSERT_EQ(26, ProcessSensorValue());
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.get_by_pointer
- *    :id: TS_COMP_A_020
- *    :tests: SWDD_COMP_A-020
- * @endrst
- */
+// @need hello_gmock_suite.get_by_pointer, TS_COMP_A_020, test, [SWDD_COMP_A-020]
 TEST(hello_gmock_suite, get_by_pointer)
 {
     /* Arrange */
@@ -48,13 +36,7 @@ TEST(hello_gmock_suite, get_by_pointer)
     ASSERT_EQ(84, ProcessSensorStatus());
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.get_by_pointer_and_return_value
- *    :id: TS_COMP_A_030
- *    :tests: SWDD_COMP_A-030
- * @endrst
- */
+// @need hello_gmock_suite.get_by_pointer_and_return_value, TS_COMP_A_030, test, [SWDD_COMP_A-030]
 TEST(hello_gmock_suite, get_by_pointer_and_return_value)
 {
     /* Arrange */
@@ -72,13 +54,7 @@ TEST(hello_gmock_suite, get_by_pointer_and_return_value)
     ASSERT_EQ(42, value);
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.init_data_structure
- *    :id: TS_COMP_A_035
- *    :tests: SWDD_COMP_A-035
- * @endrst
- */
+// @need hello_gmock_suite.init_data_structure, TS_COMP_A_035, test, [SWDD_COMP_A-035]
 TEST(hello_gmock_suite, init_data_structure)
 {
     /* Arrange */
@@ -97,13 +73,7 @@ MATCHER_P(EqualToSensorConfig, expected, "")
     return (arg.threshold == expected.threshold) && (arg.unit == expected.unit);
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.init_data_structure_with_matcher
- *    :id: TS_COMP_A_036
- *    :tests: SWDD_COMP_A-035
- * @endrst
- */
+// @need hello_gmock_suite.init_data_structure_with_matcher, TS_COMP_A_036, test, [SWDD_COMP_A-035]
 TEST(hello_gmock_suite, init_data_structure_with_matcher)
 {
     /* Arrange */
@@ -117,13 +87,7 @@ TEST(hello_gmock_suite, init_data_structure_with_matcher)
     ASSERT_THAT(data, EqualToSensorConfig(expected_data));
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.get_data_structure_by_pointer
- *    :id: TS_COMP_A_040
- *    :tests: SWDD_COMP_A-040
- * @endrst
- */
+// @need hello_gmock_suite.get_data_structure_by_pointer, TS_COMP_A_040, test, [SWDD_COMP_A-040]
 TEST(hello_gmock_suite, get_data_structure_by_pointer)
 {
     /* Arrange */
@@ -142,13 +106,7 @@ TEST(hello_gmock_suite, get_data_structure_by_pointer)
     ASSERT_EQ(result.unit, 42);
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.get_data_structure_by_pointer_1
- *    :id: TS_COMP_A_041
- *    :tests: SWDD_COMP_A-040
- * @endrst
- */
+// @need hello_gmock_suite.get_data_structure_by_pointer_1, TS_COMP_A_041, test, [SWDD_COMP_A-040]
 TEST(hello_gmock_suite, get_data_structure_by_pointer_1)
 {
     /* Arrange */
@@ -171,13 +129,7 @@ TEST(hello_gmock_suite, get_data_structure_by_pointer_1)
     ASSERT_EQ(result.unit, 42);
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.get_data_structure_array
- *    :id: TS_COMP_A_050
- *    :tests: SWDD_COMP_A-050
- * @endrst
- */
+// @need hello_gmock_suite.get_data_structure_array, TS_COMP_A_050, test, [SWDD_COMP_A-050]
 TEST(hello_gmock_suite, get_data_structure_array)
 {
     /* Arrange */
@@ -198,13 +150,7 @@ TEST(hello_gmock_suite, get_data_structure_array)
     ASSERT_EQ(result[1].unit, 'b');
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.set_by_value
- *    :id: TS_COMP_A_110
- *    :tests: SWDD_COMP_A-110
- * @endrst
- */
+// @need hello_gmock_suite.set_by_value, TS_COMP_A_110, test, [SWDD_COMP_A-110]
 TEST(hello_gmock_suite, set_by_value)
 {
     /* Arrange */
@@ -216,13 +162,7 @@ TEST(hello_gmock_suite, set_by_value)
     ProcessSensorOutput(42);
 }
 
-/**
- * @rst
- * .. test:: hello_gmock_suite.set_data_by_pointer
- *    :id: TS_COMP_A_120
- *    :tests: SWDD_COMP_A-120
- * @endrst
- */
+// @need hello_gmock_suite.set_data_by_pointer, TS_COMP_A_120, test, [SWDD_COMP_A-120]
 TEST(hello_gmock_suite, set_data_by_pointer)
 {
     /* Arrange */

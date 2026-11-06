@@ -61,15 +61,7 @@ std::ostream &operator<<(std::ostream &os, const RGBColor &color)
     return os;
 }
 
-/**
- * @rst
- *
- * .. test:: light_controller.test_light_stays_off
- *    :id: TS_LC-006
- *    :tests: SWDD_LC-100, SWDD_LC-300
- *
- * @endrst
- */
+// @need light_controller.test_light_stays_off, TS_LC-006, test, [SWDD_LC-100, SWDD_LC-300]
 TEST(light_controller, test_light_stays_off)
 {
     CREATE_MOCK(mymock);
@@ -85,13 +77,7 @@ TEST(light_controller, test_light_stays_off)
 }
 
 #ifdef CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC
-/**
- * @rst
- * .. test:: light_controller.test_brightness_adjustment_automatic
- *    :id: TS_LC-005
- *    :tests: SWDD_LC-100, SWDD_LC-200, SWDD_LC-201, SWDD_LC-202
- * @endrst
- */
+// @need light_controller.test_brightness_adjustment_automatic, TS_LC-005, test, [SWDD_LC-100, SWDD_LC-200, SWDD_LC-201, SWDD_LC-202]
 TEST(light_controller, test_brightness_adjustment_automatic)
 {
     CREATE_MOCK(mymock);
@@ -113,15 +99,7 @@ TEST(light_controller, test_brightness_adjustment_automatic)
 
 #else /* CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC */
 
-/**
- * @rst
- *
- * .. test:: light_controller.test_light_on_and_off
- *    :id: TS_LC-001
- *    :tests: SWDD_LC-100, SWDD_LC-102, SWDD_LC-300
- *
- * @endrst
- */
+// @need light_controller.test_light_on_and_off, TS_LC-001, test, [SWDD_LC-100, SWDD_LC-102, SWDD_LC-300]
 TEST(light_controller, test_light_on_and_off)
 {
     CREATE_MOCK(mymock);
@@ -155,15 +133,7 @@ TEST(light_controller, test_light_on_and_off)
 #endif /* CONFIG_BRIGHTNESS_ADJUSTMENT_AUTOMATIC */
 
 #if CONFIG_BLINKING
-/**
- * @rst
- *
- * .. test:: light_controller.test_light_blinking
- *    :id: TS_LC-002
- *    :tests: SWDD_LC-101
- *
- * @endrst
- */
+// @need light_controller.test_light_blinking, TS_LC-002, test, [SWDD_LC-101]
 TEST(light_controller, test_light_blinking)
 {
     /*!
@@ -224,15 +194,7 @@ std::ostream &operator<<(std::ostream &os, const TestParam &param)
     return os;
 }
 
-/**
- * @rst
- *
- * .. test:: light_controller.test_correct_blink_period
- *    :id: TS_LC-004
- *    :tests: SWDD_LC-101
- *
- * @endrst
- */
+// @need light_controller.test_correct_blink_period, TS_LC-004, test, [SWDD_LC-101]
 TEST(light_controller, test_correct_blink_period)
 {
     /**
@@ -250,15 +212,7 @@ TEST(light_controller, test_correct_blink_period)
     }
 }
 
-/**
- * @rst
- *
- * .. test:: BlinkPeriodTests/BlinkPeriodTest.CalculatesCorrectBlinkPeriod/*
- *    :id: TS_LC-003
- *    :tests: SWDD_LC-101
- *
- * @endrst
- */
+// @need BlinkPeriodTests/BlinkPeriodTest.CalculatesCorrectBlinkPeriod/*, TS_LC-003, test, [SWDD_LC-101]
 TEST_P(BlinkPeriodTest, CalculatesCorrectBlinkPeriod)
 {
     // Get the parameters for this test case

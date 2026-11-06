@@ -45,13 +45,7 @@ INSTANTIATE_TEST_SUITE_P(
         CheckAbortParams{true, false, false, false, "Abort commanded but not valid"},
         CheckAbortParams{false, false, false, false, "No abort, not off course"}));
 
-/**
- * @rst
- * .. test:: CheckAbortParamTests/CheckAbortTest.ReturnsExpectedResult/*
- *    :id: TS_FC-100
- *    :tests: SWDD_FC-100, SWDD_FC-101, SWDD_FC-102
- * @endrst
- */
+// @need CheckAbortParamTests/CheckAbortTest.ReturnsExpectedResult/*, TS_FC-100, test, [SWDD_FC-100, SWDD_FC-101, SWDD_FC-102]
 TEST_P(CheckAbortTest, ReturnsExpectedResult)
 {
     // Arrange
@@ -74,14 +68,7 @@ INSTANTIATE_TEST_SUITE_P(
         CheckAbortParams{true, false, false, false, "Abort commanded but not valid"},
         CheckAbortParams{false, false, false, false, "No abort, not off course"}));
 
-/**
- * @rst
- * .. test:: FlightControllerParamTests/FlightControllerTest.SetsExpectedSelfDestructState/*
- *    :id: TS_FC-001
- *    :tests: SWDD_FC-100, SWDD_FC-101, SWDD_FC-102, SWDD_FC-103,
- *            SWDD_FC-200, SWDD_FC-201, SWDD_FC-202, SWDD_FC-203, SWDD_FC-204
- * @endrst
- */
+// @need FlightControllerParamTests/FlightControllerTest.SetsExpectedSelfDestructState/*, TS_FC-001, test, [SWDD_FC-100, SWDD_FC-101, SWDD_FC-102, SWDD_FC-103, SWDD_FC-200, SWDD_FC-201, SWDD_FC-202, SWDD_FC-203, SWDD_FC-204]
 TEST_P(FlightControllerTest, SetsExpectedSelfDestructState)
 {
     // Arrange

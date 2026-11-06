@@ -384,6 +384,44 @@ name = "fulfills"
 type = "list[str]"
 default = []
 
+# The test specifications, one line above each GTest case, titled with the
+# case's GTest name. Test sources are in the compile database of a test-kit
+# build only, so in a prod build codelinks skips them.
+[codelinks.projects.tests]
+remote_url_pattern = "https://github.com/avengineers/SPLed/blob/{commit}/{path}#L{line}"
+
+[codelinks.projects.tests.source_discover]
+src_dir = "components"
+include = ["**/test/**/*.cc"]
+comment_type = "cpp"
+
+[codelinks.projects.tests.analyse]
+get_oneline_needs = true
+get_need_id_refs = false
+
+[codelinks.projects.tests.analyse.preprocessor]
+compile_commands = "build/compile_commands.json"
+
+[codelinks.projects.tests.analyse.oneline_comment_style]
+start_sequence = "@need"
+end_sequence = "\n"
+field_split_char = ","
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "title"
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "id"
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "type"
+default = "test"
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "tests"
+type = "list[str]"
+default = []
+
 # ---------------------------------------------------------------------------
 # Variant-dependent documentation.
 #
