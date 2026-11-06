@@ -298,11 +298,23 @@ takes the `#ifdef` branches from `build/compile_commands.json`, which
 `tools/compile_commands.py` copies from the selected build without the
 `-save-temps` libclang rejects.
 
-**Test results: needs.json.** spl-core converts each component's JUnit XML into
-`unit_test_results.needs.json` after the test run (`SPL_TEST_RESULTS_AS_NEEDS`)
-and writes the page that imports it, with the test specifications' `results`
-links as `needextend` blocks. Both readers import them; sphinx-test-reports and
-the `sple_tr_link` needs function are gone.
+**Test specifications in the code: one-line comments too.** `// @need <GTest
+name>, <id>, test, [<tests>], <test_cases>` above the test case, shown in the
+component's `## Verification` section by `src-trace` (`:project: tests`). Only a
+test-kit build compiles the test sources, so codelinks skips them in any other.
+`test_cases` names the GTest cases the specification covers, separated by `\,`
+-- a parameterised one lists every instance -- and is what the derived `results`
+link matches. It is a string, because ubc drops a codelinks list field that is not
+a link type, so a case name cannot contain a comma.
+
+**Test results: the test-report directive.** spl-core writes each component's
+results page with sphinx-test-reports' `test-report` directive
+(`SPL_TEST_RESULTS_AS_NEEDS` is off), which reads the JUnit XML. Both readers
+run it, with the settings of the `[test_reports]` table in ubproject.toml. A
+test specification's `results` link is derived in ubproject.toml: the test
+cases whose `case` is one of the specification's `test_cases`. A join compares
+exactly and takes no wildcard, so a new instance of a parameterised test links
+only once its specification lists it.
 
 ### What the data holds
 
@@ -381,7 +393,8 @@ automatic ones Spa runs).
 1. Add it to the variant's `parts.cmake`.
 2. Write its documentation in `<component>/doc/index.md`, with a `## Traceability`
    section (`src-trace`) and a `## Verification` section inside
-   `{if} var.build_config.target == "reports"`, as the other components do.
+   `{if} var.build_config.target == "reports"` (`src-trace` with `:project: tests`
+   if it has test specifications), as the other components do.
 
 The next selection writes its rule, and the glob toctree in
 `doc/components/index.md` lists it. Nothing else is edited, and nothing under

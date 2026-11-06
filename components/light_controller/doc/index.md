@@ -122,6 +122,11 @@ stateDiagram-v2
 
 ## Verification
 
+```{src-trace}
+:project: tests
+:directory: light_controller
+```
+
 ```{toctree}
 :maxdepth: 1
 :glob:

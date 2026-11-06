@@ -12,15 +12,7 @@ extern "C"
 
 #include "mockup_components_power_signal_processing.h"
 
-/*!
- * @rst
- *
- * .. test:: power_signal_processing.test_power_stays_off
- *    :id: TS_PSP-001
- *    :tests: SWDD_PSP-001
- *
- * @endrst
- */
+// @need power_signal_processing.test_power_stays_off, TS_PSP-001, test, [SWDD_PSP-001], power_signal_processing.test_power_stays_off
 TEST(power_signal_processing, test_power_stays_off)
 {
     CREATE_MOCK(mymock);
@@ -32,15 +24,7 @@ TEST(power_signal_processing, test_power_stays_off)
     powerSignalProcessing();
 }
 
-/*!
- * @rst
- *
- * .. test:: power_signal_processing.test_power_toggles
- *    :id: TS_PSP-002
- *    :tests: SWDD_PSP-002, SWDD_PSP-003
- *
- * @endrst
- */
+// @need power_signal_processing.test_power_toggles, TS_PSP-002, test, [SWDD_PSP-002, SWDD_PSP-003], power_signal_processing.test_power_toggles
 TEST(power_signal_processing, test_power_toggles)
 {
     CREATE_MOCK(mymock); // Assuming you have a mock creation macro
@@ -65,17 +49,8 @@ TEST(power_signal_processing, test_power_toggles)
 }
 
 #ifdef CONFIG_AUTO_OFF
-/*!
- * @rst
- *
- * .. test:: power_signal_processing.test_auto_off_event_powers_down
- *    :id: TS_PSP-003
- *    :tests: SWDD_PSP-004
- *
- * Test that when auto off event occurs, the system is powered down.
- *
- * @endrst
- */
+// Test that when auto off event occurs, the system is powered down.
+// @need power_signal_processing.test_auto_off_event_powers_down, TS_PSP-003, test, [SWDD_PSP-004], power_signal_processing.test_auto_off_event_powers_down
 TEST(power_signal_processing, test_auto_off_event_powers_down)
 {
     CREATE_MOCK(mymock);
@@ -88,17 +63,8 @@ TEST(power_signal_processing, test_auto_off_event_powers_down)
     powerSignalProcessing();
 }
 
-/*!
- * @rst
- *
- * .. test:: power_signal_processing.test_no_auto_off_event_no_action
- *    :id: TS_PSP-004
- *    :tests: SWDD_PSP-005
- *
- * Test that when no auto off event occurs and no power key is pressed, no action is taken.
- *
- * @endrst
- */
+// Test that when no auto off event occurs and no power key is pressed, no action is taken.
+// @need power_signal_processing.test_no_auto_off_event_no_action, TS_PSP-004, test, [SWDD_PSP-005], power_signal_processing.test_no_auto_off_event_no_action
 TEST(power_signal_processing, test_no_auto_off_event_no_action)
 {
     CREATE_MOCK(mymock);

@@ -74,6 +74,11 @@ stateDiagram-v2
 
 ## Verification
 
+```{src-trace}
+:project: tests
+:directory: power_button
+```
+
 ```{toctree}
 :maxdepth: 1
 :glob:

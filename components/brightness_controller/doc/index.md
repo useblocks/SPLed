@@ -74,6 +74,11 @@ The Brightness Controller is use the RTE interface `RteSetBrightnessAdjustmentCo
 
 ## Verification
 
+```{src-trace}
+:project: tests
+:directory: brightness_controller
+```
+
 ```{toctree}
 :maxdepth: 1
 :glob:

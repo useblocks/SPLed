@@ -72,15 +72,10 @@ html_title = f"{project} {_html_title_variant} {release}".strip() if _html_title
 
 html_logo = "doc/_figures/SPLED_logo.png"
 
-# Get default SPL extensions and their configurations. The test results are
-# needs.json that spl-core writes after each test run and both readers import
-# (SPL_TEST_RESULTS_AS_NEEDS in CMakeLists.txt), so sphinx-test-reports' directive,
-# which only Sphinx knows, is not loaded.
-extensions = [
-    *(extension for extension in SplSphinx.default_extensions if extension != "sphinxcontrib.test_reports"),
-    "sphinx_codelinks",
-    "sphinx_mounts",
-]
+# Get default SPL extensions and their configurations. sphinx-test-reports is
+# among them; its settings are the [test_reports] table of ubproject.toml, which
+# ubCode and ubc read as well.
+extensions = [*SplSphinx.default_extensions, "sphinx_codelinks", "sphinx_mounts"]
 extension_configs = SplSphinx.default_extension_configs
 
 # sphinx-codelinks: extract one-line need definitions from source code comments
@@ -103,22 +98,20 @@ needs_from_toml = "ubproject.toml"
 # the same file through `extend`.
 sources_from_toml = "ubproject.variants.toml"
 
-# The `results` links of the test specifications are data, written by spl-core's
-# converter as needextend blocks on each results page, so no needs function and
-# no computed default is registered: every need and every link is something
-# ubCode reads as well.
+# The `results` links of the test specifications are a derived link type in
+# ubproject.toml, so no needs function and no computed default is registered:
+# every need and every link is something ubCode reads as well.
 
 
-# One warning is dropped, and only that one, for two fields. ubproject.toml has
-# to declare the test results' `file` field, because ubc drops an undeclared
-# field of an imported need without a word, and `remote-url`, because ubc links
-# only a declared field. sphinx-codelinks registers fields of the same names,
-# and sphinx-needs compares field names only, so it warns
-# "Duplicate need field '<name>'" although both declarations agree. Sphinx can only
-# suppress a whole warning type (`needs.config`), which would hide every other
-# problem in the needs configuration; this filter matches the two messages.
+# One warning is dropped, and only that one, for one field. ubproject.toml has
+# to declare `remote-url`, because ubc links only a declared field.
+# sphinx-codelinks registers a field of the same name, and sphinx-needs compares
+# field names only, so it warns "Duplicate need field '<name>'" although both
+# declarations agree. Sphinx can only suppress a whole warning type
+# (`needs.config`), which would hide every other problem in the needs
+# configuration; this filter matches the one message.
 # Remove it once sphinx-needs accepts a matching declaration.
-_FIELDS_CODELINKS_REGISTERS_TOO = ("file", "remote-url")
+_FIELDS_CODELINKS_REGISTERS_TOO = ("remote-url",)
 
 
 class _DropTheDuplicateFieldWarning(logging.Filter):

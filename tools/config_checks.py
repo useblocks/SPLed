@@ -35,7 +35,9 @@ def vendored_needs_model(project: dict[str, Any], spl_core: dict[str, Any]) -> l
     """spl-core's needs model is vendored into ubproject.toml; a copy has to stay a copy."""
     findings: list[str] = []
     expected_links = {link["option"]: {"incoming": link["incoming"], "outgoing": link["outgoing"]} for link in spl_core["needs"]["extra_links"]}
-    if project["needs"].get("links") != expected_links:
+    # Only the names are vendored: a derive this project adds to a link type is its own.
+    ours_links = {name: {key: link.get(key) for key in ("incoming", "outgoing")} for name, link in project["needs"].get("links", {}).items()}
+    if ours_links != expected_links:
         findings.append("the link types in ubproject.toml differ from spl-core's extra_links")
     fields = project["needs"].get("fields", {})
     for option in spl_core["needs"]["extra_options"]:

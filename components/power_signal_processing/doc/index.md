@@ -120,6 +120,11 @@ graph TD
 
 ## Verification
 
+```{src-trace}
+:project: tests
+:directory: power_signal_processing
+```
+
 ```{toctree}
 :maxdepth: 1
 :glob:

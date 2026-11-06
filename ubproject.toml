@@ -164,128 +164,20 @@ style = "node"
 
 # --- end vendored -----------------------------------------------------------
 
-# Test results. spl-core converts each component's JUnit XML into needs.json
-# after the test run (SPL_TEST_RESULTS_AS_NEEDS in CMakeLists.txt), with the
-# types, IDs and fields sphinx-test-reports' test-report directive used to
-# create, so both readers import them. Declared here because no extension
-# registers them any more.
-[[needs.types]]
-directive = "testfile"
-title = "Test-File"
-prefix = "TF_"
-color = "#ffffff"
-style = "node"
+# A test specification's `results` are the test cases it names in `test_cases`,
+# derived by both readers from the test-report needs. A join compares exactly
+# and takes no wildcard, so a parameterised specification lists every instance.
+[needs.links.results.derive_by_type.test]
+kind = "links"
+join = { field = "case", equals = "test_cases" }
 
-[[needs.types]]
-directive = "testsuite"
-title = "Test-Suite"
-prefix = "TS_"
-color = "#cccccc"
-style = "folder"
+# ponytail: instances listed by hand; drop once ub-test-reports splits the GTest
+# instance into `case_parameter` and the join can use `case_name`.
+[needs.fields.test_cases]
+description = "The GTest names of the test cases a test specification covers, comma-separated"
+default = ""
 
-[[needs.types]]
-directive = "testcase"
-title = "Test-Case"
-prefix = "TC_"
-color = "#999999"
-style = "rectangle"
-
-[needs.fields.suites]
-description = "Test result: suites"
-nullable = true
-
-[needs.fields.suites.schema]
-type = "integer"
-
-[needs.fields.cases]
-description = "Test result: cases"
-nullable = true
-
-[needs.fields.cases.schema]
-type = "integer"
-
-[needs.fields.passed]
-description = "Test result: passed"
-nullable = true
-
-[needs.fields.passed.schema]
-type = "integer"
-
-[needs.fields.skipped]
-description = "Test result: skipped"
-nullable = true
-
-[needs.fields.skipped.schema]
-type = "integer"
-
-[needs.fields.failed]
-description = "Test result: failed"
-nullable = true
-
-[needs.fields.failed.schema]
-type = "integer"
-
-[needs.fields.errors]
-description = "Test result: errors"
-nullable = true
-
-[needs.fields.errors.schema]
-type = "integer"
-
-[needs.fields.file]
-description = "Test result: file"
-nullable = true
-
-[needs.fields.file.schema]
-type = "string"
-
-[needs.fields.suite]
-description = "Test result: suite"
-nullable = true
-
-[needs.fields.suite.schema]
-type = "string"
-
-[needs.fields.case]
-description = "Test result: case"
-nullable = true
-
-[needs.fields.case.schema]
-type = "string"
-
-[needs.fields.case_name]
-description = "Test result: case_name"
-nullable = true
-
-[needs.fields.case_name.schema]
-type = "string"
-
-[needs.fields.case_parameter]
-description = "Test result: case_parameter"
-nullable = true
-
-[needs.fields.case_parameter.schema]
-type = "string"
-
-[needs.fields.classname]
-description = "Test result: classname"
-nullable = true
-
-[needs.fields.classname.schema]
-type = "string"
-
-[needs.fields.result]
-description = "Test result: result"
-nullable = true
-
-[needs.fields.result.schema]
-type = "string"
-
-[needs.fields.time]
-description = "Test result: time"
-nullable = true
-
-[needs.fields.time.schema]
+[needs.fields.test_cases.schema]
 type = "string"
 
 [needs.fields.configuration]
@@ -340,6 +232,14 @@ link_url = "{{url}}"
 link_name = "{{path}}#L{{line}}"
 options = ["remote-url"]
 
+# Test results. sphinx-test-reports' test-report directive reads each
+# component's JUnit XML (the page spl-core writes, SPL_TEST_RESULTS_AS_NEEDS OFF
+# in CMakeLists.txt) and creates the testfile, testsuite and testcase needs. The
+# extension registers their types and fields; ubCode and ubc read the same
+# directive, and both take its settings from this table.
+[test_reports]
+report_template = "doc/test_report_template.txt"
+
 [codelinks]
 outdir = "output"
 set_remote_url = true
@@ -355,7 +255,6 @@ comment_type = "cpp"
 [codelinks.projects.components.analyse]
 get_oneline_needs = true
 get_need_id_refs = false
-get_rst = false
 
 [codelinks.projects.components.analyse.preprocessor]
 compile_commands = "build/compile_commands.json"
@@ -384,6 +283,51 @@ default = []
 name = "fulfills"
 type = "list[str]"
 default = []
+
+# The test specifications, one line above each GTest case. `test_cases` names the
+# GTest cases it covers, which the derived `results` link matches, separated by
+# `\,` (an escaped field separator). It is a string: ubc drops a list field that
+# is not a link type, and the join splits a string on commas -- so a case name
+# cannot contain one. Test sources are in the compile database of a test-kit
+# build only, so in a prod build codelinks skips them.
+[codelinks.projects.tests]
+remote_url_pattern = "https://github.com/avengineers/SPLed/blob/{commit}/{path}#L{line}"
+
+[codelinks.projects.tests.source_discover]
+src_dir = "components"
+include = ["**/test/**/*.cc"]
+comment_type = "cpp"
+
+[codelinks.projects.tests.analyse]
+get_oneline_needs = true
+get_need_id_refs = false
+
+[codelinks.projects.tests.analyse.preprocessor]
+compile_commands = "build/compile_commands.json"
+
+[codelinks.projects.tests.analyse.oneline_comment_style]
+start_sequence = "@need"
+end_sequence = "\n"
+field_split_char = ","
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "title"
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "id"
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "type"
+default = "test"
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "tests"
+type = "list[str]"
+default = []
+
+[[codelinks.projects.tests.analyse.oneline_comment_style.needs_fields]]
+name = "test_cases"
+default = ""
 
 # ---------------------------------------------------------------------------
 # Variant-dependent documentation.

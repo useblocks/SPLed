@@ -63,6 +63,11 @@ The main control knob component uses the RTE interface `RteSetMainKnobValue()` t
 
 ## Verification
 
+```{src-trace}
+:project: tests
+:directory: main_control_knob
+```
+
 ```{toctree}
 :maxdepth: 1
 :glob:
